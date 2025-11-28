@@ -1,13 +1,26 @@
+// src/App.js
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+
+// Pages
+import Home from "./pages/Home";
 import TableView from "./pages/TableView";
+import InsertRecord from "./pages/InsertRecord";
+import Login from "./pages/Login";
+import EditRecord from "./pages/EditRecord";
+import Export from "./pages/Export";
+import Reporting from "./pages/Reporting";
 
 function App() {
   return (
     <Router>
       <Routes>
+        <Route path="/" element={<Home />} />
         <Route path="/table-view" element={<TableView />} />
-        <Route path="/" element={<h1>Home Page</h1>} />
+        <Route path="/insert" element={<InsertRecord />} />
+        <Route path="/edit/:id" element={<EditRecord />} />
+        <Route path="/export" element={<Export />} />
+        <Route path="/reporting" element={<Reporting />} />
       </Routes>
     </Router>
   );
