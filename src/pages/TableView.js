@@ -1,4 +1,5 @@
 // src/pages/TableView.js
+import MainLayout from "../components/common/MainLayout";
 import React, { useState } from "react";
 import SearchFilters from "../components/SearchFilters";
 import RecordsTable from "../components/RecordsTable";
@@ -226,11 +227,13 @@ const TableView = () => {
   });
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>Table View</h1>
-      <SearchFilters filters={filters} setFilters={setFilters} />
-      <RecordsTable records={exampleRecords} filters={filters} />
-    </div>
+    <MainLayout>
+      <div style={{ padding: "20px" }}>
+        <h1>Table View</h1>
+        <SearchFilters filters={filters} setFilters={setFilters} />
+        <RecordsTable records={exampleRecords} filters={filters} />
+      </div>
+    </MainLayout>
   );
 };
 

@@ -3,7 +3,7 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 // Pages
-import Home from "./pages/Home";
+import DashBoard from "./pages/DashBoard";
 import TableView from "./pages/TableView";
 import InsertRecord from "./pages/InsertRecord";
 import Login from "./pages/Login";
@@ -15,7 +15,8 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<DashBoard />} />
+        <Route path="/dashBoard" element={<DashBoard />} />
         <Route path="/table-view" element={<TableView />} />
         <Route path="/insert" element={<InsertRecord />} />
         <Route path="/edit/:id" element={<EditRecord />} />
