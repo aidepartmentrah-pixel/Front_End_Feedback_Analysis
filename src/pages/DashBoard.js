@@ -1,6 +1,6 @@
 // src/pages/DashboardPage.js
 import React, { useEffect, useState } from "react";
-import { Container, Grid, Typography } from "@mui/material";
+import { Container, Box, Typography, Grid } from "@mui/joy";
 import axios from "axios";
 
 // Components
@@ -112,29 +112,34 @@ const DashboardPage = () => {
 
   return (
     <MainLayout>
-      <Container maxWidth="xl" style={{ marginTop: "20px" }}>
-        <Typography variant="h4" gutterBottom>
-          Dashboard
-        </Typography>
+      <Box sx={{ maxWidth: "1400px", mx: "auto" }}>
+        <Box sx={{ mb: 4 }}>
+          <Typography level="h2" sx={{ fontWeight: 800, color: "#1a1e3f", mb: 1 }}>
+            Dashboard Overview
+          </Typography>
+          <Typography level="body-sm" sx={{ color: "#667eea" }}>
+            Real-time feedback analytics and hospital insights
+          </Typography>
+        </Box>
 
         {/* Top Row: Metrics */}
-        <Grid container spacing={2} style={{ marginBottom: "20px" }}>
-          <Grid item xs={12} sm={6} md={3}>
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid xs={12} sm={6} md={3}>
             <MetricCard title="Total Incidents" value={metrics.totalIncidents} />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid xs={12} sm={6} md={3}>
             <MetricCard
               title="Open / Closed"
               value={`${metrics.openClosed.open} / ${metrics.openClosed.closed}`}
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid xs={12} sm={6} md={3}>
             <MetricCard
               title="Severity Breakdown"
               value={`H:${metrics.severityBreakdown.high} M:${metrics.severityBreakdown.medium} L:${metrics.severityBreakdown.low}`}
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid xs={12} sm={6} md={3}>
             <MetricCard
               title="Recent Incidents (30d)"
               value={metrics.recentIncidents}
@@ -143,18 +148,18 @@ const DashboardPage = () => {
         </Grid>
 
         {/* Middle Row: Charts */}
-        <Grid container spacing={2} style={{ marginBottom: "20px" }}>
-          <Grid item xs={12} md={4}>
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid xs={12} md={4}>
             <ChartCard title="Top 5 Classifications">
               <Top5ClassificationChart data={chartsData.top5Classification} />
             </ChartCard>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid xs={12} md={4}>
             <ChartCard title="Stage Histogram">
               <StageHistogram data={chartsData.stageHistogram} />
             </ChartCard>
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid xs={12} md={4}>
             <ChartCard title="Issuing Department">
               <IssuingDeptBarGraph data={chartsData.issuingDept} />
             </ChartCard>
@@ -163,7 +168,7 @@ const DashboardPage = () => {
 
         {/* Bottom Row: Actions */}
         <DashboardActions />
-      </Container>
+      </Box>
     </MainLayout>
   );
   

@@ -1,6 +1,7 @@
 // src/pages/TableView.js
 import MainLayout from "../components/common/MainLayout";
 import React, { useState } from "react";
+import { Box, Typography, Card } from "@mui/joy";
 import SearchFilters from "../components/SearchFilters";
 import RecordsTable from "../components/RecordsTable";
 
@@ -228,11 +229,30 @@ const TableView = () => {
 
   return (
     <MainLayout>
-      <div style={{ padding: "20px" }}>
-        <h1>Table View</h1>
-        <SearchFilters filters={filters} setFilters={setFilters} />
-        <RecordsTable records={exampleRecords} filters={filters} />
-      </div>
+      <Box sx={{ maxWidth: "100%", mx: "auto" }}>
+        <Box sx={{ mb: 3 }}>
+          <Typography level="h2" sx={{ fontWeight: 800, color: "#1a1e3f", mb: 1 }}>
+            Records Table
+          </Typography>
+          <Typography level="body-sm" sx={{ color: "#667eea" }}>
+            Search, filter, and manage all feedback records
+          </Typography>
+        </Box>
+
+        <Card
+          sx={{
+            background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
+            border: "1px solid rgba(102, 126, 234, 0.1)",
+            boxShadow: "0 4px 12px rgba(102, 126, 234, 0.08)",
+            p: 2,
+          }}
+        >
+          <SearchFilters filters={filters} setFilters={setFilters} />
+          <Box sx={{ mt: 2, overflow: "auto" }}>
+            <RecordsTable records={exampleRecords} filters={filters} />
+          </Box>
+        </Card>
+      </Box>
     </MainLayout>
   );
 };
