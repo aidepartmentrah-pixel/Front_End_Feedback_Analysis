@@ -10,6 +10,8 @@ import Login from "./pages/Login";
 import EditRecord from "./pages/EditRecord";
 import Export from "./pages/Export";
 import Reporting from "./pages/Reporting";
+import SettingPage from "./pages/SettingPage";
+import PatientHistoryPage from "./pages/PatientHistoryPage";
 
 function App() {
   return (
@@ -22,6 +24,8 @@ function App() {
         <Route path="/edit/:id" element={<EditRecord />} />
         <Route path="/export" element={<Export />} />
         <Route path="/reporting" element={<Reporting />} />
+        <Route path="/settings" element={<SettingPage />} />
+        <Route path="/patient-history" element={<PatientHistoryPage />} />
       </Routes>
     </Router>
   );

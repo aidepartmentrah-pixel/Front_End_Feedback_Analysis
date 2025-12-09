@@ -16,8 +16,10 @@ const Sidebar = () => {
     { name: "📊 Dashboard", path: "/" },
     { name: "➕ Insert Record", path: "/insert" },
     { name: "📋 Table View", path: "/table-view" },
+    { name: "👤 Patient History", path: "/patient-history" },
     { name: "📈 Reporting", path: "/reporting" },
-    { name: "📤 Export", path: "/export" }
+    { name: "📤 Export", path: "/export" },
+    { name: "⚙️ Settings", path: "/settings" }
   ];
 
   return (

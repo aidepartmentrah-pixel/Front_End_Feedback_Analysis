@@ -54,47 +54,63 @@ const RecordsTable = ({ records, filters }) => {
     setSortConfig({ key, direction });
   };
 
-  // Get severity color
-  const getSeverityColor = (severity) => {
-    switch (severity?.toLowerCase()) {
-      case "high":
-        return "danger";
-      case "medium":
-        return "warning";
-      case "low":
-        return "success";
-      default:
-        return "neutral";
-    }
+  // Get severity color with solid background
+  const getSeverityStyle = (severity) => {
+    const text = severity?.toLowerCase() || "";
+    const styleMap = {
+      high: { background: "#ff4757", color: "white", label: "High" },
+      medium: { background: "#ffa502", color: "white", label: "Medium" },
+      low: { background: "#2ed573", color: "white", label: "Low" },
+    };
+    return styleMap[text] || { background: "#999", color: "white", label: severity };
   };
 
-  // Get status color
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case "closed":
-        return "success";
-      case "in progress":
-        return "warning";
-      case "pending":
-        return "neutral";
-      default:
-        return "neutral";
-    }
+  // Get status color with solid background
+  const getStatusStyle = (status) => {
+    const text = status?.toLowerCase() || "";
+    const styleMap = {
+      closed: { background: "#2ed573", color: "white", label: "Closed" },
+      "in progress": { background: "#ffa502", color: "white", label: "In Progress" },
+      pending: { background: "#667eea", color: "white", label: "Pending" },
+    };
+    return styleMap[text] || { background: "#999", color: "white", label: status };
   };
 
-  // Get harm level color
-  const getHarmColor = (harm) => {
-    switch (harm?.toLowerCase()) {
-      case "high":
-        return "danger";
-      case "medium":
-        return "warning";
-      case "low":
-        return "success";
-      default:
-        return "neutral";
-    }
+  // Get harm level color with solid background
+  const getHarmStyle = (harm) => {
+    const text = harm?.toLowerCase() || "";
+    const styleMap = {
+      high: { background: "#ff4757", color: "white", label: "High" },
+      medium: { background: "#ffa502", color: "white", label: "Moderate" },
+      low: { background: "#2ed573", color: "white", label: "Low" },
+      "moderate harm": { background: "#ffa502", color: "white", label: "Moderate" },
+    };
+    return styleMap[text] || { background: "#999", color: "white", label: harm };
   };
+
+  // Badge component with proper styling
+  const StyledBadge = ({ style, text }) => (
+    <Box
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: style.background,
+        color: style.color,
+        padding: "6px 8px",
+        borderRadius: "4px",
+        fontWeight: 700,
+        fontSize: "12px",
+        textAlign: "center",
+        width: "90px",
+        height: "28px",
+        whiteSpace: "nowrap",
+        boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+      }}
+    >
+      {text}
+    </Box>
+  );
 
   const SortableHeader = ({ label, sortKey }) => (
     <Tooltip title={`Click to sort by ${label}`}>
@@ -289,27 +305,21 @@ const RecordsTable = ({ records, filters }) => {
                   <td>{record.feedback_type}</td>
                   <td>{record.domain}</td>
                   <td>
-                    <Chip
-                      variant="soft"
-                      size="sm"
-                      color={getSeverityColor(record.severity_level)}
-                      label={record.severity_level}
+                    <StyledBadge
+                      style={getSeverityStyle(record.severity_level)}
+                      text={getSeverityStyle(record.severity_level).label}
                     />
                   </td>
                   <td>
-                    <Chip
-                      variant="soft"
-                      size="sm"
-                      color={getStatusColor(record.status)}
-                      label={record.status}
+                    <StyledBadge
+                      style={getStatusStyle(record.status)}
+                      text={getStatusStyle(record.status).label}
                     />
                   </td>
                   <td>
-                    <Chip
-                      variant="soft"
-                      size="sm"
-                      color={getHarmColor(record.harm_level)}
-                      label={record.harm_level}
+                    <StyledBadge
+                      style={getHarmStyle(record.harm_level)}
+                      text={getHarmStyle(record.harm_level).label}
                     />
                   </td>
                   <td>
