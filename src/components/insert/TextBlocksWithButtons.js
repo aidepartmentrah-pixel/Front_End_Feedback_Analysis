@@ -1,0 +1,103 @@
+// src/components/insert/TextBlocksWithButtons.js
+import React, { useState } from "react";
+import { Box, Card, Typography, Textarea, Button, Grid } from "@mui/joy";
+import MicIcon from "@mui/icons-material/Mic";
+import ClearIcon from "@mui/icons-material/Clear";
+
+const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdText, onTextChange }) => {
+  const [recording, setRecording] = useState(null);
+
+  const textBlocks = [
+    { field: "complaintText", label: "📝 Complaint Text", placeholder: "Enter complaint details..." },
+    { field: "additionalNotes", label: "⚡ Immediate Action", placeholder: "Enter immediate action taken..." },
+    { field: "optionalThirdText", label: "🏥 الإجراءات المتخذة", placeholder: "أدخل الإجراءات المتخذة..." },
+  ];
+
+  const handleRecord = (field) => {
+    // Placeholder for actual audio recording
+    setRecording(field);
+    setTimeout(() => {
+      setRecording(null);
+      // In production: trigger audio recording and transcription API
+    }, 2000);
+  };
+
+  const handleClear = (field) => {
+    onTextChange(field, "");
+  };
+
+  return (
+    <Card
+      sx={{
+        mb: 3,
+        p: 3,
+        background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
+        border: "1px solid rgba(102, 126, 234, 0.1)",
+        boxShadow: "0 4px 12px rgba(102, 126, 234, 0.08)",
+      }}
+    >
+      <Typography level="h3" sx={{ color: "#1a1e3f", fontWeight: 700, mb: 2 }}>
+        Step 1: Text Input & Audio Transcription
+      </Typography>
+
+      <Grid container spacing={2}>
+        {textBlocks.map((block) => (
+          <Grid xs={12} key={block.field}>
+            <Box>
+              <Typography level="body-sm" sx={{ fontWeight: 600, mb: 1, color: "#667eea" }}>
+                {block.label}
+              </Typography>
+              <Textarea
+                placeholder={block.placeholder}
+                minRows={4}
+                value={block.field === "complaintText" ? complaintText : block.field === "additionalNotes" ? additionalNotes : optionalThirdText}
+                onChange={(e) => onTextChange(block.field, e.target.value)}
+                sx={{
+                  borderRadius: "8px",
+                  "&:focus-within": {
+                    borderColor: "#667eea",
+                  },
+                }}
+              />
+              <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+                <Button
+                  size="sm"
+                  variant="outlined"
+                  startDecorator={<MicIcon />}
+                  onClick={() => handleRecord(block.field)}
+                  disabled={recording === block.field}
+                  sx={{ flex: 1 }}
+                >
+                  {recording === block.field ? "Recording..." : "🎤 Record"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outlined"
+                  color="danger"
+                  startDecorator={<ClearIcon />}
+                  onClick={() => handleClear(block.field)}
+                  sx={{ flex: 1 }}
+                >
+                  Clear
+                </Button>
+              </Box>
+            </Box>
+          </Grid>
+        ))}
+      </Grid>
+
+      <Typography
+        level="body-xs"
+        sx={{
+          mt: 2,
+          color: "#999",
+          fontStyle: "italic",
+        }}
+      >
+        💡 Tip: Click "Record" to capture audio input, which will be transcribed to text. Or manually type your complaint details.
+      </Typography>
+    </Card>
+  );
+};
+
+export default TextBlocksWithButtons;

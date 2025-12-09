@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Box, Typography, Card } from "@mui/joy";
 import SearchFilters from "../components/SearchFilters";
 import RecordsTable from "../components/RecordsTable";
+import ExportSection from "../components/TableView/ExportSection";
 
 // COMPLETE MOCK DATA: 10 example records
 const exampleRecords = [
@@ -227,6 +228,20 @@ const TableView = () => {
     source: "All"
   });
 
+  // Calculate filtered records count
+  const filteredRecords = exampleRecords.filter((record) => {
+    const matchesSearch =
+      record.record_id.toLowerCase().includes(filters.searchText.toLowerCase()) ||
+      record.patient_full_name.toLowerCase().includes(filters.searchText.toLowerCase());
+    const matchesIssuing =
+      filters.issuingDept === "All" || record.issuing_department === filters.issuingDept;
+    const matchesTarget =
+      filters.targetDept === "All" || record.target_department === filters.targetDept;
+    const matchesSource =
+      filters.source === "All" || record.source_1 === filters.source;
+    return matchesSearch && matchesIssuing && matchesTarget && matchesSource;
+  });
+
   return (
     <MainLayout>
       <Box sx={{ maxWidth: "100%", mx: "auto" }}>
@@ -252,6 +267,9 @@ const TableView = () => {
             <RecordsTable records={exampleRecords} filters={filters} />
           </Box>
         </Card>
+
+        {/* Export Section */}
+        <ExportSection filteredRecordCount={filteredRecords.length} allRecords={filteredRecords} />
       </Box>
     </MainLayout>
   );

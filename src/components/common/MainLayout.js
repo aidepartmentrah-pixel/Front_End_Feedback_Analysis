@@ -4,13 +4,13 @@ import TopBar from "./Topbar";
 import { Box, Sheet } from "@mui/joy";
 
 const MainLayout = ({ children }) => (
-  <Box display="flex" height="100vh">
+  <Box sx={{ display: "flex", height: "100vh", width: "100%" }}>
     <Sidebar />
-    <Box flexGrow={1} display="flex" flexDirection="column">
+    <Box sx={{ flex: 1, display: "flex", flexDirection: "column", width: "100%", marginLeft: "280px" }}>
       <TopBar />
       <Sheet
         sx={{
-          flexGrow: 1,
+          flex: 1,
           p: 3,
           overflow: "auto",
           backgroundColor: "#f5f7fa",

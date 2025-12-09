@@ -15,7 +15,6 @@ const Sidebar = () => {
   const pages = [
     { name: "📊 Dashboard", path: "/" },
     { name: "➕ Insert Record", path: "/insert" },
-    { name: "✏️ Edit Record", path: "/edit" },
     { name: "📋 Table View", path: "/table-view" },
     { name: "📈 Reporting", path: "/reporting" },
     { name: "📤 Export", path: "/export" }
@@ -28,9 +27,23 @@ const Sidebar = () => {
         height: "100vh",
         display: "flex",
         flexDirection: "column",
+        flexShrink: 0,
         background: "linear-gradient(180deg, #1a1e3f 0%, #2d3561 100%)",
         boxShadow: "4px 0 12px rgba(0, 0, 0, 0.1)",
         overflow: "auto",
+        position: "fixed",
+        left: 0,
+        top: 0,
+        color: "#ffffff",
+        "& *": {
+          color: "inherit !important",
+        },
+        "& .MuiListItemButton-root": {
+          color: "#ffffff !important",
+        },
+        "& .MuiTypography-root": {
+          color: "#ffffff !important",
+        },
       }}
     >
       {/* Logo Section */}
@@ -38,15 +51,15 @@ const Sidebar = () => {
         <Typography
           level="h3"
           sx={{
-            color: "#667eea",
+            color: "#fff",
             fontWeight: 800,
-            fontSize: "24px",
-            textShadow: "0 2px 8px rgba(102, 126, 234, 0.3)",
+            fontSize: "28px",
+            textShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
           }}
         >
           FeedbackAI
         </Typography>
-        <Typography level="body-xs" sx={{ color: "rgba(255,255,255,0.6)", mt: 1 }}>
+        <Typography level="body-xs" sx={{ color: "#e0e7ff", mt: 1, fontSize: "12px" }}>
           Hospital Feedback System
         </Typography>
       </Box>
@@ -62,22 +75,34 @@ const Sidebar = () => {
             to={page.path}
             selected={location.pathname === page.path}
             sx={{
-              mb: 1,
-              color: "rgba(255,255,255,0.8)",
+              mb: 1.5,
+              color: "#ffffff !important",
+              fontSize: "15px",
+              fontWeight: 500,
+              "& .MuiTypography-root": {
+                color: "#ffffff !important",
+                fontSize: "15px !important",
+              },
               "&:hover": {
-                backgroundColor: "rgba(102, 126, 234, 0.2)",
-                color: "#667eea",
+                backgroundColor: "rgba(102, 126, 234, 0.25)",
+                color: "#ffffff !important",
+                "& .MuiTypography-root": {
+                  color: "#ffffff !important",
+                },
               },
               "&.Mui-selected": {
-                backgroundColor: "rgba(102, 126, 234, 0.3)",
-                color: "#667eea",
-                fontWeight: 600,
+                backgroundColor: "rgba(102, 126, 234, 0.35)",
+                color: "#ffffff !important",
+                fontWeight: 700,
+                "& .MuiTypography-root": {
+                  color: "#ffffff !important",
+                },
               },
               borderRadius: "8px",
               transition: "all 0.3s ease",
             }}
           >
-            <Typography level="body-sm">{page.name}</Typography>
+            <Typography level="body-sm" sx={{ fontSize: "15px", fontWeight: "inherit", color: "#ffffff !important" }}>{page.name}</Typography>
           </ListItemButton>
         ))}
       </List>
@@ -86,7 +111,7 @@ const Sidebar = () => {
 
       {/* Footer Info */}
       <Box sx={{ p: 2, textAlign: "center" }}>
-        <Typography level="body-xs" sx={{ color: "rgba(255,255,255,0.5)" }}>
+        <Typography level="body-xs" sx={{ color: "#ffffff", fontSize: "12px", fontWeight: 600 }}>
           v1.0.0
         </Typography>
       </Box>
