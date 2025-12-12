@@ -1,15 +1,26 @@
 // src/components/insert/ClassificationFields.js
 import React from "react";
-import { Box, Card, Typography, FormControl, FormLabel, Input, Select, Option, Grid } from "@mui/joy";
+import {
+  Card,
+  Typography,
+  FormControl,
+  FormLabel,
+  Select,
+  Option,
+  Grid,
+} from "@mui/joy";
+
+import {
+  DOMAIN_OPTIONS,
+  CATEGORY_OPTIONS,
+  SUBCATEGORY_OPTIONS,
+  CLASSIFICATION_OPTIONS,
+  SEVERITY_OPTIONS,
+  STAGE_OPTIONS,
+  HARM_OPTIONS,
+} from "../../utils/fieldMappings";
 
 const ClassificationFields = ({ formData, onInputChange }) => {
-  const categories = ["Safety", "Quality", "Clinical", "Management", "Administrative"];
-  const subCategories = ["Neglect - General", "Documentation", "Communication", "Billing", "Other"];
-  const severities = ["Low", "Medium", "High"];
-  const stages = ["Admission", "Care on the Ward", "Examination & Diagnosis", "Discharge"];
-  const harmLevels = ["No Harm", "Minor Harm", "Moderate Harm", "High Harm"];
-  const improvementTypes = ["Yes", "No"];
-
   return (
     <Card
       sx={{
@@ -21,83 +32,148 @@ const ClassificationFields = ({ formData, onInputChange }) => {
       }}
     >
       <Typography level="h3" sx={{ color: "#e65100", fontWeight: 700, mb: 2 }}>
-        Step 4: Classification & Categorization
+        Step 4: AI Classification & Severity Fields
       </Typography>
 
       <Typography level="body-sm" sx={{ color: "#e65100", mb: 2 }}>
-        Classify your record by category, severity, stage, and other attributes. These fields can be auto-populated by the Extract button.
+        Classify your record starting from Domain → Category → Subcategory → Classification, then set Severity, Stage, Harm & Improvement.
       </Typography>
 
       <Grid container spacing={2}>
-        {/* Category */}
-        <Grid xs={12} sm={6} md={4}>
+
+        {/* Domain */}
+        <Grid xs={12} sm={6} md={3}>
           <FormControl fullWidth>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              📂 Category
+              🌐 Domain *
             </FormLabel>
             <Select
-              value={formData.category}
-              onChange={(e, value) => onInputChange("category", value)}
-            >
-              {categories.map((c) => (
-                <Option key={c} value={c}>
-                  {c}
-                </Option>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-
-        {/* Sub-Category */}
-        <Grid xs={12} sm={6} md={4}>
-          <FormControl fullWidth>
-            <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              📑 Sub-Category
-            </FormLabel>
-            <Select
-              value={formData.subCategory}
-              onChange={(e, value) => onInputChange("subCategory", value)}
-            >
-              {subCategories.map((s) => (
-                <Option key={s} value={s}>
-                  {s}
-                </Option>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-
-        {/* New Classification */}
-        <Grid xs={12} sm={6} md={4}>
-          <FormControl fullWidth>
-            <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              🏷️ New Classification
-            </FormLabel>
-            <Input
-              type="text"
-              placeholder="e.g., Adverse Event, Near Miss..."
-              value={formData.newClassification}
-              onChange={(e) => onInputChange("newClassification", e.target.value)}
+              value={formData.domain_id || ""}
+              onChange={(e, value) => onInputChange("domain_id", value)}
+              placeholder="Select Domain"
+              onClose={() => {}}
+              onBlur={() => {}}
               slotProps={{
-                input: { style: { borderRadius: "8px" } },
+                listbox: {
+                  sx: { maxHeight: 250, overflowY: 'auto' }
+                }
               }}
-            />
+            >
+              {DOMAIN_OPTIONS.map((opt) => (
+                <Option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </Option>
+              ))}
+            </Select>
           </FormControl>
         </Grid>
 
+        {/* Category */}
+        <Grid xs={12} sm={6} md={3}>
+          <FormControl fullWidth>
+            <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
+              📂 Category *
+            </FormLabel>
+            <Select
+              value={formData.category_id || ""}
+              onChange={(e, value) => onInputChange("category_id", value)}
+              placeholder="Select Category"
+              onClose={() => {}}
+              onBlur={() => {}}
+              slotProps={{
+                listbox: {
+                  sx: { maxHeight: 250, overflowY: 'auto' }
+                }
+              }}
+            >
+              {CATEGORY_OPTIONS.map((opt) => (
+                <Option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </Option>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+
+        {/* Subcategory */}
+        <Grid xs={12} sm={6} md={3}>
+          <FormControl fullWidth>
+            <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
+              📑 Sub-Category *
+            </FormLabel>
+            <Select
+              value={formData.subcategory_id || ""}
+              onChange={(e, value) => onInputChange("subcategory_id", value)}
+              placeholder="Select Sub-Category"
+              onClose={() => {}}
+              onBlur={() => {}}
+              slotProps={{
+                listbox: {
+                  sx: { maxHeight: 250, overflowY: 'auto' }
+                }
+              }}
+            >
+              {SUBCATEGORY_OPTIONS.map((opt) => (
+                <Option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </Option>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+
+        {/* Classification */}
+        <Grid xs={12} sm={6} md={3}>
+          <FormControl fullWidth>
+            <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
+              🏷️ Classification *
+            </FormLabel>
+            <Select
+              value={formData.classification_id || ""}
+              onChange={(e, value) => onInputChange("classification_id", value)}
+              placeholder="Select Classification"
+              onClose={() => {}}
+              onBlur={() => {}}
+              slotProps={{
+                listbox: {
+                  sx: { maxHeight: 250, overflowY: 'auto' }
+                }
+              }}
+            >
+              {CLASSIFICATION_OPTIONS.map((opt) => (
+                <Option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </Option>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+
+      </Grid>
+
+      {/* Severity, Stage, Harm, Improvement (formerly Step 5) */}
+      <Grid container spacing={2} sx={{ mt: 2 }}>
         {/* Severity */}
         <Grid xs={12} sm={6} md={3}>
           <FormControl fullWidth>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              ⚠️ Severity
+              ⚠️ Severity *
             </FormLabel>
             <Select
-              value={formData.severity}
-              onChange={(e, value) => onInputChange("severity", value)}
+              value={formData.severity_id || ""}
+              onChange={(e, value) => onInputChange("severity_id", value)}
+              placeholder="Select Severity"
+              onClose={() => {}}
+              onBlur={() => {}}
+              slotProps={{
+                listbox: {
+                  sx: { maxHeight: 250, overflowY: 'auto' }
+                }
+              }}
             >
-              {severities.map((s) => (
-                <Option key={s} value={s}>
-                  {s}
+              {SEVERITY_OPTIONS.map((opt) => (
+                <Option key={opt.id} value={opt.id}>
+                  {opt.label}
                 </Option>
               ))}
             </Select>
@@ -108,15 +184,23 @@ const ClassificationFields = ({ formData, onInputChange }) => {
         <Grid xs={12} sm={6} md={3}>
           <FormControl fullWidth>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              📍 Stage
+              📍 Stage *
             </FormLabel>
             <Select
-              value={formData.stage}
-              onChange={(e, value) => onInputChange("stage", value)}
+              value={formData.stage_id || ""}
+              onChange={(e, value) => onInputChange("stage_id", value)}
+              placeholder="Select Stage"
+              onClose={() => {}}
+              onBlur={() => {}}
+              slotProps={{
+                listbox: {
+                  sx: { maxHeight: 250, overflowY: 'auto' }
+                }
+              }}
             >
-              {stages.map((s) => (
-                <Option key={s} value={s}>
-                  {s}
+              {STAGE_OPTIONS.map((opt) => (
+                <Option key={opt.id} value={opt.id}>
+                  {opt.label}
                 </Option>
               ))}
             </Select>
@@ -127,15 +211,23 @@ const ClassificationFields = ({ formData, onInputChange }) => {
         <Grid xs={12} sm={6} md={3}>
           <FormControl fullWidth>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              🩹 Harm Level
+              🩹 Harm Level *
             </FormLabel>
             <Select
-              value={formData.harm}
-              onChange={(e, value) => onInputChange("harm", value)}
+              value={formData.harm_id || ""}
+              onChange={(e, value) => onInputChange("harm_id", value)}
+              placeholder="Select Harm Level"
+              onClose={() => {}}
+              onBlur={() => {}}
+              slotProps={{
+                listbox: {
+                  sx: { maxHeight: 250, overflowY: 'auto' }
+                }
+              }}
             >
-              {harmLevels.map((h) => (
-                <Option key={h} value={h}>
-                  {h}
+              {HARM_OPTIONS.map((opt) => (
+                <Option key={opt.id} value={opt.id}>
+                  {opt.label}
                 </Option>
               ))}
             </Select>
@@ -149,14 +241,18 @@ const ClassificationFields = ({ formData, onInputChange }) => {
               💡 Improvement Opportunity
             </FormLabel>
             <Select
-              value={formData.improvementType}
-              onChange={(e, value) => onInputChange("improvementType", value)}
+              value={formData.improvement_type || 0}
+              onChange={(e, value) => onInputChange("improvement_type", value)}
+              onClose={() => {}}
+              onBlur={() => {}}
+              slotProps={{
+                listbox: {
+                  sx: { maxHeight: 250, overflowY: 'auto' }
+                }
+              }}
             >
-              {improvementTypes.map((t) => (
-                <Option key={t} value={t}>
-                  {t}
-                </Option>
-              ))}
+              <Option value={1}>Yes</Option>
+              <Option value={0}>No</Option>
             </Select>
           </FormControl>
         </Grid>
@@ -170,7 +266,7 @@ const ClassificationFields = ({ formData, onInputChange }) => {
           fontStyle: "italic",
         }}
       >
-        🤖 Click "Extract" at the bottom to auto-populate these fields using AI analysis of your complaint text.
+        ℹ️ Complete all classification and severity fields. These help categorize incident impact and improvement opportunities.
       </Typography>
     </Card>
   );

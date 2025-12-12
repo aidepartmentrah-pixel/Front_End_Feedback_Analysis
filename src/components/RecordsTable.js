@@ -54,6 +54,11 @@ const RecordsTable = ({ records, filters }) => {
     setSortConfig({ key, direction });
   };
 
+  // Check if record is a red flag
+  const isRedFlag = (record) => {
+    return record.status_id === 4 || record.is_red_flag === true || record.status?.toLowerCase() === "red flag";
+  };
+
   // Get severity color with solid background
   const getSeverityStyle = (severity) => {
     const text = severity?.toLowerCase() || "";
@@ -243,30 +248,33 @@ const RecordsTable = ({ records, filters }) => {
               "--Table-lastBorderRadius": "0 8px 0 0",
               "--TableCell-paddingY": "12px",
               "--TableCell-paddingX": "16px",
+              "& thead th": {
+                textAlign: "center",
+              },
+              "& tbody td": {
+                textAlign: "center",
+              },
             }}
           >
             <thead>
               <tr>
                 <th>
-                  <SortableHeader label="Date" sortKey="feedback_received_date" />
+                  <SortableHeader label="Date Added" sortKey="created_at" />
                 </th>
                 <th>
                   <SortableHeader label="Record ID" sortKey="record_id" />
                 </th>
                 <th>
-                  <SortableHeader label="Patient" sortKey="patient_full_name" />
-                </th>
-                <th>
-                  <SortableHeader label="Issuing Dept" sortKey="issuing_department" />
-                </th>
-                <th>
-                  <SortableHeader label="Target Dept" sortKey="target_department" />
+                  <SortableHeader label="Patient Name" sortKey="patient_full_name" />
                 </th>
                 <th>
                   <SortableHeader label="Source" sortKey="source_1" />
                 </th>
                 <th>Type</th>
                 <th>Domain</th>
+                <th>Category</th>
+                <th>Subcategory</th>
+                <th>Classification (EN)</th>
                 <th>
                   <SortableHeader label="Severity" sortKey="severity_level" />
                 </th>
@@ -280,19 +288,30 @@ const RecordsTable = ({ records, filters }) => {
             </thead>
             <tbody>
               {sortedRecords.map((record) => (
-                <tr key={record.record_id}>
-                  <td>{record.feedback_received_date}</td>
+                <tr 
+                  key={record.record_id}
+                  style={{
+                    background: isRedFlag(record) ? "#ffebee" : "transparent",
+                    borderLeft: isRedFlag(record) ? "4px solid #d32f2f" : "none",
+                  }}
+                >
                   <td>
-                    <Typography level="body-sm" sx={{ fontWeight: 600, color: "#667eea" }}>
-                      {record.record_id}
+                    <Typography level="body-sm" sx={{ color: isRedFlag(record) ? "#b71c1c" : "inherit" }}>
+                      {record.created_at || record.date_added || record.feedback_received_date}
                     </Typography>
                   </td>
-                  <td>{record.patient_full_name}</td>
                   <td>
-                    <Typography level="body-xs">{record.issuing_department}</Typography>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      {isRedFlag(record) && <span style={{ fontSize: "16px" }}>🚩</span>}
+                      <Typography level="body-sm" sx={{ fontWeight: 600, color: isRedFlag(record) ? "#b71c1c" : "#667eea" }}>
+                        {record.record_id}
+                      </Typography>
+                    </Box>
                   </td>
                   <td>
-                    <Typography level="body-xs">{record.target_department}</Typography>
+                    <Typography level="body-sm" sx={{ color: isRedFlag(record) ? "#b71c1c" : "inherit" }}>
+                      {record.patient_full_name}
+                    </Typography>
                   </td>
                   <td>
                     <Chip
@@ -302,8 +321,31 @@ const RecordsTable = ({ records, filters }) => {
                       sx={{ background: "rgba(102, 126, 234, 0.1)", color: "#667eea" }}
                     />
                   </td>
-                  <td>{record.feedback_type}</td>
-                  <td>{record.domain}</td>
+                  <td>
+                    <Typography level="body-sm" sx={{ color: isRedFlag(record) ? "#b71c1c" : "inherit" }}>
+                      {record.feedback_type}
+                    </Typography>
+                  </td>
+                  <td>
+                    <Typography level="body-sm" sx={{ color: isRedFlag(record) ? "#b71c1c" : "inherit" }}>
+                      {record.domain}
+                    </Typography>
+                  </td>
+                  <td>
+                    <Typography level="body-sm" sx={{ color: isRedFlag(record) ? "#b71c1c" : "inherit" }}>
+                      {record.category_label || record.category}
+                    </Typography>
+                  </td>
+                  <td>
+                    <Typography level="body-sm" sx={{ color: isRedFlag(record) ? "#b71c1c" : "inherit" }}>
+                      {record.subcategory_label || record.sub_category}
+                    </Typography>
+                  </td>
+                  <td>
+                    <Typography level="body-sm" sx={{ color: isRedFlag(record) ? "#b71c1c" : "inherit" }}>
+                      {record.classification_en_label || record.classification_en || record.classification_ar}
+                    </Typography>
+                  </td>
                   <td>
                     <StyledBadge
                       style={getSeverityStyle(record.severity_level)}
@@ -323,7 +365,9 @@ const RecordsTable = ({ records, filters }) => {
                     />
                   </td>
                   <td>
-                    <Typography level="body-xs">{record.stage}</Typography>
+                    <Typography level="body-sm" sx={{ color: isRedFlag(record) ? "#b71c1c" : "inherit" }}>
+                      {record.stage}
+                    </Typography>
                   </td>
                   <td>
                     <Box sx={{ display: "flex", gap: 0.5 }}>

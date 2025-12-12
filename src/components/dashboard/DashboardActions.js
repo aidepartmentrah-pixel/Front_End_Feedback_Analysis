@@ -7,7 +7,6 @@ const DashboardActions = () => {
     { label: "➕ Insert New Record", path: "/insert", color: "success" },
     { label: "✏️ View & Edit", path: "/table-view", color: "warning" },
     { label: "📊 View Reports", path: "/reporting", color: "info" },
-    { label: "📤 Export Data", path: "/export", color: "primary" },
   ];
 
   return (
@@ -25,7 +24,7 @@ const DashboardActions = () => {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
           gap: 2,
         }}
       >

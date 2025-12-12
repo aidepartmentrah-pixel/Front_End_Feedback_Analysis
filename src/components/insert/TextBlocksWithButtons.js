@@ -8,9 +8,9 @@ const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdTe
   const [recording, setRecording] = useState(null);
 
   const textBlocks = [
-    { field: "complaintText", label: "📝 Complaint Text", placeholder: "Enter complaint details..." },
-    { field: "additionalNotes", label: "⚡ Immediate Action", placeholder: "Enter immediate action taken..." },
-    { field: "optionalThirdText", label: "🏥 الإجراءات المتخذة", placeholder: "أدخل الإجراءات المتخذة..." },
+    { field: "complaint_text", label: "📝 Complaint Text", placeholder: "Enter complaint details..." },
+    { field: "immediate_action", label: "⚡ Immediate Action", placeholder: "Enter immediate action taken..." },
+    { field: "taken_action", label: "🏥 الإجراءات المتخذة", placeholder: "أدخل الإجراءات المتخذة..." },
   ];
 
   const handleRecord = (field) => {
@@ -26,6 +26,13 @@ const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdTe
     onTextChange(field, "");
   };
 
+  const getFieldValue = (field) => {
+    if (field === "complaint_text") return complaintText;
+    if (field === "immediate_action") return additionalNotes;
+    if (field === "taken_action") return optionalThirdText;
+    return "";
+  };
+
   return (
     <Card
       sx={{
@@ -37,7 +44,7 @@ const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdTe
       }}
     >
       <Typography level="h3" sx={{ color: "#1a1e3f", fontWeight: 700, mb: 2 }}>
-        Step 1: Text Input & Audio Transcription
+        Step 1: Raw Feedback Texts
       </Typography>
 
       <Grid container spacing={2}>
@@ -50,13 +57,18 @@ const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdTe
               <Textarea
                 placeholder={block.placeholder}
                 minRows={4}
-                value={block.field === "complaintText" ? complaintText : block.field === "additionalNotes" ? additionalNotes : optionalThirdText}
+                value={getFieldValue(block.field)}
                 onChange={(e) => onTextChange(block.field, e.target.value)}
                 sx={{
                   borderRadius: "8px",
                   "&:focus-within": {
                     borderColor: "#667eea",
                   },
+                }}
+                slotProps={{
+                  textarea: {
+                    dir: block.field === "taken_action" ? "rtl" : "ltr"
+                  }
                 }}
               />
               <Box sx={{ display: "flex", gap: 1, mt: 1 }}>

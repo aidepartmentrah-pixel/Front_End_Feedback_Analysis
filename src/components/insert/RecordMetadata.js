@@ -1,25 +1,38 @@
 // src/components/insert/RecordMetadata.js
 import React from "react";
-import { Box, Card, Typography, FormControl, FormLabel, Input, Select, Option, Grid } from "@mui/joy";
+import { Card, Typography, FormControl, FormLabel, Input, Select, Option, Grid } from "@mui/joy";
+import { SOURCE_OPTIONS } from "../../utils/fieldMappings";
 
 const RecordMetadata = ({ formData, onInputChange }) => {
-  const issuingDepts = ["ER", "ICU", "Ward 1", "Ward 2", "Cardiac 1", "Cardiac 2", "CCU", "CSU"];
-  const targetDepts = ["ER", "ICU", "Ward 1", "Ward 2", "Cardiac 1", "Cardiac 2", "CCU", "CSU", "Radiology"];
-  const sources = ["Phone", "Walk-in", "Email", "Online Form", "SMS", "Letter"];
-  const statuses = ["In Progress", "Closed", "Pending"];
+  // Mock department data - replace with actual department fetching in production
+  const departments = [
+    { id: 1, name: "ER" },
+    { id: 2, name: "ICU" },
+    { id: 3, name: "Ward 1" },
+    { id: 4, name: "Ward 2" },
+    { id: 5, name: "Cardiac 1" },
+    { id: 6, name: "Cardiac 2" },
+    { id: 7, name: "CCU" },
+    { id: 8, name: "CSU" },
+    { id: 9, name: "Radiology" },
+  ];
 
   return (
     <Card
       sx={{
         mb: 3,
         p: 3,
-        background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
-        border: "1px solid rgba(102, 126, 234, 0.1)",
-        boxShadow: "0 4px 12px rgba(102, 126, 234, 0.08)",
+        background: "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)",
+        border: "2px solid #2196f3",
+        boxShadow: "0 4px 12px rgba(33, 150, 243, 0.1)",
       }}
     >
-      <Typography level="h3" sx={{ color: "#1a1e3f", fontWeight: 700, mb: 2 }}>
-        Step 2: Record Metadata
+      <Typography level="h3" sx={{ color: "#0d47a1", fontWeight: 700, mb: 2 }}>
+        Step 2: Metadata (Date, Source, Departments)
+      </Typography>
+
+      <Typography level="body-sm" sx={{ color: "#1565c0", mb: 2 }}>
+        Provide administrative details about the feedback record.
       </Typography>
 
       <Grid container spacing={2}>
@@ -27,16 +40,43 @@ const RecordMetadata = ({ formData, onInputChange }) => {
         <Grid xs={12} sm={6} md={3}>
           <FormControl fullWidth>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              📅 Feedback Received Date
+              📅 Feedback Received Date *
             </FormLabel>
             <Input
               type="date"
-              value={formData.feedbackReceivedDate}
-              onChange={(e) => onInputChange("feedbackReceivedDate", e.target.value)}
+              value={formData.feedback_received_date || ""}
+              onChange={(e) => onInputChange("feedback_received_date", e.target.value)}
               slotProps={{
                 input: { style: { borderRadius: "8px" } },
               }}
             />
+          </FormControl>
+        </Grid>
+
+        {/* Source */}
+        <Grid xs={12} sm={6} md={3}>
+          <FormControl fullWidth>
+            <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
+              📱 Source *
+            </FormLabel>
+            <Select
+              value={formData.source_id || ""}
+              onChange={(e, value) => onInputChange("source_id", value)}
+              placeholder="Select Source"
+              onClose={() => {}}
+              onBlur={() => {}}
+              slotProps={{
+                listbox: {
+                  sx: { maxHeight: 250, overflowY: 'auto' }
+                }
+              }}
+            >
+              {SOURCE_OPTIONS.map((opt) => (
+                <Option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </Option>
+              ))}
+            </Select>
           </FormControl>
         </Grid>
 
@@ -47,12 +87,20 @@ const RecordMetadata = ({ formData, onInputChange }) => {
               🏥 Issuing Department
             </FormLabel>
             <Select
-              value={formData.issuingDepartment}
-              onChange={(e, value) => onInputChange("issuingDepartment", value)}
+              value={formData.issuing_department_id || ""}
+              onChange={(e, value) => onInputChange("issuing_department_id", value)}
+              placeholder="Select Department"
+              onClose={() => {}}
+              onBlur={() => {}}
+              slotProps={{
+                listbox: {
+                  sx: { maxHeight: 250, overflowY: 'auto' }
+                }
+              }}
             >
-              {issuingDepts.map((d) => (
-                <Option key={d} value={d}>
-                  {d}
+              {departments.map((d) => (
+                <Option key={d.id} value={d.id}>
+                  {d.name}
                 </Option>
               ))}
             </Select>
@@ -66,50 +114,20 @@ const RecordMetadata = ({ formData, onInputChange }) => {
               🎯 Target Department
             </FormLabel>
             <Select
-              value={formData.targetDepartment}
-              onChange={(e, value) => onInputChange("targetDepartment", value)}
+              value={formData.target_department_id || ""}
+              onChange={(e, value) => onInputChange("target_department_id", value)}
+              placeholder="Select Department"
+              onClose={() => {}}
+              onBlur={() => {}}
+              slotProps={{
+                listbox: {
+                  sx: { maxHeight: 250, overflowY: 'auto' }
+                }
+              }}
             >
-              {targetDepts.map((d) => (
-                <Option key={d} value={d}>
-                  {d}
-                </Option>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-
-        {/* Source */}
-        <Grid xs={12} sm={6} md={3}>
-          <FormControl fullWidth>
-            <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              📱 Source
-            </FormLabel>
-            <Select
-              value={formData.source}
-              onChange={(e, value) => onInputChange("source", value)}
-            >
-              {sources.map((s) => (
-                <Option key={s} value={s}>
-                  {s}
-                </Option>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-
-        {/* Status */}
-        <Grid xs={12} sm={6}>
-          <FormControl fullWidth>
-            <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              ✅ Status
-            </FormLabel>
-            <Select
-              value={formData.status}
-              onChange={(e, value) => onInputChange("status", value)}
-            >
-              {statuses.map((s) => (
-                <Option key={s} value={s}>
-                  {s}
+              {departments.map((d) => (
+                <Option key={d.id} value={d.id}>
+                  {d.name}
                 </Option>
               ))}
             </Select>
@@ -121,14 +139,15 @@ const RecordMetadata = ({ formData, onInputChange }) => {
         level="body-xs"
         sx={{
           mt: 2,
-          color: "#999",
+          color: "#1565c0",
           fontStyle: "italic",
         }}
       >
-        ℹ️ These fields contain the metadata for your record. All fields are required.
+        ℹ️ Source field uses Arabic labels (جولات, حضور, خط ساخن, etc.). Departments can be fetched from API.
       </Typography>
     </Card>
   );
 };
 
 export default RecordMetadata;
+

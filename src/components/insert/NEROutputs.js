@@ -1,8 +1,9 @@
 // src/components/insert/NEROutputs.js
 import React from "react";
-import { Box, Card, Typography, FormControl, FormLabel, Input, Grid } from "@mui/joy";
+import { Card, Typography, FormControl, FormLabel, Input, Grid, Button } from "@mui/joy";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 
-const NEROutputs = ({ formData, onInputChange }) => {
+const NEROutputs = ({ formData, onInputChange, onRunNER, loading }) => {
   return (
     <Card
       sx={{
@@ -14,11 +15,11 @@ const NEROutputs = ({ formData, onInputChange }) => {
       }}
     >
       <Typography level="h3" sx={{ color: "#2d5016", fontWeight: 700, mb: 2 }}>
-        Step 3: Extracted Named Entities (NER Results)
+        Step 3: Named Entity Recognition (NER)
       </Typography>
 
       <Typography level="body-sm" sx={{ color: "#558b2f", mb: 2 }}>
-        These fields were extracted from your complaint text. You can edit them if needed.
+        Extract patient and doctor names from the complaint text. Click "Run NER Extraction" or edit manually.
       </Typography>
 
       <Grid container spacing={2}>
@@ -30,11 +31,14 @@ const NEROutputs = ({ formData, onInputChange }) => {
             </FormLabel>
             <Input
               type="text"
-              placeholder="Extracted patient name..."
-              value={formData.patientName}
-              onChange={(e) => onInputChange("patientName", e.target.value)}
+              placeholder="Enter or extract patient name..."
+              value={formData.patient_name || ""}
+              onChange={(e) => onInputChange("patient_name", e.target.value)}
               slotProps={{
-                input: { style: { borderRadius: "8px" } },
+                input: { 
+                  style: { borderRadius: "8px" },
+                  dir: "rtl"
+                },
               }}
             />
           </FormControl>
@@ -48,32 +52,42 @@ const NEROutputs = ({ formData, onInputChange }) => {
             </FormLabel>
             <Input
               type="text"
-              placeholder="Extracted doctor name..."
-              value={formData.doctorName}
-              onChange={(e) => onInputChange("doctorName", e.target.value)}
+              placeholder="Enter or extract doctor name..."
+              value={formData.doctor_name || ""}
+              onChange={(e) => onInputChange("doctor_name", e.target.value)}
               slotProps={{
-                input: { style: { borderRadius: "8px" } },
+                input: { 
+                  style: { borderRadius: "8px" },
+                  dir: "rtl"
+                },
               }}
             />
           </FormControl>
         </Grid>
 
-        {/* Other Entities */}
+        {/* Run NER Button */}
         <Grid xs={12}>
-          <FormControl fullWidth>
-            <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              📋 Other Extracted Entities
-            </FormLabel>
-            <Input
-              type="text"
-              placeholder="Other extracted information..."
-              value={formData.otherEntities}
-              onChange={(e) => onInputChange("otherEntities", e.target.value)}
-              slotProps={{
-                input: { style: { borderRadius: "8px" } },
-              }}
-            />
-          </FormControl>
+          <Button
+            variant="solid"
+            color="success"
+            size="lg"
+            startDecorator={<PlayArrowIcon />}
+            onClick={onRunNER}
+            loading={loading}
+            disabled={!formData.complaint_text || formData.complaint_text.trim().length === 0}
+            sx={{
+              fontWeight: 600,
+              fontSize: "14px",
+              px: 3,
+              py: 1.5,
+              transition: "all 0.3s ease",
+              "&:hover": {
+                transform: "translateY(-2px)",
+              },
+            }}
+          >
+            {loading ? "Extracting Entities..." : "🤖 Run NER Extraction"}
+          </Button>
         </Grid>
       </Grid>
 
@@ -85,7 +99,7 @@ const NEROutputs = ({ formData, onInputChange }) => {
           fontStyle: "italic",
         }}
       >
-        ✏️ These fields are fully editable. The AI extracted these values, but you can correct them if needed.
+        ✏️ These fields are editable. The AI extraction may be incorrect - feel free to override manually.
       </Typography>
     </Card>
   );

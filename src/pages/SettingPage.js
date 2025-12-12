@@ -8,6 +8,7 @@ import DoctorTable from "../components/settings/DoctorTable";
 import AddDoctorForm from "../components/settings/AddDoctorForm";
 import DepartmentMappingToggle from "../components/settings/DepartmentMappingToggle";
 import SettingActions from "../components/settings/SettingActions";
+import VariableAttributes from "../components/settings/VariableAttributes";
 import api from "../services/api";
 
 const SettingPage = () => {
@@ -268,6 +269,7 @@ const SettingPage = () => {
         <TabList>
           <Tab>🏥 Departments</Tab>
           <Tab>👨‍⚕️ Doctors</Tab>
+          <Tab>⚙️ Variable Attributes</Tab>
         </TabList>
 
         {/* Department Management Tab */}
@@ -308,6 +310,11 @@ const SettingPage = () => {
               loading={loading}
             />
           </Box>
+        </TabPanel>
+
+        {/* Variable Attributes Tab */}
+        <TabPanel value={2} sx={{ p: 3 }}>
+          <VariableAttributes />
         </TabPanel>
       </Tabs>
       </Box>

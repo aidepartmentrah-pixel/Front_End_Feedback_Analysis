@@ -8,24 +8,27 @@ import TableView from "./pages/TableView";
 import InsertRecord from "./pages/InsertRecord";
 import Login from "./pages/Login";
 import EditRecord from "./pages/EditRecord";
-import Export from "./pages/Export";
-import Reporting from "./pages/Reporting";
+import ReportingPage from "./pages/ReportingPage";
 import SettingPage from "./pages/SettingPage";
 import PatientHistoryPage from "./pages/PatientHistoryPage";
+import DepartmentFeedbackPage from "./pages/DepartmentFeedbackPage";
+import RedFlagsPage from "./pages/RedFlagsPage";
 
 function App() {
   return (
     <Router>
       <Routes>
+        <Route path="/login" element={<Login />} />
         <Route path="/" element={<DashBoard />} />
         <Route path="/dashBoard" element={<DashBoard />} />
         <Route path="/table-view" element={<TableView />} />
         <Route path="/insert" element={<InsertRecord />} />
         <Route path="/edit/:id" element={<EditRecord />} />
-        <Route path="/export" element={<Export />} />
-        <Route path="/reporting" element={<Reporting />} />
+        <Route path="/reporting" element={<ReportingPage />} />
         <Route path="/settings" element={<SettingPage />} />
         <Route path="/patient-history" element={<PatientHistoryPage />} />
+        <Route path="/department-feedback" element={<DepartmentFeedbackPage />} />
+        <Route path="/redflags" element={<RedFlagsPage />} />
       </Routes>
     </Router>
   );

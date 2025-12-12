@@ -18,7 +18,8 @@ const Sidebar = () => {
     { name: "📋 Table View", path: "/table-view" },
     { name: "👤 Patient History", path: "/patient-history" },
     { name: "📈 Reporting", path: "/reporting" },
-    { name: "📤 Export", path: "/export" },
+    { name: "📝 Department Feedback", path: "/department-feedback" },
+    { name: "🚩 Red Flags", path: "/redflags" },
     { name: "⚙️ Settings", path: "/settings" }
   ];
 

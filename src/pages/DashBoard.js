@@ -1,177 +1,66 @@
 // src/pages/DashboardPage.js
-import React, { useEffect, useState } from "react";
-import { Container, Box, Typography, Grid } from "@mui/joy";
-import axios from "axios";
+import React, { useState } from "react";
+import { Box } from "@mui/joy";
 
 // Components
 import MainLayout from "../components/common/MainLayout";
-import MetricCard from "../components/dashboard/MetricCard";
-import ChartCard from "../components/dashboard/ChartCard";
+import DepartmentSelector from "../components/dashboard/DepartmentSelector";
+import DashboardTitle from "../components/dashboard/DashboardTitle";
+import GlobalDashboardStats from "../components/dashboard/GlobalDashboardStats";
+import IdaraDashboardStats from "../components/dashboard/IdaraDashboardStats";
+import DayraDashboardStats from "../components/dashboard/DayraDashboardStats";
+import QismDashboardStats from "../components/dashboard/QismDashboardStats";
 import DashboardActions from "../components/dashboard/DashboardActions";
-import Top5ClassificationChart from "../components/dashboard/Top5ClassificationChart";
-import StageHistogram from "../components/dashboard/StageHistogram";
-import IssuingDeptBarGraph from "../components/dashboard/IssuingDeptBarGraph";
-
-
-// Mock Metrics
-const mockMetrics = {
-  totalIncidents: 124,
-  openClosed: { open: 32, closed: 92 },
-  severityBreakdown: { high: 15, medium: 50, low: 59 },
-  recentIncidents: 12
-};
-
-// Mock Charts Data
-const mockChartsData = {
-  top5Classification: [
-    { classification: "Neglect - General", count: 30 },
-    { classification: "Absent Communication", count: 25 },
-    { classification: "Accomodation", count: 20 },
-    { classification: "Bureaucracy", count: 15 },
-    { classification: "Clinical Delay", count: 10 }
-  ],
-  stageHistogram: [
-    { stage: "Admission", count: 40 },
-    { stage: "Care", count: 60 },
-    { stage: "Discharge", count: 24 }
-  ],
-  issuingDept: [
-    { department: "ER", count: 50 },
-    { department: "ICU", count: 30 },
-    { department: "Ward 1", count: 20 },
-    { department: "Ward 2", count: 24 }
-  ]
-};
-
-
 
 const DashboardPage = () => {
-  // State for metrics
-  const [metrics, setMetrics] = useState({
-    totalIncidents: 0,
-    openClosed: { open: 0, closed: 0 },
-    severityBreakdown: { high: 0, medium: 0, low: 0 },
-    recentIncidents: 0
-  });
-  
-  // State for charts
-  const [chartsData, setChartsData] = useState({
-    top5Classification: [],
-    stageHistogram: [],
-    issuingDept: []
-  });
+  // Simplified state structure
+  const [scope, setScope] = useState("hospital");
+  const [selectedAdministration, setSelectedAdministration] = useState(null);
+  const [selectedDepartment, setSelectedDepartment] = useState(null);
+  const [selectedSection, setSelectedSection] = useState(null);
 
-   // MOCK DATA (for testing without backend)
-  useEffect(() => {
-    setMetrics(mockMetrics);
-    setChartsData(mockChartsData);
-  }, []);
-
-
-  // useEffect(() => {
-  //   // Fetch metrics
-  //   const fetchMetrics = async () => {
-  //     try {
-  //       const totalRes = await axios.get("/metrics/total-incidents");
-  //       const openClosedRes = await axios.get("/metrics/open-closed-count");
-  //       const severityRes = await axios.get("/metrics/severity-breakdown");
-  //       const recentRes = await axios.get("/metrics/recent-incidents?days=30");
-
-  //       setMetrics({
-  //         totalIncidents: totalRes.data,
-  //         openClosed: openClosedRes.data,
-  //         severityBreakdown: severityRes.data,
-  //         recentIncidents: recentRes.data
-  //       });
-  //     } catch (err) {
-  //       console.error("Error fetching metrics:", err);
-  //     }
-  //   };
-
-
-  //   // Fetch chart data
-  //   const fetchCharts = async () => {
-  //     try {
-  //       const top5Res = await axios.get("/charts/top5-classification");
-  //       const stageRes = await axios.get("/charts/stage-histogram");
-  //       const deptRes = await axios.get("/charts/issuing-dept");
-
-  //       setChartsData({
-  //         top5Classification: top5Res.data,
-  //         stageHistogram: stageRes.data,
-  //         issuingDept: deptRes.data
-  //       });
-  //     } catch (err) {
-  //       console.error("Error fetching charts:", err);
-  //     }
-  //   };
-
-  //   fetchMetrics();
-  //   fetchCharts();
-  // }, []);
+  // Determine which view to show based on scope and selections
+  const isGlobalView = scope === "hospital";
+  const isIdaraView = scope === "administration" && selectedAdministration;
+  const isDayraView = scope === "department" && selectedDepartment;
+  const isQismView = scope === "section" && selectedSection;
 
   return (
     <MainLayout>
       <Box sx={{ maxWidth: "1400px", mx: "auto" }}>
-        <Box sx={{ mb: 4 }}>
-          <Typography level="h2" sx={{ fontWeight: 800, color: "#1a1e3f", mb: 1 }}>
-            Dashboard Overview
-          </Typography>
-          <Typography level="body-sm" sx={{ color: "#667eea" }}>
-            Real-time feedback analytics and hospital insights
-          </Typography>
+        {/* Simplified Cascading Selector */}
+        <DepartmentSelector
+          scope={scope}
+          setScope={setScope}
+          selectedAdministration={selectedAdministration}
+          setSelectedAdministration={setSelectedAdministration}
+          selectedDepartment={selectedDepartment}
+          setSelectedDepartment={setSelectedDepartment}
+          selectedSection={selectedSection}
+          setSelectedSection={setSelectedSection}
+        />
+
+        {/* Simplified Dashboard Title */}
+        <DashboardTitle
+          scope={scope}
+          selectedAdministration={selectedAdministration}
+          selectedDepartment={selectedDepartment}
+          selectedSection={selectedSection}
+        />
+
+        {/* Conditional Dashboard Views */}
+        {isGlobalView && <GlobalDashboardStats />}
+        {isIdaraView && <IdaraDashboardStats idara={selectedAdministration} />}
+        {isDayraView && <DayraDashboardStats dayra={selectedDepartment} />}
+        {isQismView && <QismDashboardStats qism={selectedSection} />}
+
+        {/* Dashboard Actions */}
+        <Box sx={{ mt: 3 }}>
+          <DashboardActions />
         </Box>
-
-        {/* Top Row: Metrics */}
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid xs={12} sm={6} md={3}>
-            <MetricCard title="Total Incidents" value={metrics.totalIncidents} />
-          </Grid>
-          <Grid xs={12} sm={6} md={3}>
-            <MetricCard
-              title="Open / Closed"
-              value={`${metrics.openClosed.open} / ${metrics.openClosed.closed}`}
-            />
-          </Grid>
-          <Grid xs={12} sm={6} md={3}>
-            <MetricCard
-              title="Severity Breakdown"
-              value={`H:${metrics.severityBreakdown.high} M:${metrics.severityBreakdown.medium} L:${metrics.severityBreakdown.low}`}
-            />
-          </Grid>
-          <Grid xs={12} sm={6} md={3}>
-            <MetricCard
-              title="Recent Incidents (30d)"
-              value={metrics.recentIncidents}
-            />
-          </Grid>
-        </Grid>
-
-        {/* Middle Row: Charts */}
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid xs={12} md={4}>
-            <ChartCard title="Top 5 Classifications">
-              <Top5ClassificationChart data={chartsData.top5Classification} />
-            </ChartCard>
-          </Grid>
-          <Grid xs={12} md={4}>
-            <ChartCard title="Stage Histogram">
-              <StageHistogram data={chartsData.stageHistogram} />
-            </ChartCard>
-          </Grid>
-          <Grid xs={12} md={4}>
-            <ChartCard title="Issuing Department">
-              <IssuingDeptBarGraph data={chartsData.issuingDept} />
-            </ChartCard>
-          </Grid>
-        </Grid>
-
-        {/* Bottom Row: Actions */}
-        <DashboardActions />
       </Box>
     </MainLayout>
   );
-  
 };
 
 export default DashboardPage;
