@@ -81,6 +81,7 @@ const OpenRecordsTable = ({ records, loading, onOpenDrawer, delayThreshold }) =>
           >
             <thead>
               <tr>
+                <th>🚩</th>
                 <th>رقم الشكوى<br />Complaint ID</th>
                 <th>تاريخ الاستلام<br />Date Received</th>
                 <th>المريض<br />Patient</th>
@@ -97,12 +98,28 @@ const OpenRecordsTable = ({ records, loading, onOpenDrawer, delayThreshold }) =>
                 <tr
                   key={record.id}
                   style={{
-                    background: record.status === "OVERDUE" ? "rgba(255, 71, 87, 0.03)" : "white",
+                    background: record.isRedFlag 
+                      ? "rgba(211, 47, 47, 0.08)" 
+                      : record.status === "OVERDUE" 
+                      ? "rgba(255, 71, 87, 0.03)" 
+                      : "white",
+                    borderLeft: record.isRedFlag ? "4px solid #d32f2f" : "none",
                   }}
                 >
                   <td>
-                    <Typography level="body-sm" sx={{ fontWeight: 700 }}>
-                      {record.complaintID}
+                    {record.isRedFlag ? (
+                      <Typography level="h6" sx={{ fontSize: "20px", color: "#d32f2f" }}>
+                        🚩
+                      </Typography>
+                    ) : (
+                      <Typography level="body-sm" sx={{ color: "#e0e0e0" }}>
+                        —
+                      </Typography>
+                    )}
+                  </td>
+                  <td>
+                    <Typography level="body-sm" sx={{ fontWeight: 700, color: record.isRedFlag ? "#d32f2f" : "inherit" }}>
+                      {record.isRedFlag && "🚩 "}{record.complaintID}
                     </Typography>
                   </td>
                   <td>
@@ -196,6 +213,9 @@ const OpenRecordsTable = ({ records, loading, onOpenDrawer, delayThreshold }) =>
             إجمالي السجلات: {records.length}
           </Typography>
           <Box sx={{ display: "flex", gap: 2 }}>
+            <Typography level="body-xs" sx={{ color: "#d32f2f", fontWeight: 700 }}>
+              🚩 Red Flags: {records.filter(r => r.isRedFlag).length}
+            </Typography>
             <Typography level="body-xs" sx={{ color: "#ff4757" }}>
               ● متأخرة: {records.filter(r => r.isDelayed).length}
             </Typography>

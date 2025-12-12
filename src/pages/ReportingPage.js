@@ -206,48 +206,52 @@ const ReportingPage = () => {
 
         {/* Single Report Mode */}
         {exportScope === "single" && (
-          <>
+          <Box sx={{ minHeight: "700px" }}>
             {/* Monthly Reports */}
             {reportType === "monthly" && (
-              <>
+              <Box sx={{ minHeight: "700px" }}>
                 {filters.mode === "detailed" && (
                   <MonthlyDetailedTable complaints={filteredComplaints} />
                 )}
                 {filters.mode === "numeric" && (
                   <MonthlyNumericTable stats={monthlyStats} />
                 )}
-              </>
+              </Box>
             )}
 
             {/* Seasonal Reports */}
             {reportType === "seasonal" && (
-              <>
+              <Box sx={{ minHeight: "700px" }}>
                 {/* Seasonal Summary */}
                 <SeasonalSummary stats={seasonalStats} threshold={threshold} filters={filters} />
 
                 {/* HCAT-Structured Preview Table */}
                 <SeasonalOpenRecordsHCATTable groupedData={seasonalGroupedData} />
-              </>
+              </Box>
             )}
-          </>
+          </Box>
         )}
 
         {/* Bulk Export Mode */}
         {exportScope === "bulk" && (
-          <BulkExportTable 
-            reportType={reportType} 
-            period={getCurrentPeriod()} 
-            departmentCounts={mockDepartmentCounts}
-          />
+          <Box sx={{ minHeight: "700px" }}>
+            <BulkExportTable 
+              reportType={reportType} 
+              period={getCurrentPeriod()} 
+              departmentCounts={mockDepartmentCounts}
+            />
+          </Box>
         )}
 
-        {/* Action Buttons */}
-        <ReportActions
-          onRefresh={handleRefresh}
-          onResetFilters={handleResetFilters}
-          onExportPDF={handleExportPDF}
-          onExportCSV={handleExportCSV}
-        />
+        {/* Action Buttons - Always visible for consistency */}
+        {exportScope === "single" && (
+          <ReportActions
+            onRefresh={handleRefresh}
+            onResetFilters={handleResetFilters}
+            onExportPDF={handleExportPDF}
+            onExportCSV={handleExportCSV}
+          />
+        )}
 
         {/* Info Footer */}
         <Box

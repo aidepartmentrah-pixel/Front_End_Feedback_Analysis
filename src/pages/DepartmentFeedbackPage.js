@@ -3,7 +3,7 @@
 // 1. Incident Explanations (Tab 1): Department explains what happened in a single incident
 // 2. Seasonal Explanations (Tab 2): Department explains why performance exceeded thresholds
 import React, { useState, useEffect, useMemo } from "react";
-import { Box, Typography, Alert, Modal, ModalDialog, ModalClose, DialogTitle, DialogContent, Divider, Grid, Tabs, TabList, Tab, TabPanel } from "@mui/joy";
+import { Box, Typography, Alert, Modal, ModalDialog, ModalClose, DialogTitle, DialogContent, Divider, Grid } from "@mui/joy";
 import MainLayout from "../components/common/MainLayout";
 import DepartmentFeedbackFilters from "../components/departmentFeedback/DepartmentFeedbackFilters";
 import OpenRecordsTable from "../components/departmentFeedback/OpenRecordsTable";
@@ -71,6 +71,7 @@ const DepartmentFeedbackPage = () => {
       classificationAr: "الانتظار والوقت > طول فترة الانتظار",
       rawContent: "طول فترة انتظار نقل المريض من الطوارئ للعناية المركزة",
       immediateAction: "تم تحديد أولوية النقل وتخصيص سرير فوراً",
+      isRedFlag: false,
     },
     {
       id: "3",
@@ -89,6 +90,7 @@ const DepartmentFeedbackPage = () => {
       classificationAr: "السلوكيات والأخلاقيات > افتقار للتعاطف",
       rawContent: "عدم تعاطف الطاقم الطبي مع قلق عائلة المريض",
       immediateAction: "اجتماع مع الطاقم لتوضيح أهمية التواصل مع العائلات",
+      isRedFlag: false,
     },
     {
       id: "4",
@@ -107,6 +109,7 @@ const DepartmentFeedbackPage = () => {
       classificationAr: "الأخطاء الطبية > نتيجة تحليل خاطئة",
       rawContent: "خطأ في قراءة الأشعة تسبب في تأخير العلاج",
       immediateAction: "إعادة قراءة الأشعة من قبل استشاري آخر وتصحيح التقرير",
+      isRedFlag: true,
     },
   ];
 
@@ -356,14 +359,12 @@ const DepartmentFeedbackPage = () => {
           </Alert>
         )}
 
-        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)} sx={{ mb: 0 }}>
-          <TabList>
-            <Tab>📋 توضيح الحالات (Incident Explanations)</Tab>
-            <Tab>📊 توضيح الأداء الفصلي (Seasonal Explanations)</Tab>
-          </TabList>
+        {/* Modern Tab Switcher */}
+        <ExplanationTypeSwitch activeTab={activeTab} setActiveTab={setActiveTab} />
 
-          {/* Tab 1: Incident Explanations */}
-          <TabPanel value={0} sx={{ p: 0, pt: 3 }}>
+        {/* Tab 1: Incident Explanations */}
+        {activeTab === 0 && (
+          <Box sx={{ mt: 3 }}>
             <Alert color="warning" variant="soft" sx={{ mb: 3 }}>
               <Typography level="body-sm" sx={{ dir: "rtl" }}>
                 ⚠️ هذا التوضيح خاص بهذه الحالة فقط، ولا يُستخدم للتقارير الفصلية.
@@ -378,10 +379,12 @@ const DepartmentFeedbackPage = () => {
               onOpenDrawer={handleOpenDialog}
               delayThreshold={delayThreshold}
             />
-          </TabPanel>
+          </Box>
+        )}
 
-          {/* Tab 2: Seasonal Explanations */}
-          <TabPanel value={1} sx={{ p: 0, pt: 3 }}>
+        {/* Tab 2: Seasonal Explanations */}
+        {activeTab === 1 && (
+          <Box sx={{ mt: 3 }}>
             <Typography level="body-sm" sx={{ mb: 2, color: "#666", fontStyle: "italic", dir: "rtl" }}>
               هذه الصفحة لتوضيح لماذا تجاوزت نسبة الأداء العتبة المحددة في الفصل.
             </Typography>
@@ -492,8 +495,8 @@ const DepartmentFeedbackPage = () => {
                 </table>
               </Box>
             </Box>
-          </TabPanel>
-        </Tabs>
+          </Box>
+        )}
 
         <Modal open={dialogOpen} onClose={handleCloseDialog}>
           <ModalDialog
