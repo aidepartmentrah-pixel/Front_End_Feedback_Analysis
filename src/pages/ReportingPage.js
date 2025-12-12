@@ -5,6 +5,7 @@ import MainLayout from "../components/common/MainLayout";
 
 // Components
 import ReportTypeSwitch from "../components/reports/ReportTypeSwitch";
+import ExportScopeToggle from "../components/reports/ExportScopeToggle";
 import ReportFilters from "../components/reports/ReportFilters";
 import ThresholdInput from "../components/reports/ThresholdInput";
 import MonthlyDetailedTable from "../components/reports/MonthlyDetailedTable";
@@ -12,6 +13,7 @@ import MonthlyNumericTable from "../components/reports/MonthlyNumericTable";
 import SeasonalSummary from "../components/reports/SeasonalSummary";
 import SeasonalOpenRecordsHCATTable from "../components/reports/SeasonalOpenRecordsHCATTable";
 import ReportActions from "../components/reports/ReportActions";
+import BulkExportTable from "../components/reports/BulkExportTable";
 
 // Data and helpers
 import { mockComplaints } from "../data/mockReportData";
@@ -26,6 +28,9 @@ import {
 const ReportingPage = () => {
   // Report type: monthly or seasonal
   const [reportType, setReportType] = useState("monthly");
+
+  // Export scope: single or bulk
+  const [exportScope, setExportScope] = useState("single");
 
   // Filters state
   const [filters, setFilters] = useState({
@@ -44,6 +49,20 @@ const ReportingPage = () => {
 
   // Threshold setting for seasonal reports (always "all domains")
   const [threshold, setThreshold] = useState("10");
+
+  // Mock department counts for bulk export
+  const mockDepartmentCounts = [
+    { id: 1, name: "Cardiac 1", nameAr: "قسم القلب 1", count: 45 },
+    { id: 2, name: "Cardiac 2", nameAr: "قسم القلب 2", count: 32 },
+    { id: 3, name: "ICU", nameAr: "وحدة العناية المركزة", count: 23 },
+    { id: 4, name: "Emergency", nameAr: "قسم الطوارئ", count: 67 },
+    { id: 5, name: "Radiology", nameAr: "قسم الأشعة", count: 12 },
+    { id: 6, name: "Laboratory", nameAr: "قسم المختبر", count: 8 },
+    { id: 7, name: "Pharmacy", nameAr: "قسم الصيدلية", count: 5 },
+    { id: 8, name: "Neurology", nameAr: "قسم الأعصاب", count: 0 },
+    { id: 9, name: "Orthopedics", nameAr: "قسم العظام", count: 18 },
+    { id: 10, name: "Pediatrics", nameAr: "قسم الأطفال", count: 0 },
+  ];
 
   // Initial filters for reset
   const initialFilters = {
@@ -112,6 +131,22 @@ const ReportingPage = () => {
     alert("📊 تصدير CSV\n\nسيتم تصدير البيانات إلى ملف CSV.");
   };
 
+  // Get current period label for bulk export
+  const getCurrentPeriod = () => {
+    if (reportType === "monthly") {
+      const months = ["January", "February", "March", "April", "May", "June", 
+                      "July", "August", "September", "October", "November", "December"];
+      const monthIndex = parseInt(filters.month) - 1;
+      return `${months[monthIndex]} ${filters.year}`;
+    } else {
+      // Seasonal
+      if (filters.dateMode === "trimester" && filters.trimester) {
+        return `${filters.trimester} ${filters.year}`;
+      }
+      return `Q4 ${filters.year}`; // default
+    }
+  };
+
   return (
     <MainLayout>
       <Box sx={{ p: 3 }}>
@@ -137,50 +172,73 @@ const ReportingPage = () => {
         {/* Report Type Switch */}
         <ReportTypeSwitch reportType={reportType} setReportType={setReportType} />
 
-        {/* Filters */}
-        <ReportFilters filters={filters} setFilters={setFilters} reportType={reportType} />
+        {/* Export Scope Toggle */}
+        <ExportScopeToggle scope={exportScope} setScope={setExportScope} />
 
-        {/* Threshold Settings - Only for Seasonal Reports */}
-        {reportType === "seasonal" && (
-          <ThresholdInput
-            threshold={threshold}
-            setThreshold={setThreshold}
+        {/* Filters - Only show if Single Report */}
+        {exportScope === "single" && (
+          <>
+            <ReportFilters filters={filters} setFilters={setFilters} reportType={reportType} />
+
+            {/* Threshold Settings - Only for Seasonal Reports */}
+            {reportType === "seasonal" && (
+              <ThresholdInput
+                threshold={threshold}
+                setThreshold={setThreshold}
+              />
+            )}
+          </>
+        )}
+
+        {/* Data Summary - Only for Single Report */}
+        {exportScope === "single" && (
+          <Alert
+            sx={{
+              mb: 3,
+              background: "linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)",
+              borderColor: "rgba(102, 126, 234, 0.3)",
+              color: "#667eea",
+            }}
+          >
+            📊 تم العثور على <strong>{filteredComplaints.length}</strong> شكوى تطابق الفلاتر المحددة
+          </Alert>
+        )}
+
+        {/* Single Report Mode */}
+        {exportScope === "single" && (
+          <>
+            {/* Monthly Reports */}
+            {reportType === "monthly" && (
+              <>
+                {filters.mode === "detailed" && (
+                  <MonthlyDetailedTable complaints={filteredComplaints} />
+                )}
+                {filters.mode === "numeric" && (
+                  <MonthlyNumericTable stats={monthlyStats} />
+                )}
+              </>
+            )}
+
+            {/* Seasonal Reports */}
+            {reportType === "seasonal" && (
+              <>
+                {/* Seasonal Summary */}
+                <SeasonalSummary stats={seasonalStats} threshold={threshold} filters={filters} />
+
+                {/* HCAT-Structured Preview Table */}
+                <SeasonalOpenRecordsHCATTable groupedData={seasonalGroupedData} />
+              </>
+            )}
+          </>
+        )}
+
+        {/* Bulk Export Mode */}
+        {exportScope === "bulk" && (
+          <BulkExportTable 
+            reportType={reportType} 
+            period={getCurrentPeriod()} 
+            departmentCounts={mockDepartmentCounts}
           />
-        )}
-
-        {/* Data Summary */}
-        <Alert
-          sx={{
-            mb: 3,
-            background: "linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)",
-            borderColor: "rgba(102, 126, 234, 0.3)",
-            color: "#667eea",
-          }}
-        >
-          📊 تم العثور على <strong>{filteredComplaints.length}</strong> شكوى تطابق الفلاتر المحددة
-        </Alert>
-
-        {/* Monthly Reports */}
-        {reportType === "monthly" && (
-          <>
-            {filters.mode === "detailed" && (
-              <MonthlyDetailedTable complaints={filteredComplaints} />
-            )}
-            {filters.mode === "numeric" && (
-              <MonthlyNumericTable stats={monthlyStats} />
-            )}
-          </>
-        )}
-
-        {/* Seasonal Reports */}
-        {reportType === "seasonal" && (
-          <>
-            {/* Seasonal Summary */}
-            <SeasonalSummary stats={seasonalStats} threshold={threshold} filters={filters} />
-
-            {/* HCAT-Structured Preview Table */}
-            <SeasonalOpenRecordsHCATTable groupedData={seasonalGroupedData} />
-          </>
         )}
 
         {/* Action Buttons */}

@@ -29,8 +29,11 @@ const DepartmentFeedbackForm = ({ formData, setFormData }) => {
 
   return (
     <Box>
-      <Typography level="h6" sx={{ mb: 3, fontWeight: 700, color: "#667eea" }}>
-        توضيح القسم (Department Explanation)
+      <Typography level="h6" sx={{ mb: 1, fontWeight: 700, color: "#667eea" }}>
+        توضيح الحالة (Incident Explanation)
+      </Typography>
+      <Typography level="body-xs" sx={{ mb: 2, color: "#999", fontStyle: "italic", dir: "rtl" }}>
+        شرح ما حدث في هذه الحالة والإجراءات المتخذة لتفادي التكرار
       </Typography>
 
       <Grid container spacing={2}>
@@ -44,7 +47,7 @@ const DepartmentFeedbackForm = ({ formData, setFormData }) => {
               minRows={4}
               value={formData.explanation_text || ""}
               onChange={(e) => handleChange("explanation_text", e.target.value)}
-              placeholder="اشرح الموقف وما حدث من وجهة نظر القسم..."
+              placeholder="اشرح ما حدث في هذه الحالة من وجهة نظر القسم..."
               required
             />
           </FormControl>

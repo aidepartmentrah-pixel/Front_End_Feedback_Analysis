@@ -17,8 +17,9 @@ const Sidebar = () => {
     { name: "➕ Insert Record", path: "/insert" },
     { name: "📋 Table View", path: "/table-view" },
     { name: "👤 Patient History", path: "/patient-history" },
-    { name: "📈 Reporting", path: "/reporting" },
-    { name: "📝 Department Feedback", path: "/department-feedback" },
+    { name: "�‍⚕️ Doctor History", path: "/doctor-history" },
+    { name: "�📈 Reporting", path: "/reporting" },
+    { name: "📝 Explanations", path: "/department-feedback" },
     { name: "🚩 Red Flags", path: "/redflags" },
     { name: "⚙️ Settings", path: "/settings" }
   ];

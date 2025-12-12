@@ -1,15 +1,22 @@
 // src/pages/DepartmentFeedbackPage.js
+// This page handles TWO types of explanations:
+// 1. Incident Explanations (Tab 1): Department explains what happened in a single incident
+// 2. Seasonal Explanations (Tab 2): Department explains why performance exceeded thresholds
 import React, { useState, useEffect, useMemo } from "react";
-import { Box, Typography, Alert, Modal, ModalDialog, ModalClose, DialogTitle, DialogContent, Divider, Grid } from "@mui/joy";
+import { Box, Typography, Alert, Modal, ModalDialog, ModalClose, DialogTitle, DialogContent, Divider, Grid, Tabs, TabList, Tab, TabPanel } from "@mui/joy";
 import MainLayout from "../components/common/MainLayout";
 import DepartmentFeedbackFilters from "../components/departmentFeedback/DepartmentFeedbackFilters";
 import OpenRecordsTable from "../components/departmentFeedback/OpenRecordsTable";
 import ComplaintSummary from "../components/departmentFeedback/ComplaintSummary";
 import DepartmentFeedbackForm from "../components/departmentFeedback/DepartmentFeedbackForm";
 import FeedbackActions from "../components/departmentFeedback/FeedbackActions";
+import ExplanationTypeSwitch from "../components/departmentFeedback/ExplanationTypeSwitch";
 // import axios from "axios";
 
 const DepartmentFeedbackPage = () => {
+  // Tab state
+  const [activeTab, setActiveTab] = useState(0);
+  
   const [openRecords, setOpenRecords] = useState([]);
   const [filters, setFilters] = useState({
     search: "",
@@ -102,6 +109,57 @@ const DepartmentFeedbackPage = () => {
       immediateAction: "إعادة قراءة الأشعة من قبل استشاري آخر وتصحيح التقرير",
     },
   ];
+
+  // Mock seasonal violations data (departments that exceeded thresholds)
+  const mockSeasonalViolations = [
+    {
+      id: "1",
+      season: "2024-Q4",
+      seasonLabel: "Q4 2024 (Oct-Dec)",
+      department: "Cardiac 1",
+      qism: "قسم القلب 1",
+      metricType: "HCAT_violations",
+      metricLabel: "HCAT Violations",
+      thresholdValue: 15,
+      actualValue: 18.5,
+      status: "PENDING",
+      totalRecords: 120,
+      violationCount: 22,
+    },
+    {
+      id: "2",
+      season: "2024-Q4",
+      seasonLabel: "Q4 2024 (Oct-Dec)",
+      department: "Emergency",
+      qism: "قسم الطوارئ",
+      metricType: "avg_days_open",
+      metricLabel: "Average Days Open",
+      thresholdValue: 14,
+      actualValue: 16.8,
+      status: "PENDING",
+      totalRecords: 85,
+      violationCount: null,
+    },
+    {
+      id: "3",
+      season: "2024-Q3",
+      seasonLabel: "Q3 2024 (Jul-Sep)",
+      department: "ICU",
+      qism: "وحدة العناية المركزة",
+      metricType: "HCAT_violations",
+      metricLabel: "HCAT Violations",
+      thresholdValue: 15,
+      actualValue: 21.3,
+      status: "SUBMITTED",
+      totalRecords: 94,
+      violationCount: 20,
+    },
+  ];
+
+  const [seasonalViolations, setSeasonalViolations] = useState(mockSeasonalViolations);
+  const [selectedViolation, setSelectedViolation] = useState(null);
+  const [seasonalDialogOpen, setSeasonalDialogOpen] = useState(false);
+  const [seasonalFormData, setSeasonalFormData] = useState({});
 
   // Calculate days since received and determine status
   const processRecords = (records) => {
@@ -275,14 +333,21 @@ const DepartmentFeedbackPage = () => {
         <Typography
           level="h3"
           sx={{
-            mb: 3,
+            mb: 1,
             fontWeight: 900,
             background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
           }}
         >
-          📝 توضيحات الأقسام (Department Feedback)
+          📋 التوضيحات (Explanations)
+        </Typography>
+
+        <Typography level="body-sm" sx={{ mb: 0.5, color: "#666", fontStyle: "italic" }}>
+          This page is used to document explanations: for single incident records, and for seasonal performance violations.
+        </Typography>
+        <Typography level="body-sm" sx={{ mb: 2, color: "#666", fontStyle: "italic", dir: "rtl" }}>
+          تُستخدم هذه الصفحة لتوثيق التوضيحات: للحالات الفردية، وللأداء الفصلي الذي تجاوز العتبة.
         </Typography>
 
         {error && (
@@ -291,14 +356,144 @@ const DepartmentFeedbackPage = () => {
           </Alert>
         )}
 
-        <DepartmentFeedbackFilters filters={filters} setFilters={setFilters} />
+        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)} sx={{ mb: 0 }}>
+          <TabList>
+            <Tab>📋 توضيح الحالات (Incident Explanations)</Tab>
+            <Tab>📊 توضيح الأداء الفصلي (Seasonal Explanations)</Tab>
+          </TabList>
 
-        <OpenRecordsTable
-          records={filteredAndSortedRecords}
-          loading={loading}
-          onOpenDrawer={handleOpenDialog}
-          delayThreshold={delayThreshold}
-        />
+          {/* Tab 1: Incident Explanations */}
+          <TabPanel value={0} sx={{ p: 0, pt: 3 }}>
+            <Alert color="warning" variant="soft" sx={{ mb: 3 }}>
+              <Typography level="body-sm" sx={{ dir: "rtl" }}>
+                ⚠️ هذا التوضيح خاص بهذه الحالة فقط، ولا يُستخدم للتقارير الفصلية.
+              </Typography>
+            </Alert>
+
+            <DepartmentFeedbackFilters filters={filters} setFilters={setFilters} />
+
+            <OpenRecordsTable
+              records={filteredAndSortedRecords}
+              loading={loading}
+              onOpenDrawer={handleOpenDialog}
+              delayThreshold={delayThreshold}
+            />
+          </TabPanel>
+
+          {/* Tab 2: Seasonal Explanations */}
+          <TabPanel value={1} sx={{ p: 0, pt: 3 }}>
+            <Typography level="body-sm" sx={{ mb: 2, color: "#666", fontStyle: "italic", dir: "rtl" }}>
+              هذه الصفحة لتوضيح لماذا تجاوزت نسبة الأداء العتبة المحددة في الفصل.
+            </Typography>
+            
+            {/* Seasonal Violations Table */}
+            <Box
+              sx={{
+                borderRadius: "8px",
+                border: "1px solid rgba(102, 126, 234, 0.2)",
+                overflow: "hidden",
+              }}
+            >
+              <Box
+                sx={{
+                  p: 2,
+                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  color: "white",
+                }}
+              >
+                <Typography level="h6" sx={{ fontWeight: 700 }}>
+                  🚨 Seasonal Threshold Violations
+                </Typography>
+                <Typography level="body-xs" sx={{ opacity: 0.9, mt: 0.5 }}>
+                  Departments that exceeded performance thresholds this season
+                </Typography>
+              </Box>
+              
+              <Box sx={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ background: "#f9fafb", borderBottom: "1px solid #e0e0e0" }}>
+                      <th style={{ padding: "12px", textAlign: "center", fontWeight: 600 }}>Season</th>
+                      <th style={{ padding: "12px", textAlign: "center", fontWeight: 600 }}>Department</th>
+                      <th style={{ padding: "12px", textAlign: "center", fontWeight: 600 }}>Metric</th>
+                      <th style={{ padding: "12px", textAlign: "center", fontWeight: 600 }}>Threshold</th>
+                      <th style={{ padding: "12px", textAlign: "center", fontWeight: 600 }}>Actual</th>
+                      <th style={{ padding: "12px", textAlign: "center", fontWeight: 600 }}>Status</th>
+                      <th style={{ padding: "12px", textAlign: "center", fontWeight: 600 }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {seasonalViolations.map((violation) => (
+                      <tr key={violation.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                        <td style={{ padding: "12px", textAlign: "center" }}>
+                          <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                            {violation.seasonLabel}
+                          </Typography>
+                        </td>
+                        <td style={{ padding: "12px", textAlign: "center" }}>
+                          <Typography level="body-sm">{violation.department}</Typography>
+                          <Typography level="body-xs" sx={{ color: "#999", dir: "rtl" }}>
+                            {violation.qism}
+                          </Typography>
+                        </td>
+                        <td style={{ padding: "12px", textAlign: "center" }}>
+                          <Typography level="body-sm">{violation.metricLabel}</Typography>
+                        </td>
+                        <td style={{ padding: "12px", textAlign: "center" }}>
+                          <Typography level="body-sm" sx={{ color: "#2ed573", fontWeight: 600 }}>
+                            {violation.metricType === "HCAT_violations" ? `${violation.thresholdValue}%` : `${violation.thresholdValue} days`}
+                          </Typography>
+                        </td>
+                        <td style={{ padding: "12px", textAlign: "center" }}>
+                          <Typography level="body-sm" sx={{ color: "#ff4757", fontWeight: 700 }}>
+                            {violation.metricType === "HCAT_violations" ? `${violation.actualValue}%` : `${violation.actualValue} days`}
+                          </Typography>
+                        </td>
+                        <td style={{ padding: "12px", textAlign: "center" }}>
+                          <Box
+                            sx={{
+                              display: "inline-flex",
+                              padding: "4px 12px",
+                              borderRadius: "4px",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              background: violation.status === "SUBMITTED" ? "#2ed573" : "#ffa502",
+                              color: "white",
+                            }}
+                          >
+                            {violation.status === "SUBMITTED" ? "✅ Submitted" : "⏳ Pending"}
+                          </Box>
+                        </td>
+                        <td style={{ padding: "12px", textAlign: "center" }}>
+                          <button
+                            onClick={() => {
+                              setSelectedViolation(violation);
+                              setSeasonalFormData({});
+                              setSeasonalDialogOpen(true);
+                            }}
+                            disabled={violation.status === "SUBMITTED"}
+                            style={{
+                              padding: "8px 16px",
+                              borderRadius: "4px",
+                              border: "none",
+                              background: violation.status === "SUBMITTED" ? "#ccc" : "#667eea",
+                              color: "white",
+                              fontWeight: 600,
+                              cursor: violation.status === "SUBMITTED" ? "not-allowed" : "pointer",
+                              opacity: violation.status === "SUBMITTED" ? 0.6 : 1,
+                            }}
+                          >
+                            {violation.status === "SUBMITTED" ? "View" : "Explain"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Box>
+            </Box>
+          </TabPanel>
+        </Tabs>
 
         <Modal open={dialogOpen} onClose={handleCloseDialog}>
           <ModalDialog
@@ -317,7 +512,7 @@ const DepartmentFeedbackPage = () => {
                   <Grid container spacing={2} sx={{ alignItems: "center" }}>
                     <Grid xs={12} md={6}>
                       <Typography level="h4" sx={{ fontWeight: 700, color: "#667eea", mb: 0.5 }}>
-                        ملء توضيح القسم
+                        ملء توضيح الحالة (Fill Incident Explanation)
                       </Typography>
                       <Typography level="body-sm" sx={{ color: "#666" }}>
                         {selectedComplaint.complaintID} - {selectedComplaint.patientFullName}
@@ -364,6 +559,223 @@ const DepartmentFeedbackPage = () => {
                     saving={saving}
                     canSave={canSave}
                   />
+                </Box>
+              </>
+            )}
+          </ModalDialog>
+        </Modal>
+
+        {/* Modal for Seasonal Explanation (Tab 2) */}
+        <Modal open={seasonalDialogOpen} onClose={() => setSeasonalDialogOpen(false)}>
+          <ModalDialog
+            sx={{
+              maxWidth: "900px",
+              width: "90vw",
+              maxHeight: "85vh",
+              overflow: "hidden",
+              p: 0,
+            }}
+          >
+            <ModalClose />
+            {selectedViolation && (
+              <>
+                <DialogTitle sx={{ p: 3, pb: 2 }}>
+                  <Typography level="h4" sx={{ fontWeight: 700, color: "#667eea", mb: 0.5 }}>
+                    📊 Seasonal Performance Explanation
+                  </Typography>
+                  <Typography level="body-sm" sx={{ color: "#666", dir: "rtl" }}>
+                    توضيح تجاوز العتبة المحددة في الأداء الفصلي
+                  </Typography>
+                </DialogTitle>
+
+                <Divider />
+
+                <DialogContent
+                  sx={{
+                    p: 3,
+                    overflow: "auto",
+                    maxHeight: "calc(85vh - 180px)",
+                  }}
+                >
+                  {/* Violation Summary */}
+                  <Box
+                    sx={{
+                      mb: 3,
+                      p: 2.5,
+                      borderRadius: "8px",
+                      background: "linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)",
+                      border: "1px solid rgba(102, 126, 234, 0.3)",
+                    }}
+                  >
+                    <Grid container spacing={2}>
+                      <Grid xs={6}>
+                        <Typography level="body-xs" sx={{ color: "#666", mb: 0.5 }}>Season</Typography>
+                        <Typography level="body-md" sx={{ fontWeight: 700 }}>{selectedViolation.seasonLabel}</Typography>
+                      </Grid>
+                      <Grid xs={6}>
+                        <Typography level="body-xs" sx={{ color: "#666", mb: 0.5 }}>Department</Typography>
+                        <Typography level="body-md" sx={{ fontWeight: 700 }}>{selectedViolation.department}</Typography>
+                        <Typography level="body-xs" sx={{ color: "#999", dir: "rtl" }}>{selectedViolation.qism}</Typography>
+                      </Grid>
+                      <Grid xs={6}>
+                        <Typography level="body-xs" sx={{ color: "#666", mb: 0.5 }}>Metric</Typography>
+                        <Typography level="body-md" sx={{ fontWeight: 700 }}>{selectedViolation.metricLabel}</Typography>
+                      </Grid>
+                      <Grid xs={6}>
+                        <Typography level="body-xs" sx={{ color: "#666", mb: 0.5 }}>Performance</Typography>
+                        <Typography level="body-md" sx={{ fontWeight: 700 }}>
+                          <span style={{ color: "#2ed573" }}>
+                            Threshold: {selectedViolation.metricType === "HCAT_violations" ? `${selectedViolation.thresholdValue}%` : `${selectedViolation.thresholdValue} days`}
+                          </span>
+                          {" → "}
+                          <span style={{ color: "#ff4757" }}>
+                            Actual: {selectedViolation.metricType === "HCAT_violations" ? `${selectedViolation.actualValue}%` : `${selectedViolation.actualValue} days`}
+                          </span>
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Box>
+
+                  {/* Seasonal Explanation Form */}
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+                    <Box>
+                      <Typography level="title-md" sx={{ mb: 1, fontWeight: 700, dir: "rtl" }}>
+                        التحليل الجذري (Root Cause Analysis) <span style={{ color: "red" }}>*</span>
+                      </Typography>
+                      <Typography level="body-sm" sx={{ mb: 1.5, color: "#666", dir: "rtl" }}>
+                        ما هي الأسباب الجذرية التي أدت إلى تجاوز العتبة في هذا الفصل؟
+                      </Typography>
+                      <textarea
+                        value={seasonalFormData.root_cause_analysis || ""}
+                        onChange={(e) => setSeasonalFormData({ ...seasonalFormData, root_cause_analysis: e.target.value })}
+                        placeholder="اشرح الأسباب الجذرية والعوامل النظامية التي ساهمت في تجاوز العتبة..."
+                        style={{
+                          width: "100%",
+                          minHeight: "120px",
+                          padding: "12px",
+                          borderRadius: "6px",
+                          border: "1px solid #ccc",
+                          fontFamily: "inherit",
+                          fontSize: "14px",
+                          resize: "vertical",
+                          direction: "rtl",
+                        }}
+                      />
+                    </Box>
+
+                    <Box>
+                      <Typography level="title-md" sx={{ mb: 1, fontWeight: 700, dir: "rtl" }}>
+                        الإجراءات التصحيحية (Corrective Actions) <span style={{ color: "red" }}>*</span>
+                      </Typography>
+                      <Typography level="body-sm" sx={{ mb: 1.5, color: "#666", dir: "rtl" }}>
+                        ما هي الإجراءات التصحيحية طويلة المدى لمنع تكرار هذا الأداء؟
+                      </Typography>
+                      <textarea
+                        value={seasonalFormData.corrective_actions || ""}
+                        onChange={(e) => setSeasonalFormData({ ...seasonalFormData, corrective_actions: e.target.value })}
+                        placeholder="اذكر الإجراءات النظامية والتحسينات المخطط لها لتحسين الأداء..."
+                        style={{
+                          width: "100%",
+                          minHeight: "120px",
+                          padding: "12px",
+                          borderRadius: "6px",
+                          border: "1px solid #ccc",
+                          fontFamily: "inherit",
+                          fontSize: "14px",
+                          resize: "vertical",
+                          direction: "rtl",
+                        }}
+                      />
+                    </Box>
+
+                    <Grid container spacing={2}>
+                      <Grid xs={6}>
+                        <Typography level="title-sm" sx={{ mb: 1, fontWeight: 600, dir: "rtl" }}>
+                          تاريخ الإنجاز المتوقع
+                        </Typography>
+                        <input
+                          type="date"
+                          value={seasonalFormData.expected_completion_date || ""}
+                          onChange={(e) => setSeasonalFormData({ ...seasonalFormData, expected_completion_date: e.target.value })}
+                          style={{
+                            width: "100%",
+                            padding: "10px",
+                            borderRadius: "6px",
+                            border: "1px solid #ccc",
+                            fontFamily: "inherit",
+                            fontSize: "14px",
+                          }}
+                        />
+                      </Grid>
+                      <Grid xs={6}>
+                        <Typography level="title-sm" sx={{ mb: 1, fontWeight: 600, dir: "rtl" }}>
+                          الشخص المسؤول
+                        </Typography>
+                        <input
+                          type="text"
+                          value={seasonalFormData.responsible_person || ""}
+                          onChange={(e) => setSeasonalFormData({ ...seasonalFormData, responsible_person: e.target.value })}
+                          placeholder="اسم المسؤول عن التنفيذ"
+                          style={{
+                            width: "100%",
+                            padding: "10px",
+                            borderRadius: "6px",
+                            border: "1px solid #ccc",
+                            fontFamily: "inherit",
+                            fontSize: "14px",
+                            direction: "rtl",
+                          }}
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
+                </DialogContent>
+
+                <Divider />
+
+                <Box sx={{ p: 2.5, display: "flex", gap: 2, justifyContent: "flex-end" }}>
+                  <button
+                    onClick={() => setSeasonalDialogOpen(false)}
+                    style={{
+                      padding: "10px 24px",
+                      borderRadius: "6px",
+                      border: "1px solid #ccc",
+                      background: "white",
+                      color: "#333",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!seasonalFormData.root_cause_analysis || !seasonalFormData.corrective_actions) {
+                        alert("Please fill in all required fields");
+                        return;
+                      }
+                      // TODO: Save to API
+                      await new Promise(resolve => setTimeout(resolve, 1000));
+                      alert("Seasonal explanation submitted successfully!");
+                      setSeasonalDialogOpen(false);
+                      // Update violation status
+                      setSeasonalViolations(prev => 
+                        prev.map(v => v.id === selectedViolation.id ? { ...v, status: "SUBMITTED" } : v)
+                      );
+                    }}
+                    disabled={!seasonalFormData.root_cause_analysis || !seasonalFormData.corrective_actions}
+                    style={{
+                      padding: "10px 24px",
+                      borderRadius: "6px",
+                      border: "none",
+                      background: (!seasonalFormData.root_cause_analysis || !seasonalFormData.corrective_actions) ? "#ccc" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                      color: "white",
+                      fontWeight: 600,
+                      cursor: (!seasonalFormData.root_cause_analysis || !seasonalFormData.corrective_actions) ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Submit Explanation
+                  </button>
                 </Box>
               </>
             )}

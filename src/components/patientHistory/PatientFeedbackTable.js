@@ -5,28 +5,15 @@ import {
   Sheet,
   Box,
   Typography,
-  Input,
-  Select,
-  Option,
   IconButton,
   Tooltip,
 } from "@mui/joy";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-import SearchIcon from "@mui/icons-material/Search";
 
 const PatientFeedbackTable = ({ feedbacks }) => {
   const [sortConfig, setSortConfig] = useState({ key: "date", direction: "desc" });
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterDepartment, setFilterDepartment] = useState("all");
-  const [filterSeverity, setFilterSeverity] = useState("all");
   const [page, setPage] = useState(0);
   const [rowsPerPage] = useState(5);
-
-  // Get unique departments
-  const departments = useMemo(() => {
-    const unique = [...new Set(feedbacks.map((fb) => fb.department))];
-    return unique.sort();
-  }, [feedbacks]);
 
   // Sort feedbacks
   const sortedFeedbacks = useMemo(() => {
@@ -43,24 +30,11 @@ const PatientFeedbackTable = ({ feedbacks }) => {
     return sorted;
   }, [feedbacks, sortConfig]);
 
-  // Filter feedbacks
-  const filteredFeedbacks = useMemo(() => {
-    return sortedFeedbacks.filter((fb) => {
-      const matchesSearch =
-        fb.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        fb.doctorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        fb.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesDept = filterDepartment === "all" || fb.department === filterDepartment;
-      const matchesSeverity = filterSeverity === "all" || fb.severity === filterSeverity;
-      return matchesSearch && matchesDept && matchesSeverity;
-    });
-  }, [sortedFeedbacks, searchTerm, filterDepartment, filterSeverity]);
-
   // Paginate
   const paginatedFeedbacks = useMemo(() => {
     const start = page * rowsPerPage;
-    return filteredFeedbacks.slice(start, start + rowsPerPage);
-  }, [filteredFeedbacks, page, rowsPerPage]);
+    return sortedFeedbacks.slice(start, start + rowsPerPage);
+  }, [sortedFeedbacks, page, rowsPerPage]);
 
   // Handle sort
   const handleSort = (key) => {
@@ -109,7 +83,7 @@ const PatientFeedbackTable = ({ feedbacks }) => {
     return styleMap[status?.toLowerCase()] || { background: "#999", color: "white" };
   };
 
-  const totalPages = Math.ceil(filteredFeedbacks.length / rowsPerPage);
+  const totalPages = Math.ceil(sortedFeedbacks.length / rowsPerPage);
 
   return (
     <Sheet
@@ -127,42 +101,9 @@ const PatientFeedbackTable = ({ feedbacks }) => {
           background: "#f9fafb",
         }}
       >
-        <Typography level="h4" sx={{ mb: 2, color: "#667eea", fontWeight: 700 }}>
+        <Typography level="h4" sx={{ color: "#667eea", fontWeight: 700 }}>
           📋 Patient Feedback History
         </Typography>
-
-        {/* Filters */}
-        <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-          <Input
-            placeholder="🔍 Search by category, doctor, or description..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            startDecorator={<SearchIcon />}
-            sx={{ flex: 1, minWidth: "250px" }}
-          />
-          <Select
-            value={filterDepartment}
-            onChange={(e, value) => setFilterDepartment(value)}
-            sx={{ minWidth: "150px" }}
-          >
-            <Option value="all">All Departments</Option>
-            {departments.map((dept) => (
-              <Option key={dept} value={dept}>
-                {dept}
-              </Option>
-            ))}
-          </Select>
-          <Select
-            value={filterSeverity}
-            onChange={(e, value) => setFilterSeverity(value)}
-            sx={{ minWidth: "150px" }}
-          >
-            <Option value="all">All Severities</Option>
-            <Option value="High">High</Option>
-            <Option value="Medium">Medium</Option>
-            <Option value="Low">Low</Option>
-          </Select>
-        </Box>
       </Box>
 
       {/* Table */}
@@ -299,8 +240,8 @@ const PatientFeedbackTable = ({ feedbacks }) => {
       >
         <Typography level="body-sm" sx={{ color: "#666" }}>
           Showing {page * rowsPerPage + 1}-
-          {Math.min((page + 1) * rowsPerPage, filteredFeedbacks.length)} of{" "}
-          {filteredFeedbacks.length} records
+          {Math.min((page + 1) * rowsPerPage, sortedFeedbacks.length)} of{" "}
+          {sortedFeedbacks.length} records
         </Typography>
         <Box sx={{ display: "flex", gap: 1 }}>
           <IconButton

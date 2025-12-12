@@ -13,6 +13,7 @@ import SettingPage from "./pages/SettingPage";
 import PatientHistoryPage from "./pages/PatientHistoryPage";
 import DepartmentFeedbackPage from "./pages/DepartmentFeedbackPage";
 import RedFlagsPage from "./pages/RedFlagsPage";
+import DoctorHistoryPage from "./pages/DoctorHistoryPage";
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
         <Route path="/reporting" element={<ReportingPage />} />
         <Route path="/settings" element={<SettingPage />} />
         <Route path="/patient-history" element={<PatientHistoryPage />} />
+        <Route path="/doctor-history" element={<DoctorHistoryPage />} />
         <Route path="/department-feedback" element={<DepartmentFeedbackPage />} />
         <Route path="/redflags" element={<RedFlagsPage />} />
       </Routes>

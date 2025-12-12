@@ -270,19 +270,33 @@ const RecordsTable = ({ records, filters }) => {
                 <th>
                   <SortableHeader label="Source" sortKey="source_1" />
                 </th>
-                <th>Type</th>
-                <th>Domain</th>
-                <th>Category</th>
-                <th>Subcategory</th>
-                <th>Classification (EN)</th>
+                <th>
+                  <SortableHeader label="Type" sortKey="feedback_type" />
+                </th>
+                <th>
+                  <SortableHeader label="Domain" sortKey="domain" />
+                </th>
+                <th>
+                  <SortableHeader label="Category" sortKey="category_label" />
+                </th>
+                <th>
+                  <SortableHeader label="Subcategory" sortKey="subcategory_label" />
+                </th>
+                <th>
+                  <SortableHeader label="Classification (EN)" sortKey="classification_en_label" />
+                </th>
                 <th>
                   <SortableHeader label="Severity" sortKey="severity_level" />
                 </th>
                 <th>
                   <SortableHeader label="Status" sortKey="status" />
                 </th>
-                <th>Harm Level</th>
-                <th>Stage</th>
+                <th>
+                  <SortableHeader label="Harm Level" sortKey="harm_level" />
+                </th>
+                <th>
+                  <SortableHeader label="Stage" sortKey="stage" />
+                </th>
                 <th>Actions</th>
               </tr>
             </thead>

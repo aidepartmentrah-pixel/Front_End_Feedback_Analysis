@@ -15,6 +15,16 @@ import {
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import FilterListIcon from "@mui/icons-material/FilterList";
+import {
+  SOURCE_OPTIONS,
+  DOMAIN_OPTIONS,
+  CATEGORY_OPTIONS,
+  SUBCATEGORY_OPTIONS,
+  SEVERITY_OPTIONS,
+  STAGE_OPTIONS,
+  HARM_OPTIONS,
+  STATUS_OPTIONS,
+} from "../utils/fieldMappings";
 
 const issuingDepartments = [
   "All",
@@ -47,20 +57,15 @@ const targetDepartments = [
   "Radiology",
 ];
 
-const sources = [
-  "All",
-  "Phone",
-  "Walk-in",
-  "Email",
-  "Online Form",
-  "SMS",
-  "Letter",
-];
-
-const severities = ["All", "High", "Medium", "Low"];
-const stages = ["All", "Admission", "Care", "Discharge"];
-const harmLevels = ["All", "High", "Medium", "Low", "No Harm"];
-const statuses = ["All", "In Progress", "Closed", "Pending"];
+// Use mappings from fieldMappings.js for consistency
+const sources = ["All", ...SOURCE_OPTIONS.map(opt => opt.label)];
+const domains = ["All", ...DOMAIN_OPTIONS.map(opt => opt.label)];
+const categories = ["All", ...CATEGORY_OPTIONS.map(opt => opt.label)];
+const subcategories = ["All", ...SUBCATEGORY_OPTIONS.map(opt => opt.label)];
+const severities = ["All", ...SEVERITY_OPTIONS.map(opt => opt.label)];
+const stages = ["All", ...STAGE_OPTIONS.map(opt => opt.label)];
+const harmLevels = ["All", ...HARM_OPTIONS.map(opt => opt.label)];
+const statuses = ["All", ...STATUS_OPTIONS.map(opt => opt.label)];
 
 const SearchFilters = ({ filters, setFilters }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
