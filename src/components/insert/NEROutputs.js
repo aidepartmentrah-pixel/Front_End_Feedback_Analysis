@@ -1,7 +1,8 @@
 // src/components/insert/NEROutputs.js
 import React from "react";
-import { Card, Typography, FormControl, FormLabel, Input, Grid, Button } from "@mui/joy";
+import { Card, Typography, FormControl, FormLabel, Input, Grid, Button, Box, Chip } from "@mui/joy";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import CloseIcon from "@mui/icons-material/Close";
 
 const NEROutputs = ({ formData, onInputChange, onRunNER, loading }) => {
   return (
@@ -86,7 +87,7 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading }) => {
               },
             }}
           >
-            {loading ? "Extracting Entities..." : "🤖 Run NER Extraction"}
+            {loading ? "Extracting Entities..." : "🤖 Run NER Extraction (Patient & Doctor Names)"}
           </Button>
         </Grid>
       </Grid>
@@ -99,7 +100,7 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading }) => {
           fontStyle: "italic",
         }}
       >
-        ✏️ These fields are editable. The AI extraction may be incorrect - feel free to override manually.
+        ✏️ NER extracts patient and doctor names from the complaint text. Review and adjust if needed.
       </Typography>
     </Card>
   );

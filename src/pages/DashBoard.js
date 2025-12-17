@@ -1,6 +1,7 @@
 // src/pages/DashboardPage.js
 import React, { useState } from "react";
-import { Box } from "@mui/joy";
+import { Box, Card, Typography } from "@mui/joy";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 
 // Components
 import MainLayout from "../components/common/MainLayout";
@@ -57,6 +58,36 @@ const DashboardPage = () => {
         {/* Dashboard Actions */}
         <Box sx={{ mt: 3 }}>
           <DashboardActions />
+        </Box>
+
+        {/* Trend Monitoring Link */}
+        <Box sx={{ mt: 3 }}>
+          <Card
+            sx={{
+              p: 2.5,
+              background: "linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)",
+              border: "2px solid rgba(102, 126, 234, 0.3)",
+              cursor: "pointer",
+              transition: "all 0.3s ease",
+              "&:hover": {
+                transform: "translateY(-2px)",
+                boxShadow: "0 8px 24px rgba(102, 126, 234, 0.2)",
+              },
+            }}
+            onClick={() => window.location.href = "/trend-monitoring"}
+          >
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Box>
+                <Typography level="h5" sx={{ fontWeight: 700, color: "#667eea", mb: 0.5 }}>
+                  📊 عرض تحليل الاتجاهات (View Trend Analysis)
+                </Typography>
+                <Typography level="body-sm" sx={{ color: "#666" }}>
+                  تتبع الاتجاهات الشهرية لاكتشاف أنماط التدهور والتحسين
+                </Typography>
+              </Box>
+              <ArrowForwardIcon sx={{ fontSize: "32px", color: "#667eea" }} />
+            </Box>
+          </Card>
         </Box>
       </Box>
     </MainLayout>

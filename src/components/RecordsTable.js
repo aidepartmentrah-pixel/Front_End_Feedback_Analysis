@@ -8,14 +8,82 @@ import {
   Tooltip,
   Sheet,
   Typography,
+  Modal,
+  ModalDialog,
+  ModalClose,
 } from "@mui/joy";
 import { Link } from "react-router-dom";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import DescriptionIcon from "@mui/icons-material/Description";
+import { VIEW_CONFIGURATIONS } from "./TableView/ViewSelector";
 
-const RecordsTable = ({ records, filters }) => {
+const RecordsTable = ({ records, filters, selectedView = "complete" }) => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [textModalOpen, setTextModalOpen] = useState(false);
+  const [selectedTextData, setSelectedTextData] = useState(null);
+
+  // Get all views (predefined + custom from localStorage)
+  const getAllViews = () => {
+    try {
+      const customViewsData = localStorage.getItem("customTableViews");
+      const customViews = customViewsData ? JSON.parse(customViewsData) : [];
+      const allViews = { ...VIEW_CONFIGURATIONS };
+      
+      // Add custom views to the configurations (ensure it's an array)
+      if (Array.isArray(customViews)) {
+        customViews.forEach(view => {
+          allViews[view.name] = view;
+        });
+      }
+      
+      return allViews;
+    } catch (error) {
+      console.error("Error loading custom views:", error);
+      return VIEW_CONFIGURATIONS;
+    }
+  };
+
+  // Get visible columns from selected view
+  const allViews = getAllViews();
+  const visibleColumns = allViews[selectedView]?.columns || VIEW_CONFIGURATIONS.complete.columns;
+
+  // Helper to check if column should be shown
+  const shouldShowColumn = (columnKey) => {
+    return visibleColumns.includes(columnKey);
+  };
+
+  // Handle viewing text details
+  const handleViewText = (record) => {
+    setSelectedTextData(record);
+    setTextModalOpen(true);
+  };
+
+  // Column configuration with labels
+  const columnConfig = {
+    record_id: { label: "Record ID", sortKey: "record_id" },
+    created_at: { label: "Date Added", sortKey: "created_at" },
+    feedback_received_date: { label: "Feedback Date", sortKey: "feedback_received_date" },
+    patient_full_name: { label: "Patient Name", sortKey: "patient_full_name" },
+    issuing_department: { label: "Issuing Dept", sortKey: "issuing_department" },
+    target_department: { label: "Target Dept", sortKey: "target_department" },
+    source_1: { label: "Source", sortKey: "source_1" },
+    feedback_type: { label: "Type", sortKey: "feedback_type" },
+    domain: { label: "Domain", sortKey: "domain" },
+    category: { label: "Category", sortKey: "category_label" },
+    sub_category: { label: "Subcategory", sortKey: "subcategory_label" },
+    classification_en_label: { label: "Classification", sortKey: "classification_en_label" },
+    severity_level: { label: "Severity", sortKey: "severity_level" },
+    stage: { label: "Stage", sortKey: "stage" },
+    harm_level: { label: "Harm Level", sortKey: "harm_level" },
+    status: { label: "Status", sortKey: "status" },
+    improvement_opportunity_type: { label: "Improvement", sortKey: "improvement_opportunity_type" },
+    complaint_text: { label: "📝 Complaint", sortKey: null },
+    immediate_action: { label: "⚡ Immediate Action", sortKey: null },
+    taken_action: { label: "🏥 Actions Taken", sortKey: null },
+    actions: { label: "Actions", sortKey: null }
+  };
 
   // FILTER LOGIC
   const filteredRecords = records.filter((record) => {
@@ -258,46 +326,20 @@ const RecordsTable = ({ records, filters }) => {
           >
             <thead>
               <tr>
-                <th>
-                  <SortableHeader label="Date Added" sortKey="created_at" />
-                </th>
-                <th>
-                  <SortableHeader label="Record ID" sortKey="record_id" />
-                </th>
-                <th>
-                  <SortableHeader label="Patient Name" sortKey="patient_full_name" />
-                </th>
-                <th>
-                  <SortableHeader label="Source" sortKey="source_1" />
-                </th>
-                <th>
-                  <SortableHeader label="Type" sortKey="feedback_type" />
-                </th>
-                <th>
-                  <SortableHeader label="Domain" sortKey="domain" />
-                </th>
-                <th>
-                  <SortableHeader label="Category" sortKey="category_label" />
-                </th>
-                <th>
-                  <SortableHeader label="Subcategory" sortKey="subcategory_label" />
-                </th>
-                <th>
-                  <SortableHeader label="Classification (EN)" sortKey="classification_en_label" />
-                </th>
-                <th>
-                  <SortableHeader label="Severity" sortKey="severity_level" />
-                </th>
-                <th>
-                  <SortableHeader label="Status" sortKey="status" />
-                </th>
-                <th>
-                  <SortableHeader label="Harm Level" sortKey="harm_level" />
-                </th>
-                <th>
-                  <SortableHeader label="Stage" sortKey="stage" />
-                </th>
-                <th>Actions</th>
+                {visibleColumns.map((columnKey) => {
+                  const config = columnConfig[columnKey];
+                  if (!config) return null;
+                  
+                  return (
+                    <th key={columnKey}>
+                      {config.sortKey ? (
+                        <SortableHeader label={config.label} sortKey={config.sortKey} />
+                      ) : (
+                        config.label
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
@@ -309,122 +351,308 @@ const RecordsTable = ({ records, filters }) => {
                     borderLeft: isRedFlag(record) ? "4px solid #d32f2f" : "none",
                   }}
                 >
-                  <td>
-                    <Typography level="body-sm" sx={{ color: isRedFlag(record) ? "#b71c1c" : "inherit" }}>
-                      {record.created_at || record.date_added || record.feedback_received_date}
-                    </Typography>
-                  </td>
-                  <td>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                      {isRedFlag(record) && <span style={{ fontSize: "16px" }}>🚩</span>}
-                      <Typography level="body-sm" sx={{ fontWeight: 600, color: isRedFlag(record) ? "#b71c1c" : "#667eea" }}>
+                  {shouldShowColumn("record_id") && (
+                    <td>
+                      <Typography level="body-sm" sx={{ fontWeight: 700, color: isRedFlag(record) ? "#b71c1c" : "#667eea" }}>
                         {record.record_id}
+                        {isRedFlag(record) && (
+                          <Chip size="sm" color="danger" sx={{ ml: 1, fontSize: "9px", height: "18px" }}>
+                            RED FLAG
+                          </Chip>
+                        )}
                       </Typography>
-                    </Box>
-                  </td>
-                  <td>
-                    <Typography level="body-sm" sx={{ color: isRedFlag(record) ? "#b71c1c" : "inherit" }}>
-                      {record.patient_full_name}
-                    </Typography>
-                  </td>
-                  <td>
-                    <Chip
-                      variant="soft"
-                      size="sm"
-                      label={record.source_1}
-                      sx={{ background: "rgba(102, 126, 234, 0.1)", color: "#667eea" }}
-                    />
-                  </td>
-                  <td>
-                    <Typography level="body-sm" sx={{ color: isRedFlag(record) ? "#b71c1c" : "inherit" }}>
-                      {record.feedback_type}
-                    </Typography>
-                  </td>
-                  <td>
-                    <Typography level="body-sm" sx={{ color: isRedFlag(record) ? "#b71c1c" : "inherit" }}>
-                      {record.domain}
-                    </Typography>
-                  </td>
-                  <td>
-                    <Typography level="body-sm" sx={{ color: isRedFlag(record) ? "#b71c1c" : "inherit" }}>
-                      {record.category_label || record.category}
-                    </Typography>
-                  </td>
-                  <td>
-                    <Typography level="body-sm" sx={{ color: isRedFlag(record) ? "#b71c1c" : "inherit" }}>
-                      {record.subcategory_label || record.sub_category}
-                    </Typography>
-                  </td>
-                  <td>
-                    <Typography level="body-sm" sx={{ color: isRedFlag(record) ? "#b71c1c" : "inherit" }}>
-                      {record.classification_en_label || record.classification_en || record.classification_ar}
-                    </Typography>
-                  </td>
-                  <td>
-                    <StyledBadge
-                      style={getSeverityStyle(record.severity_level)}
-                      text={getSeverityStyle(record.severity_level).label}
-                    />
-                  </td>
-                  <td>
-                    <StyledBadge
-                      style={getStatusStyle(record.status)}
-                      text={getStatusStyle(record.status).label}
-                    />
-                  </td>
-                  <td>
-                    <StyledBadge
-                      style={getHarmStyle(record.harm_level)}
-                      text={getHarmStyle(record.harm_level).label}
-                    />
-                  </td>
-                  <td>
-                    <Typography level="body-sm" sx={{ color: isRedFlag(record) ? "#b71c1c" : "inherit" }}>
-                      {record.stage}
-                    </Typography>
-                  </td>
-                  <td>
-                    <Box sx={{ display: "flex", gap: 0.5 }}>
-                      <Tooltip title="View Details">
-                        <IconButton
-                          size="sm"
-                          variant="plain"
-                          color="primary"
-                          sx={{ "&:hover": { background: "rgba(102, 126, 234, 0.1)" } }}
-                        >
-                          <VisibilityIcon sx={{ fontSize: "18px" }} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Edit Record">
-                        <Link to={`/edit/${record.record_id}`} style={{ textDecoration: "none" }}>
+                    </td>
+                  )}
+                  
+                  {shouldShowColumn("created_at") && (
+                    <td>
+                      <Typography level="body-sm" sx={{ color: isRedFlag(record) ? "#b71c1c" : "inherit" }}>
+                        {record.created_at || record.date_added}
+                      </Typography>
+                    </td>
+                  )}
+
+                  {shouldShowColumn("feedback_received_date") && (
+                    <td>
+                      <Typography level="body-sm">
+                        {record.feedback_received_date}
+                      </Typography>
+                    </td>
+                  )}
+
+                  {shouldShowColumn("patient_full_name") && (
+                    <td>
+                      <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                        {record.patient_full_name}
+                      </Typography>
+                    </td>
+                  )}
+
+                  {shouldShowColumn("issuing_department") && (
+                    <td>
+                      <Typography level="body-sm">{record.issuing_department}</Typography>
+                    </td>
+                  )}
+
+                  {shouldShowColumn("target_department") && (
+                    <td>
+                      <Typography level="body-sm">{record.target_department}</Typography>
+                    </td>
+                  )}
+
+                  {shouldShowColumn("source_1") && (
+                    <td>
+                      <Typography level="body-sm">{record.source_1}</Typography>
+                    </td>
+                  )}
+
+                  {shouldShowColumn("feedback_type") && (
+                    <td>
+                      <Typography level="body-sm">{record.feedback_type}</Typography>
+                    </td>
+                  )}
+
+                  {shouldShowColumn("domain") && (
+                    <td>
+                      <Chip size="sm" variant="soft" color="primary">
+                        {record.domain}
+                      </Chip>
+                    </td>
+                  )}
+
+                  {shouldShowColumn("category") && (
+                    <td>
+                      <Typography level="body-sm">{record.category_label || record.category}</Typography>
+                    </td>
+                  )}
+
+                  {shouldShowColumn("sub_category") && (
+                    <td>
+                      <Typography level="body-sm">{record.subcategory_label || record.sub_category}</Typography>
+                    </td>
+                  )}
+
+                  {shouldShowColumn("classification_en_label") && (
+                    <td>
+                      <Typography level="body-sm">{record.classification_en_label}</Typography>
+                    </td>
+                  )}
+
+                  {shouldShowColumn("severity_level") && (
+                    <td>
+                      <StyledBadge 
+                        style={getSeverityStyle(record.severity_level)} 
+                        text={getSeverityStyle(record.severity_level).label} 
+                      />
+                    </td>
+                  )}
+
+                  {shouldShowColumn("stage") && (
+                    <td>
+                      <Typography level="body-sm">{record.stage}</Typography>
+                    </td>
+                  )}
+
+                  {shouldShowColumn("harm_level") && (
+                    <td>
+                      <StyledBadge 
+                        style={getHarmStyle(record.harm_level)} 
+                        text={getHarmStyle(record.harm_level).label} 
+                      />
+                    </td>
+                  )}
+
+                  {shouldShowColumn("status") && (
+                    <td>
+                      <StyledBadge 
+                        style={getStatusStyle(record.status)} 
+                        text={getStatusStyle(record.status).label} 
+                      />
+                    </td>
+                  )}
+
+                  {shouldShowColumn("improvement_opportunity_type") && (
+                    <td>
+                      <Chip size="sm" variant="soft" color={record.improvement_opportunity_type === "Yes" ? "success" : "neutral"}>
+                        {record.improvement_opportunity_type}
+                      </Chip>
+                    </td>
+                  )}
+
+                  {shouldShowColumn("complaint_text") && (
+                    <td>
+                      <Box sx={{ display: "flex", gap: 1, justifyContent: "center", alignItems: "center" }}>
+                        <Typography level="body-sm">-</Typography>
+                        <Tooltip title="View Details">
+                          <IconButton 
+                            size="sm" 
+                            variant="soft" 
+                            color="neutral"
+                            onClick={() => handleViewText(record)}
+                          >
+                            <DescriptionIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </td>
+                  )}
+
+                  {shouldShowColumn("immediate_action") && (
+                    <td>
+                      <Box sx={{ display: "flex", gap: 1, justifyContent: "center", alignItems: "center" }}>
+                        <Typography level="body-sm">-</Typography>
+                        <Tooltip title="View Details">
+                          <IconButton 
+                            size="sm" 
+                            variant="soft" 
+                            color="neutral"
+                            onClick={() => handleViewText(record)}
+                          >
+                            <DescriptionIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </td>
+                  )}
+
+                  {shouldShowColumn("taken_action") && (
+                    <td>
+                      <Box sx={{ display: "flex", gap: 1, justifyContent: "center", alignItems: "center" }}>
+                        <Typography level="body-sm">-</Typography>
+                        <Tooltip title="View Details">
+                          <IconButton 
+                            size="sm" 
+                            variant="soft" 
+                            color="neutral"
+                            onClick={() => handleViewText(record)}
+                          >
+                            <DescriptionIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </td>
+                  )}
+
+                  {shouldShowColumn("actions") && (
+                    <td>
+                      <Box sx={{ display: "flex", gap: 1, justifyContent: "center" }}>
+                        <Tooltip title="View Details">
+                          <IconButton size="sm" variant="soft" color="primary">
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Edit Record">
                           <IconButton
                             size="sm"
-                            variant="plain"
+                            variant="soft"
                             color="warning"
-                            sx={{ "&:hover": { background: "rgba(255, 193, 7, 0.1)" } }}
+                            component={Link}
+                            to={`/edit/${record.record_id}`}
                           >
-                            <EditIcon sx={{ fontSize: "18px" }} />
+                            <EditIcon fontSize="small" />
                           </IconButton>
-                        </Link>
-                      </Tooltip>
-                      <Tooltip title="Delete Record">
-                        <IconButton
-                          size="sm"
-                          variant="plain"
-                          color="danger"
-                          sx={{ "&:hover": { background: "rgba(244, 67, 54, 0.1)" } }}
-                        >
-                          <DeleteIcon sx={{ fontSize: "18px" }} />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </td>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton size="sm" variant="soft" color="danger">
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </Table>
         </Sheet>
       )}
+
+      {/* Text Details Modal */}
+      <Modal open={textModalOpen} onClose={() => setTextModalOpen(false)}>
+        <ModalDialog
+          sx={{
+            maxWidth: 800,
+            width: "90%",
+            maxHeight: "80vh",
+            overflow: "auto"
+          }}
+        >
+          <ModalClose />
+          <Typography level="h4" sx={{ mb: 2 }}>
+            Record Details - ID: {selectedTextData?.record_id}
+          </Typography>
+          
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {/* Complaint Text */}
+            <Box>
+              <Typography level="title-md" sx={{ mb: 1, display: "flex", alignItems: "center", gap: 1 }}>
+                📝 Complaint Text
+              </Typography>
+              <Sheet
+                variant="soft"
+                sx={{
+                  p: 2,
+                  borderRadius: "sm",
+                  maxHeight: 150,
+                  overflow: "auto",
+                  direction: "rtl",
+                  textAlign: "right"
+                }}
+              >
+                <Typography level="body-sm">
+                  {selectedTextData?.complaint_text || "No complaint text available"}
+                </Typography>
+              </Sheet>
+            </Box>
+
+            {/* Immediate Action */}
+            <Box>
+              <Typography level="title-md" sx={{ mb: 1, display: "flex", alignItems: "center", gap: 1 }}>
+                ⚡ Immediate Action
+              </Typography>
+              <Sheet
+                variant="soft"
+                color="warning"
+                sx={{
+                  p: 2,
+                  borderRadius: "sm",
+                  maxHeight: 150,
+                  overflow: "auto",
+                  direction: "rtl",
+                  textAlign: "right"
+                }}
+              >
+                <Typography level="body-sm">
+                  {selectedTextData?.immediate_action || "No immediate action recorded"}
+                </Typography>
+              </Sheet>
+            </Box>
+
+            {/* Actions Taken */}
+            <Box>
+              <Typography level="title-md" sx={{ mb: 1, display: "flex", alignItems: "center", gap: 1 }}>
+                🏥 Actions Taken
+              </Typography>
+              <Sheet
+                variant="soft"
+                color="success"
+                sx={{
+                  p: 2,
+                  borderRadius: "sm",
+                  maxHeight: 150,
+                  overflow: "auto",
+                  direction: "rtl",
+                  textAlign: "right"
+                }}
+              >
+                <Typography level="body-sm">
+                  {selectedTextData?.taken_action || "No actions taken yet"}
+                </Typography>
+              </Sheet>
+            </Box>
+          </Box>
+        </ModalDialog>
+      </Modal>
     </Box>
   );
 };

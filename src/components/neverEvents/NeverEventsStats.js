@@ -1,65 +1,77 @@
-// src/components/redflags/RedFlagStats.js
+// src/components/neverEvents/NeverEventsStats.js
 import React from "react";
 import { Box, Card, Typography, Grid } from "@mui/joy";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import { mockRedFlags } from "../../data/redflagsData";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import ReportProblemIcon from "@mui/icons-material/ReportProblem";
+import { mockNeverEvents } from "../../data/neverEventsData";
 
-const RedFlagStats = () => {
+const NeverEventsStats = () => {
   // Calculate stats from actual data
-  const totalFlags = mockRedFlags.length;
-  const unfinishedFlags = mockRedFlags.filter(flag => flag.status !== "FINISHED").length;
-  const finishedFlags = mockRedFlags.filter(flag => flag.status === "FINISHED").length;
-  const openFlags = mockRedFlags.filter(flag => flag.status === "OPEN").length;
-  const closedFlags = mockRedFlags.filter(flag => flag.status === "CLOSED").length;
+  const totalEvents = mockNeverEvents.length;
+  const openEvents = mockNeverEvents.filter(event => event.status === "OPEN").length;
+  const closedEvents = mockNeverEvents.filter(event => event.status === "CLOSED").length;
+  const finishedEvents = mockNeverEvents.filter(event => event.status === "FINISHED").length;
+  const criticalEvents = mockNeverEvents.filter(event => event.severity === "CRITICAL").length;
+  const investigationInProgress = mockNeverEvents.filter(event => event.investigationStatus === "IN_PROGRESS").length;
+  const regulatoryReported = mockNeverEvents.filter(event => event.regulatoryReported).length;
 
   const stats = [
     {
-      label: "غير منتهية",
-      labelEn: "Unfinished",
-      value: unfinishedFlags.toString(),
+      label: "مفتوحة",
+      labelEn: "Open",
+      value: openEvents.toString(),
       icon: <WarningAmberIcon />,
       color: "#ff4757",
       bgColor: "rgba(255, 71, 87, 0.1)",
     },
     {
-      label: "مفتوحة",
-      labelEn: "Open",
-      value: openFlags.toString(),
+      label: "مغلقة",
+      labelEn: "Closed",
+      value: closedEvents.toString(),
       icon: <WarningAmberIcon />,
       color: "#ffa502",
       bgColor: "rgba(255, 165, 2, 0.1)",
     },
     {
-      label: "مغلقة (لكن غير منتهية)",
-      labelEn: "Closed (Not Finished)",
-      value: closedFlags.toString(),
-      icon: <WarningAmberIcon />,
-      color: "#999",
-      bgColor: "rgba(153, 153, 153, 0.1)",
-    },
-    {
       label: "منتهية",
       labelEn: "Finished",
-      value: finishedFlags.toString(),
+      value: finishedEvents.toString(),
       icon: <CheckCircleIcon />,
       color: "#2ed573",
       bgColor: "rgba(46, 213, 115, 0.1)",
     },
     {
-      label: "الإجمالي",
-      labelEn: "Total",
-      value: totalFlags.toString(),
-      icon: <WarningAmberIcon />,
+      label: "تحقيقات جارية",
+      labelEn: "Investigations In Progress",
+      value: investigationInProgress.toString(),
+      icon: <AssignmentIcon />,
       color: "#667eea",
       bgColor: "rgba(102, 126, 234, 0.1)",
+    },
+    {
+      label: "مُبلّغ للجهات الرقابية",
+      labelEn: "Regulatory Reported",
+      value: regulatoryReported.toString(),
+      icon: <ReportProblemIcon />,
+      color: "#5f27cd",
+      bgColor: "rgba(95, 39, 205, 0.1)",
+    },
+    {
+      label: "الإجمالي",
+      labelEn: "Total",
+      value: totalEvents.toString(),
+      icon: <WarningAmberIcon />,
+      color: "#222",
+      bgColor: "rgba(34, 34, 34, 0.1)",
     },
   ];
 
   return (
     <Grid container spacing={2} sx={{ mb: 3 }}>
       {stats.map((stat, index) => (
-        <Grid xs={12} sm={6} md={4} lg={2.4} key={index}>
+        <Grid xs={12} sm={6} md={4} lg={2} key={index}>
           <Card
             sx={{
               p: 2.5,
@@ -104,4 +116,4 @@ const RedFlagStats = () => {
   );
 };
 
-export default RedFlagStats;
+export default NeverEventsStats;

@@ -9,7 +9,7 @@ import DoctorCharts from "../components/doctorHistory/DoctorCharts";
 import DoctorIncidentsTable from "../components/doctorHistory/DoctorIncidentsTable";
 import DoctorReportActions from "../components/doctorHistory/DoctorReportActions";
 
-const DoctorHistoryPage = () => {
+const DoctorHistoryPage = ({ embedded = false }) => {
   const [selectedDoctor, setSelectedDoctor] = useState(null);
 
   // Mock doctors data
@@ -223,8 +223,7 @@ const DoctorHistoryPage = () => {
 
   const doctorData = selectedDoctor ? mockDoctorIncidents[selectedDoctor.id] : null;
 
-  return (
-    <MainLayout>
+  const content = (
       <Box sx={{ p: 3 }}>
         {/* Page Header */}
         <Box sx={{ mb: 4 }}>
@@ -299,8 +298,9 @@ const DoctorHistoryPage = () => {
           </Typography>
         </Box>
       </Box>
-    </MainLayout>
   );
+
+  return embedded ? content : <MainLayout>{content}</MainLayout>;
 };
 
 export default DoctorHistoryPage;

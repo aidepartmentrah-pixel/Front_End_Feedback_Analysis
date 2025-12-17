@@ -11,6 +11,7 @@ import ComplaintSummary from "../components/departmentFeedback/ComplaintSummary"
 import DepartmentFeedbackForm from "../components/departmentFeedback/DepartmentFeedbackForm";
 import FeedbackActions from "../components/departmentFeedback/FeedbackActions";
 import ExplanationTypeSwitch from "../components/departmentFeedback/ExplanationTypeSwitch";
+import { syncActionItemsToFollowUp } from "../utils/actionItemsHelper";
 // import axios from "axios";
 
 const DepartmentFeedbackPage = () => {
@@ -283,13 +284,25 @@ const DepartmentFeedbackPage = () => {
 
     setSaving(true);
     try {
+      // Sync action items to follow-up system
+      if (formData.action_items && formData.action_items.length > 0) {
+        const followUpActions = syncActionItemsToFollowUp(formData, selectedComplaint);
+        
+        // Store in localStorage for now (in real app, send to API)
+        const existingActions = JSON.parse(localStorage.getItem('followUpActions') || '[]');
+        const updatedActions = [...existingActions, ...followUpActions];
+        localStorage.setItem('followUpActions', JSON.stringify(updatedActions));
+        
+        console.log('Action items synced to Follow Up:', followUpActions);
+      }
+      
       // TODO: Replace with actual API call
       // await axios.post(`/api/department-feedback/${selectedComplaint.id}/add`, formData);
       
       // Mock delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      alert("تم حفظ التوضيح بنجاح!");
+      alert(`تم حفظ التوضيح بنجاح!${formData.action_items?.length ? `\n✓ تم إضافة ${formData.action_items.length} إجراء إلى نظام المتابعة` : ''}`);
       setSaving(false);
     } catch (err) {
       setError("فشل حفظ التوضيح. حاول مرة أخرى.");
@@ -303,6 +316,18 @@ const DepartmentFeedbackPage = () => {
 
     setSaving(true);
     try {
+      // Sync action items to follow-up system
+      if (formData.action_items && formData.action_items.length > 0) {
+        const followUpActions = syncActionItemsToFollowUp(formData, selectedComplaint);
+        
+        // Store in localStorage for now (in real app, send to API)
+        const existingActions = JSON.parse(localStorage.getItem('followUpActions') || '[]');
+        const updatedActions = [...existingActions, ...followUpActions];
+        localStorage.setItem('followUpActions', JSON.stringify(updatedActions));
+        
+        console.log('Action items synced to Follow Up:', followUpActions);
+      }
+      
       // TODO: Replace with actual API calls
       // await axios.post(`/api/department-feedback/${selectedComplaint.id}/add`, formData);
       // await axios.post(`/api/department-feedback/${selectedComplaint.id}/close`);
@@ -310,7 +335,7 @@ const DepartmentFeedbackPage = () => {
       // Mock delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      alert("تم حفظ وإغلاق السجل بنجاح!");
+      alert(`تم حفظ وإغلاق السجل بنجاح!${formData.action_items?.length ? `\n✓ تم إضافة ${formData.action_items.length} إجراء إلى نظام المتابعة` : ''}`);
       setSaving(false);
       handleCloseDialog();
       fetchOpenRecords();
@@ -690,6 +715,15 @@ const DepartmentFeedbackPage = () => {
                         }}
                       />
                     </Box>
+
+                    {/* Use the same DepartmentFeedbackForm component for action items */}
+                    <DepartmentFeedbackForm 
+                      formData={seasonalFormData} 
+                      setFormData={setSeasonalFormData}
+                      hideExplanation={true}
+                      hideFactors={true}
+                      hideCorrectiveActions={true}
+                    />
 
                     <Grid container spacing={2}>
                       <Grid xs={6}>

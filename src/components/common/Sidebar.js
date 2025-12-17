@@ -14,13 +14,13 @@ const Sidebar = () => {
   
   const pages = [
     { name: "📊 Dashboard", path: "/" },
-    { name: "➕ Insert Record", path: "/insert" },
+    { name: "📈 Trend Monitoring", path: "/trend-monitoring" },    { name: "🔍 Investigation", path: "/investigation" },    { name: "➕ Insert Record", path: "/insert" },
     { name: "📋 Table View", path: "/table-view" },
-    { name: "👤 Patient History", path: "/patient-history" },
-    { name: "�‍⚕️ Doctor History", path: "/doctor-history" },
-    { name: "�📈 Reporting", path: "/reporting" },
+    { name: "📊 Reporting", path: "/reporting" },
     { name: "📝 Explanations", path: "/department-feedback" },
-    { name: "🚩 Red Flags", path: "/redflags" },
+    { name: "📋 History", path: "/history" },
+    { name: "🚩 Critical Issues", path: "/critical-issues" },
+    { name: "� Follow Up", path: "/follow-up" },
     { name: "⚙️ Settings", path: "/settings" }
   ];
 

@@ -13,13 +13,14 @@ const mockIdaraData = {
   nursing: {
     metrics: {
       totalIncidents: 68,
-      openClosed: { open: 18, closed: 50 },
+      uniquePatients: 52,
+      openClosed: { open: 18, closed: 50, forciblyClosed: 6 },
       severityBreakdown: { high: 8, medium: 28, low: 32 },
       domainBreakdown: { clinical: 45, management: 15, relational: 8 },
       redFlags: 4
     },
     trends: {
-      totalIncidents: { value: 8, direction: "up" },
+      incidentsPatients: { value: 8, direction: "up" },
       openClosed: { value: 12, direction: "down" },
       severity: { value: 5, direction: "up" },
       domain: { value: 2, direction: "down" },
@@ -68,13 +69,14 @@ const mockIdaraData = {
   medical: {
     metrics: {
       totalIncidents: 42,
-      openClosed: { open: 10, closed: 32 },
+      uniquePatients: 35,
+      openClosed: { open: 10, closed: 32, forciblyClosed: 4 },
       severityBreakdown: { high: 5, medium: 18, low: 19 },
       domainBreakdown: { clinical: 30, management: 8, relational: 4 },
       redFlags: 3
     },
     trends: {
-      totalIncidents: { value: 6, direction: "down" },
+      incidentsPatients: { value: 6, direction: "down" },
       openClosed: { value: 10, direction: "down" },
       severity: { value: 3, direction: "up" },
       domain: { value: 1, direction: "down" },
@@ -217,16 +219,16 @@ const IdaraDashboardStats = ({ idara }) => {
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid xs={12} sm={6} md={2.4}>
           <MetricCard 
-            title="Total Incidents" 
-            value={metrics.totalIncidents} 
+            title="Total Incidents / Patients" 
+            value={`${metrics.totalIncidents} / ${metrics.uniquePatients}`} 
             color="#667eea"
-            trend={trends.totalIncidents}
+            trend={trends.incidentsPatients}
           />
         </Grid>
         <Grid xs={12} sm={6} md={2.4}>
           <MetricCard
-            title="Open / Closed"
-            value={`${metrics.openClosed.open} / ${metrics.openClosed.closed}`}
+            title="Open / Closed / Forcibly Closed"
+            value={`${metrics.openClosed.open} / ${metrics.openClosed.closed} / ${metrics.openClosed.forciblyClosed}`}
             color="#ff4757"
             trend={trends.openClosed}
           />

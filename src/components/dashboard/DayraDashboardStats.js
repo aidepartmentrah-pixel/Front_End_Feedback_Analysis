@@ -12,13 +12,14 @@ const mockDayraData = {
   emergency_nursing: {
     metrics: {
       totalIncidents: 28,
-      openClosed: { open: 8, closed: 20 },
+      uniquePatients: 22,
+      openClosed: { open: 8, closed: 20, forciblyClosed: 3 },
       severityBreakdown: { high: 4, medium: 12, low: 12 },
       domainBreakdown: { clinical: 18, management: 6, relational: 4 },
       redFlags: 2
     },
     trends: {
-      totalIncidents: { value: 10, direction: "up" },
+      incidentsPatients: { value: 10, direction: "up" },
       openClosed: { value: 8, direction: "down" },
       severity: { value: 4, direction: "up" },
       domain: { value: 2, direction: "up" },
@@ -56,13 +57,14 @@ const mockDayraData = {
   icu_nursing: {
     metrics: {
       totalIncidents: 20,
-      openClosed: { open: 5, closed: 15 },
+      uniquePatients: 18,
+      openClosed: { open: 5, closed: 15, forciblyClosed: 2 },
       severityBreakdown: { high: 3, medium: 9, low: 8 },
       domainBreakdown: { clinical: 14, management: 4, relational: 2 },
       redFlags: 1
     },
     trends: {
-      totalIncidents: { value: 5, direction: "down" },
+      incidentsPatients: { value: 5, direction: "down" },
       openClosed: { value: 15, direction: "down" },
       severity: { value: 2, direction: "down" },
       domain: { value: 1, direction: "down" },
@@ -100,13 +102,14 @@ const mockDayraData = {
   ward_nursing: {
     metrics: {
       totalIncidents: 20,
-      openClosed: { open: 5, closed: 15 },
+      uniquePatients: 17,
+      openClosed: { open: 5, closed: 15, forciblyClosed: 2 },
       severityBreakdown: { high: 1, medium: 7, low: 12 },
       domainBreakdown: { clinical: 13, management: 5, relational: 2 },
       redFlags: 1
     },
     trends: {
-      totalIncidents: { value: 7, direction: "up" },
+      incidentsPatients: { value: 7, direction: "up" },
       openClosed: { value: 10, direction: "down" },
       severity: { value: 3, direction: "down" },
       domain: { value: 1, direction: "up" },
@@ -181,16 +184,16 @@ const DayraDashboardStats = ({ dayra }) => {
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid xs={12} sm={6} md={2.4}>
           <MetricCard 
-            title="Total Incidents" 
-            value={metrics.totalIncidents} 
+            title="Total Incidents / Patients" 
+            value={`${metrics.totalIncidents} / ${metrics.uniquePatients}`} 
             color="#667eea"
-            trend={trends.totalIncidents}
+            trend={trends.incidentsPatients}
           />
         </Grid>
         <Grid xs={12} sm={6} md={2.4}>
           <MetricCard
-            title="Open / Closed"
-            value={`${metrics.openClosed.open} / ${metrics.openClosed.closed}`}
+            title="Open / Closed / Forcibly Closed"
+            value={`${metrics.openClosed.open} / ${metrics.openClosed.closed} / ${metrics.openClosed.forciblyClosed}`}
             color="#ff4757"
             trend={trends.openClosed}
           />

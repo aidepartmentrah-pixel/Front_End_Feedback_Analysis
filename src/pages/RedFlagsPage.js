@@ -7,9 +7,10 @@ import RedFlagTrendChart from "../components/redflags/RedFlagTrendChart";
 import RedFlagFilters from "../components/redflags/RedFlagFilters";
 import RedFlagTable from "../components/redflags/RedFlagTable";
 import RedFlagDetails from "../components/redflags/RedFlagDetails";
+import NeverEventsSummaryCard from "../components/redflags/NeverEventsSummaryCard";
 import { mockRedFlags } from "../data/redflagsData";
 
-const RedFlagsPage = () => {
+const RedFlagsPage = ({ embedded = false }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFlag, setSelectedFlag] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -34,6 +35,10 @@ const RedFlagsPage = () => {
     return filtered;
   }, [searchQuery]);
 
+  // Split into unfinished and finished
+  const unfinishedRedFlags = filteredRedFlags.filter(flag => flag.status !== "FINISHED");
+  const finishedRedFlags = filteredRedFlags.filter(flag => flag.status === "FINISHED");
+
   // Handle view details
   const handleViewDetails = (flag) => {
     setSelectedFlag(flag);
@@ -51,8 +56,7 @@ const RedFlagsPage = () => {
     alert(`📄 تصدير PDF للسجل: ${flag.recordID}\n\nسيتم إنشاء تقرير PDF مفصل للعلامة الحمراء.`);
   };
 
-  return (
-    <MainLayout>
+  const content = (
       <Box sx={{ p: 3 }}>
         {/* Header */}
         <Box sx={{ mb: 4 }}>
@@ -79,17 +83,31 @@ const RedFlagsPage = () => {
         {/* Trend Chart */}
         <RedFlagTrendChart />
 
+        {/* Never Events Summary */}
+        <NeverEventsSummaryCard />
+
         {/* Search Filter */}
         <RedFlagFilters
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
         />
 
-        {/* Red Flags Table */}
+        {/* Red Flags Tables */}
         <RedFlagTable
-          redflags={filteredRedFlags}
+          title="🚩 علامات حمراء غير منتهية (Unfinished Red Flags)"
+          redflags={unfinishedRedFlags}
           loading={loading}
           onViewDetails={handleViewDetails}
+          showStatus={true}
+        />
+
+        <RedFlagTable
+          title="✅ علامات حمراف منتهية (Finished Red Flags)"
+          redflags={finishedRedFlags}
+          loading={loading}
+          onViewDetails={handleViewDetails}
+          showStatus={false}
+          isFinished={true}
         />
 
         {/* Details Modal */}
@@ -121,8 +139,9 @@ const RedFlagsPage = () => {
           </ModalDialog>
         </Modal>
       </Box>
-    </MainLayout>
   );
+
+  return embedded ? content : <MainLayout>{content}</MainLayout>;
 };
 
 export default RedFlagsPage;

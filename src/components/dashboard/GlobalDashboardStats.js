@@ -12,13 +12,14 @@ import RecentActivityFeed from "./RecentActivityFeed";
 const mockGlobalData = {
   metrics: {
     totalIncidents: 124,
-    openClosed: { open: 32, closed: 92 },
+    uniquePatients: 89,
+    openClosed: { open: 32, closed: 92, forciblyClosed: 12 },
     severityBreakdown: { high: 15, medium: 50, low: 59 },
     domainBreakdown: { clinical: 65, management: 35, relational: 24 },
     redFlags: 8
   },
   trends: {
-    totalIncidents: { value: 12, direction: "up" },
+    incidentsPatients: { value: 12, direction: "up" },
     openClosed: { value: 5, direction: "down" },
     severity: { value: 8, direction: "up" },
     domain: { value: 3, direction: "up" },
@@ -123,16 +124,16 @@ const GlobalDashboardStats = () => {
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid xs={12} sm={6} md={2.4}>
           <MetricCard 
-            title="Total Incidents" 
-            value={metrics.totalIncidents} 
+            title="Total Incidents / Patients" 
+            value={`${metrics.totalIncidents} / ${metrics.uniquePatients}`} 
             color="#667eea"
-            trend={trends.totalIncidents}
+            trend={trends.incidentsPatients}
           />
         </Grid>
         <Grid xs={12} sm={6} md={2.4}>
           <MetricCard
-            title="Open / Closed"
-            value={`${metrics.openClosed.open} / ${metrics.openClosed.closed}`}
+            title="Open / Closed / Forcibly Closed"
+            value={`${metrics.openClosed.open} / ${metrics.openClosed.closed} / ${metrics.openClosed.forciblyClosed}`}
             color="#ff4757"
             trend={trends.openClosed}
           />

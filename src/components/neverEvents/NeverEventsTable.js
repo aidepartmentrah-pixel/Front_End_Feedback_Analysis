@@ -1,47 +1,49 @@
-// src/components/redflags/RedFlagTable.js
+// src/components/neverEvents/NeverEventsTable.js
 import React from "react";
-import { Box, Card, Typography, Sheet, Table, Chip, Button, CircularProgress } from "@mui/joy";
+import { Box, Card, Typography, Table, Sheet, Chip, Button } from "@mui/joy";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 
-const RedFlagTable = ({ title, redflags, loading, onViewDetails, showStatus = true, isFinished = false }) => {
+const NeverEventsTable = ({ title, events, loading, onViewDetails, showStatus = true, isFinished = false }) => {
   const getSeverityStyle = (severity) => {
     const styleMap = {
-      HIGH: { background: "#ff4757", color: "white" },
-      MEDIUM: { background: "#ffa502", color: "white" },
-      LOW: { background: "#2ed573", color: "white" },
+      CRITICAL: { background: "#ff4757", color: "white" },
+      HIGH: { background: "#ffa502", color: "white" },
+      MEDIUM: { background: "#ffc107", color: "white" },
     };
     return styleMap[severity] || { background: "#999", color: "white" };
   };
 
   const getStatusStyle = (status) => {
     const styleMap = {
-      OPEN: { background: "#ffa502", color: "white" },
-      CLOSED: { background: "#999", color: "white" },
+      OPEN: { background: "#ff4757", color: "white" },
+      CLOSED: { background: "#ffa502", color: "white" },
       FINISHED: { background: "#2ed573", color: "white" },
     };
     return styleMap[status] || { background: "#999", color: "white" };
   };
 
+  const getInvestigationStatusStyle = (invStatus) => {
+    const styleMap = {
+      INITIAL: { background: "#ffa502", color: "white" },
+      IN_PROGRESS: { background: "#667eea", color: "white" },
+      COMPLETED: { background: "#2ed573", color: "white" },
+    };
+    return styleMap[invStatus] || { background: "#999", color: "white" };
+  };
+
+  const getInvestigationStatusLabel = (invStatus) => {
+    const labelMap = {
+      INITIAL: "أولي",
+      IN_PROGRESS: "جاري",
+      COMPLETED: "مكتمل",
+    };
+    return labelMap[invStatus] || invStatus;
+  };
+
   if (loading) {
     return (
-      <Card sx={{ p: 5, textAlign: "center" }}>
-        <CircularProgress size="lg" />
-        <Typography level="body-sm" sx={{ mt: 2, color: "#666" }}>
-          جاري تحميل العلامات الحمراء...
-        </Typography>
-      </Card>
-    );
-  }
-
-  if (redflags.length === 0) {
-    return (
-      <Card sx={{ p: 5, textAlign: "center" }}>
-        <Typography level="h6" sx={{ color: "#999" }}>
-          لا توجد علامات حمراء
-        </Typography>
-        <Typography level="body-sm" sx={{ color: "#666", mt: 1 }}>
-          لا توجد حوادث تتطابق مع معايير البحث
-        </Typography>
+      <Card sx={{ p: 3, textAlign: "center" }}>
+        <Typography>جاري التحميل...</Typography>
       </Card>
     );
   }
@@ -49,7 +51,7 @@ const RedFlagTable = ({ title, redflags, loading, onViewDetails, showStatus = tr
   return (
     <Card sx={{ p: 3, mb: 3 }}>
       <Typography level="h5" sx={{ mb: 3, fontWeight: 700, color: isFinished ? "#2ed573" : "#ff4757" }}>
-        {title || `🚩 العلامات الحمراء (Red Flags) - ${redflags.length} حادثة`}
+        {title || `⚠️ Never Events - ${events.length} حدث`}
       </Typography>
 
       <Sheet
@@ -72,70 +74,65 @@ const RedFlagTable = ({ title, redflags, loading, onViewDetails, showStatus = tr
                 <th>رقم السجل<br />Record ID</th>
                 <th>التاريخ<br />Date</th>
                 <th>المريض<br />Patient</th>
-                <th>القسم المرسل<br />Sending Dept</th>
-                <th>القسم المستهدف<br />Target Dept</th>
-                <th>المجال<br />Domain</th>
-                <th>الشدة<br />Severity</th>
+                <th>نوع Never Event<br />Event Type</th>
+                <th>القسم<br />Department</th>
+                <th>الضرر<br />Harm</th>
                 {showStatus && <th>الحالة<br />Status</th>}
                 <th>الإجراء<br />Action</th>
               </tr>
             </thead>
             <tbody>
-              {redflags.map((flag) => (
+              {events.map((event) => (
                 <tr
-                  key={flag.id}
+                  key={event.id}
                   style={{
-                    borderLeft: flag.severity === "HIGH" ? "5px solid #ff4757" : "none",
-                    background: flag.status === "OPEN" ? "rgba(255, 165, 2, 0.08)" : "white",
+                    borderLeft: "5px solid #ff4757",
+                    background: event.status === "OPEN" ? "rgba(255, 71, 87, 0.05)" : "white",
                   }}
                 >
                   <td>
                     <Typography level="body-sm" sx={{ fontWeight: 700, color: "#ff4757" }}>
-                      {flag.recordID}
+                      {event.recordID}
+                    </Typography>
+                    <Typography level="body-xs" sx={{ color: "#999" }}>
+                      {event.id}
                     </Typography>
                   </td>
                   <td>
-                    <Typography level="body-sm">{flag.date}</Typography>
+                    <Typography level="body-sm">{event.date}</Typography>
                   </td>
                   <td>
                     <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-                      {flag.patientName}
+                      {event.patientName}
                     </Typography>
                   </td>
                   <td>
-                    <Typography level="body-sm">{flag.sendingDepartment}</Typography>
-                  </td>
-                  <td>
-                    <Typography level="body-sm">{flag.targetDepartment}</Typography>
-                  </td>
-                  <td>
-                    <Typography level="body-sm" sx={{ fontWeight: 700, color: "#667eea" }}>
-                      {flag.domain}
+                    <Typography level="body-sm" sx={{ fontWeight: 700, color: "#ff4757" }}>
+                      {event.neverEventTypeAr}
+                    </Typography>
+                    <Typography level="body-xs" sx={{ color: "#666" }}>
+                      {event.neverEventTypeEn}
                     </Typography>
                   </td>
                   <td>
-                    <Chip
-                      sx={{
-                        ...getSeverityStyle(flag.severity),
-                        fontWeight: 700,
-                        fontSize: "12px",
-                        minWidth: "65px",
-                      }}
-                    >
-                      {flag.severity}
-                    </Chip>
+                    <Typography level="body-sm">{event.sendingDepartment}</Typography>
+                  </td>
+                  <td>
+                    <Typography level="body-sm" sx={{ fontWeight: 600, color: "#ff4757" }}>
+                      {event.harm}
+                    </Typography>
                   </td>
                   {showStatus && (
                     <td>
                       <Chip
                         sx={{
-                        ...getStatusStyle(flag.status),
+                        ...getStatusStyle(event.status),
                         fontWeight: 700,
                         fontSize: "12px",
                         minWidth: "70px",
                       }}
                     >
-                      {flag.status === "OPEN" ? "مفتوح" : flag.status === "CLOSED" ? "مغلق" : "منتهي"}
+                      {event.status === "OPEN" ? "مفتوح" : event.status === "CLOSED" ? "مغلق" : "منتهي"}
                     </Chip>
                     </td>
                   )}
@@ -143,7 +140,7 @@ const RedFlagTable = ({ title, redflags, loading, onViewDetails, showStatus = tr
                     <Button
                       size="sm"
                       startDecorator={<VisibilityIcon />}
-                      onClick={() => onViewDetails(flag)}
+                      onClick={() => onViewDetails(event)}
                       sx={{
                         background: "linear-gradient(135deg, #ff4757 0%, #e84118 100%)",
                         color: "white",
@@ -160,8 +157,16 @@ const RedFlagTable = ({ title, redflags, loading, onViewDetails, showStatus = tr
           </Table>
         </Box>
       </Sheet>
+
+      {events.length === 0 && (
+        <Box sx={{ textAlign: "center", py: 4 }}>
+          <Typography level="body-md" sx={{ color: "#999" }}>
+            لا توجد أحداث Never Events في هذه الفئة
+          </Typography>
+        </Box>
+      )}
     </Card>
   );
 };
 
-export default RedFlagTable;
+export default NeverEventsTable;

@@ -10,10 +10,12 @@ import Login from "./pages/Login";
 import EditRecord from "./pages/EditRecord";
 import ReportingPage from "./pages/ReportingPage";
 import SettingPage from "./pages/SettingPage";
-import PatientHistoryPage from "./pages/PatientHistoryPage";
 import DepartmentFeedbackPage from "./pages/DepartmentFeedbackPage";
-import RedFlagsPage from "./pages/RedFlagsPage";
-import DoctorHistoryPage from "./pages/DoctorHistoryPage";
+import FollowUpPage from "./pages/FollowUpPage";
+import TrendMonitoringPage from "./pages/TrendMonitoringPage";
+import HistoryPage from "./pages/HistoryPage";
+import CriticalIssuesPage from "./pages/CriticalIssuesPage";
+import InvestigationPage from "./pages/InvestigationPage";
 
 function App() {
   return (
@@ -27,10 +29,12 @@ function App() {
         <Route path="/edit/:id" element={<EditRecord />} />
         <Route path="/reporting" element={<ReportingPage />} />
         <Route path="/settings" element={<SettingPage />} />
-        <Route path="/patient-history" element={<PatientHistoryPage />} />
-        <Route path="/doctor-history" element={<DoctorHistoryPage />} />
+        <Route path="/history" element={<HistoryPage />} />
         <Route path="/department-feedback" element={<DepartmentFeedbackPage />} />
-        <Route path="/redflags" element={<RedFlagsPage />} />
+        <Route path="/critical-issues" element={<CriticalIssuesPage />} />
+        <Route path="/trend-monitoring" element={<TrendMonitoringPage />} />
+        <Route path="/follow-up" element={<FollowUpPage />} />
+        <Route path="/investigation" element={<InvestigationPage />} />
       </Routes>
     </Router>
   );

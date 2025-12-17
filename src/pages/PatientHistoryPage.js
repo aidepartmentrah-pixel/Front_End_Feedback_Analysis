@@ -105,7 +105,7 @@ const mockFeedbacks = [
 // Removed chart mock data - not needed for simplified view
 // const mockChartsData = { ... };
 
-const PatientHistoryPage = () => {
+const PatientHistoryPage = ({ embedded = false }) => {
   const [selectedPatient, setSelectedPatient] = useState(mockPatient);
   const [feedbackList, setFeedbackList] = useState(mockFeedbacks);
   // const [chartsData, setChartsData] = useState(mockChartsData); // Removed - charts not needed
@@ -204,8 +204,7 @@ const PatientHistoryPage = () => {
     fetchPatientData(mockPatient.id);
   }, []);
 
-  return (
-    <MainLayout>
+  const content = (
       <Box sx={{ p: 3 }}>
         {/* Alerts */}
         {error && (
@@ -279,8 +278,9 @@ const PatientHistoryPage = () => {
           </Box>
         )}
       </Box>
-    </MainLayout>
   );
+
+  return embedded ? content : <MainLayout>{content}</MainLayout>;
 };
 
 export default PatientHistoryPage;

@@ -12,13 +12,14 @@ const mockQismData = {
   er_triage: {
     metrics: {
       totalIncidents: 12,
-      openClosed: { open: 3, closed: 9 },
+      uniquePatients: 11,
+      openClosed: { open: 3, closed: 9, forciblyClosed: 1 },
       severityBreakdown: { high: 2, medium: 5, low: 5 },
       domainBreakdown: { clinical: 8, management: 3, relational: 1 },
       redFlags: 1
     },
     trends: {
-      totalIncidents: { value: 14, direction: "up" },
+      incidentsPatients: { value: 14, direction: "up" },
       openClosed: { value: 25, direction: "down" },
       severity: { value: 6, direction: "up" },
       domain: { value: 3, direction: "up" },
@@ -51,13 +52,14 @@ const mockQismData = {
   maternity: {
     metrics: {
       totalIncidents: 8,
-      openClosed: { open: 2, closed: 6 },
+      uniquePatients: 7,
+      openClosed: { open: 2, closed: 6, forciblyClosed: 1 },
       severityBreakdown: { high: 1, medium: 3, low: 4 },
       domainBreakdown: { clinical: 5, management: 2, relational: 1 },
       redFlags: 0
     },
     trends: {
-      totalIncidents: { value: 11, direction: "down" },
+      incidentsPatients: { value: 11, direction: "down" },
       openClosed: { value: 33, direction: "down" },
       severity: { value: 4, direction: "down" },
       domain: { value: 1, direction: "down" },
@@ -90,13 +92,14 @@ const mockQismData = {
   icu_adult: {
     metrics: {
       totalIncidents: 11,
-      openClosed: { open: 3, closed: 8 },
+      uniquePatients: 9,
+      openClosed: { open: 3, closed: 8, forciblyClosed: 1 },
       severityBreakdown: { high: 2, medium: 5, low: 4 },
       domainBreakdown: { clinical: 8, management: 2, relational: 1 },
       redFlags: 1
     },
     trends: {
-      totalIncidents: { value: 8, direction: "up" },
+      incidentsPatients: { value: 8, direction: "up" },
       openClosed: { value: 20, direction: "down" },
       severity: { value: 5, direction: "up" },
       domain: { value: 2, direction: "up" },
@@ -170,16 +173,16 @@ const QismDashboardStats = ({ qism }) => {
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid xs={12} sm={6} md={2.4}>
           <MetricCard 
-            title="Total Incidents" 
-            value={metrics.totalIncidents} 
+            title="Total Incidents / Patients" 
+            value={`${metrics.totalIncidents} / ${metrics.uniquePatients}`} 
             color="#667eea"
-            trend={trends.totalIncidents}
+            trend={trends.incidentsPatients}
           />
         </Grid>
         <Grid xs={12} sm={6} md={2.4}>
           <MetricCard
-            title="Open / Closed"
-            value={`${metrics.openClosed.open} / ${metrics.openClosed.closed}`}
+            title="Open / Closed / Forcibly Closed"
+            value={`${metrics.openClosed.open} / ${metrics.openClosed.closed} / ${metrics.openClosed.forciblyClosed}`}
             color="#ff4757"
             trend={trends.openClosed}
           />

@@ -9,6 +9,7 @@ import AddDoctorForm from "../components/settings/AddDoctorForm";
 import DepartmentMappingToggle from "../components/settings/DepartmentMappingToggle";
 import SettingActions from "../components/settings/SettingActions";
 import VariableAttributes from "../components/settings/VariableAttributes";
+import PolicyConfiguration from "../components/settings/PolicyConfiguration";
 import api from "../services/api";
 
 const SettingPage = () => {
@@ -270,6 +271,7 @@ const SettingPage = () => {
           <Tab>🏥 Departments</Tab>
           <Tab>👨‍⚕️ Doctors</Tab>
           <Tab>⚙️ Variable Attributes</Tab>
+          <Tab>📋 Policy Configuration</Tab>
         </TabList>
 
         {/* Department Management Tab */}
@@ -315,6 +317,11 @@ const SettingPage = () => {
         {/* Variable Attributes Tab */}
         <TabPanel value={2} sx={{ p: 3 }}>
           <VariableAttributes />
+        </TabPanel>
+
+        {/* Policy Configuration Tab */}
+        <TabPanel value={3} sx={{ p: 3 }}>
+          <PolicyConfiguration />
         </TabPanel>
       </Tabs>
       </Box>

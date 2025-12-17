@@ -5,6 +5,7 @@ import { Box, Typography, Card } from "@mui/joy";
 import SearchFilters from "../components/SearchFilters";
 import RecordsTable from "../components/RecordsTable";
 import ExportSection from "../components/TableView/ExportSection";
+import ViewSelector from "../components/TableView/ViewSelector";
 
 // COMPLETE MOCK DATA: 10 example records
 const exampleRecords = [
@@ -279,6 +280,8 @@ const TableView = () => {
     source: "All"
   });
 
+  const [selectedView, setSelectedView] = useState("complete"); // Default to complete view
+
   // Calculate filtered records count
   const filteredRecords = exampleRecords.filter((record) => {
     const matchesSearch =
@@ -305,6 +308,9 @@ const TableView = () => {
           </Typography>
         </Box>
 
+        {/* View Selector */}
+        <ViewSelector selectedView={selectedView} onViewChange={setSelectedView} />
+
         <Card
           sx={{
             background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
@@ -315,7 +321,7 @@ const TableView = () => {
         >
           <SearchFilters filters={filters} setFilters={setFilters} />
           <Box sx={{ mt: 2, overflow: "auto" }}>
-            <RecordsTable records={exampleRecords} filters={filters} />
+            <RecordsTable records={exampleRecords} filters={filters} selectedView={selectedView} />
           </Box>
         </Card>
 

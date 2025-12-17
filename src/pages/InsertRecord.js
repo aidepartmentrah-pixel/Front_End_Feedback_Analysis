@@ -22,8 +22,10 @@ const InsertRecord = () => {
     // Step 2: Metadata
     feedback_received_date: new Date().toISOString().split("T")[0],
     issuing_department_id: null,
-    target_department_id: null,
+    target_department_ids: [], // Multiple departments
     source_id: null,
+    in_out: null, // IN or OUT
+    worker_type: null, // Doctor, Clerk, Nurse, etc.
 
     // Step 3: NER Outputs
     patient_name: "",

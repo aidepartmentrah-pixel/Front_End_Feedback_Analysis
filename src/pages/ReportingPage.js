@@ -10,8 +10,7 @@ import ReportFilters from "../components/reports/ReportFilters";
 import ThresholdInput from "../components/reports/ThresholdInput";
 import MonthlyDetailedTable from "../components/reports/MonthlyDetailedTable";
 import MonthlyNumericTable from "../components/reports/MonthlyNumericTable";
-import SeasonalSummary from "../components/reports/SeasonalSummary";
-import SeasonalOpenRecordsHCATTable from "../components/reports/SeasonalOpenRecordsHCATTable";
+import SeasonalDetailedView from "../components/reports/SeasonalDetailedView";
 import ReportActions from "../components/reports/ReportActions";
 import BulkExportTable from "../components/reports/BulkExportTable";
 
@@ -209,7 +208,7 @@ const ReportingPage = () => {
           <Box sx={{ minHeight: "700px" }}>
             {/* Monthly Reports */}
             {reportType === "monthly" && (
-              <Box sx={{ minHeight: "700px" }}>
+              <Box sx={{ minHeight: "700px", maxWidth: "100%", overflow: "hidden" }}>
                 {filters.mode === "detailed" && (
                   <MonthlyDetailedTable complaints={filteredComplaints} />
                 )}
@@ -221,12 +220,12 @@ const ReportingPage = () => {
 
             {/* Seasonal Reports */}
             {reportType === "seasonal" && (
-              <Box sx={{ minHeight: "700px" }}>
-                {/* Seasonal Summary */}
-                <SeasonalSummary stats={seasonalStats} threshold={threshold} filters={filters} />
-
-                {/* HCAT-Structured Preview Table */}
-                <SeasonalOpenRecordsHCATTable groupedData={seasonalGroupedData} />
+              <Box sx={{ minHeight: "700px", maxWidth: "100%", overflow: "hidden" }}>
+                <SeasonalDetailedView 
+                  complaints={filteredComplaints} 
+                  threshold={threshold}
+                  filters={filters}
+                />
               </Box>
             )}
           </Box>
