@@ -1,5 +1,7 @@
 // src/pages/DashboardPage.js
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { fetchDashboardHierarchy } from "../api/dashboard";
+
 import { Box, Card, Typography } from "@mui/joy";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 
@@ -14,13 +16,33 @@ import QismDashboardStats from "../components/dashboard/QismDashboardStats";
 import DashboardActions from "../components/dashboard/DashboardActions";
 
 const DashboardPage = () => {
-  // Simplified state structure
+// ============================
+  // STATE
+  // ============================
   const [scope, setScope] = useState("hospital");
   const [selectedAdministration, setSelectedAdministration] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
   const [selectedSection, setSelectedSection] = useState(null);
 
-  // Determine which view to show based on scope and selections
+  const [hierarchy, setHierarchy] = useState(null);
+  const [loadingHierarchy, setLoadingHierarchy] = useState(true);
+
+  // ============================
+  // FETCH HIERARCHY (NEW)
+  // ============================
+  useEffect(() => {
+    fetchDashboardHierarchy()
+      .then((data) => {
+        setHierarchy(data);
+        console.log("Hierarchy loaded:", data); // 👈 YOU WILL SEE DATA HERE
+      })
+      .catch(console.error)
+      .finally(() => setLoadingHierarchy(false));
+  }, []);
+
+  // ============================
+  // VIEW FLAGS
+  // ============================
   const isGlobalView = scope === "hospital";
   const isIdaraView = scope === "administration" && selectedAdministration;
   const isDayraView = scope === "department" && selectedDepartment;

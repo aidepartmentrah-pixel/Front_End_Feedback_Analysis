@@ -13,18 +13,27 @@ import MainLayout from "../components/common/MainLayout";
 import IncidentCountTree from "../components/investigation/IncidentCountTree";
 
 const InvestigationPage = () => {
-  const [selectedSeason, setSelectedSeason] = useState("q4-2025");
+  const [selectedSeason, setSelectedSeason] = useState("q4");
+  const [selectedYear, setSelectedYear] = useState("2025");
   const [selectedAdmin, setSelectedAdmin] = useState("");
   const [selectedDept, setSelectedDept] = useState("");
   const [selectedSection, setSelectedSection] = useState("");
   const [selectedTreeType, setSelectedTreeType] = useState("incident-count");
 
-  // Mock season options
+  // Season options
   const seasons = [
-    { value: "q4-2025", label: "Q4 2025 (Oct-Dec)" },
-    { value: "q3-2025", label: "Q3 2025 (Jul-Sep)" },
-    { value: "q2-2025", label: "Q2 2025 (Apr-Jun)" },
-    { value: "q1-2025", label: "Q1 2025 (Jan-Mar)" },
+    { value: "q1", label: "Q1 (Jan-Mar)" },
+    { value: "q2", label: "Q2 (Apr-Jun)" },
+    { value: "q3", label: "Q3 (Jul-Sep)" },
+    { value: "q4", label: "Q4 (Oct-Dec)" },
+  ];
+
+  // Year options
+  const years = [
+    { value: "2025", label: "2025" },
+    { value: "2024", label: "2024" },
+    { value: "2023", label: "2023" },
+    { value: "2022", label: "2022" },
   ];
 
   // Tree type options
@@ -170,13 +179,13 @@ const InvestigationPage = () => {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr 1fr" },
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr 1fr 1fr" },
               gap: 3,
             }}
           >
             {/* Season Selector */}
             <FormControl>
-              <FormLabel sx={{ fontWeight: 600 }}>📅 Season / Period</FormLabel>
+              <FormLabel sx={{ fontWeight: 600 }}>📅 Season</FormLabel>
               <Select
                 value={selectedSeason}
                 onChange={(e, newValue) => setSelectedSeason(newValue)}
@@ -185,6 +194,22 @@ const InvestigationPage = () => {
                 {seasons.map((season) => (
                   <Option key={season.value} value={season.value}>
                     {season.label}
+                  </Option>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Year Selector */}
+            <FormControl>
+              <FormLabel sx={{ fontWeight: 600 }}>📆 Year</FormLabel>
+              <Select
+                value={selectedYear}
+                onChange={(e, newValue) => setSelectedYear(newValue)}
+                size="lg"
+              >
+                {years.map((year) => (
+                  <Option key={year.value} value={year.value}>
+                    {year.label}
                   </Option>
                 ))}
               </Select>
@@ -270,6 +295,8 @@ const InvestigationPage = () => {
 
         {/* Investigation Tree */}
         <IncidentCountTree 
+          selectedSeason={selectedSeason}
+          selectedYear={selectedYear}
           selectedAdmin={selectedAdmin} 
           selectedDept={selectedDept}
           selectedSection={selectedSection}
