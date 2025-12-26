@@ -1,335 +1,363 @@
 // src/pages/TableView.js
+import React, { useState, useEffect, useCallback } from "react";
+import { Box, Typography, Card, CircularProgress, Button, Chip } from "@mui/joy";
+import { useNavigate } from "react-router-dom";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import DownloadIcon from "@mui/icons-material/Download";
 import MainLayout from "../components/common/MainLayout";
-import React, { useState } from "react";
-import { Box, Typography, Card } from "@mui/joy";
-import SearchFilters from "../components/SearchFilters";
-import RecordsTable from "../components/RecordsTable";
-import ExportSection from "../components/TableView/ExportSection";
-import ViewSelector from "../components/TableView/ViewSelector";
-
-// COMPLETE MOCK DATA: 10 example records
-const exampleRecords = [
-  {
-    created_at: "2025-12-10 14:30:00",
-    feedback_received_date: "2025-11-27",
-    record_id: "INC0001",
-    patient_full_name: "Patient 1",
-    issuing_department: "ER",
-    target_department: "Ward 1",
-    source_1: "Phone",
-    feedback_type: "Complaint",
-    domain: "Clinical",
-    category: "Safety",
-    category_label: "Safety",
-    sub_category: "Neglect -General",
-    subcategory_label: "Neglect - General",
-    classification_ar: "تصنيف 1",
-    classification_en_label: "Patient Safety Incident",
-    complaint_text: "This is a sample complaint text for record 1.",
-    immediate_action: "Action 1",
-    taken_action: "Taken Action 1",
-    severity_level: "High",
-    stage: "Admission",
-    harm_level: "Low",
-    status: "Red Flag",
-    status_id: 4,
-    is_red_flag: true,
-    improvement_opportunity_type: "Yes"
-  },
-  {
-    created_at: "2025-12-09 10:15:00",
-    feedback_received_date: "2025-11-26",
-    record_id: "INC0002",
-    patient_full_name: "Patient 2",
-    issuing_department: "ICU",
-    target_department: "Ward 2",
-    source_1: "Walk-in",
-    feedback_type: "Suggestion",
-    domain: "Management",
-    category: "Quality",
-    category_label: "Quality",
-    sub_category: "Absent Communication",
-    subcategory_label: "Absent Communication",
-    classification_ar: "تصنيف 2",
-    classification_en_label: "Communication Breakdown",
-    complaint_text: "This is a sample complaint text for record 2.",
-    immediate_action: "Action 2",
-    taken_action: "Taken Action 2",
-    severity_level: "Medium",
-    stage: "Care",
-    harm_level: "Medium",
-    status: "Closed",
-    status_id: 1,
-    improvement_opportunity_type: "No"
-  },
-  {
-    created_at: "2025-12-08 16:45:00",
-    feedback_received_date: "2025-11-25",
-    record_id: "INC0003",
-    patient_full_name: "Patient 3",
-    issuing_department: "Ward 1",
-    target_department: "ER",
-    source_1: "Email",
-    feedback_type: "Complaint",
-    domain: "Relational",
-    category: "Environment",
-    category_label: "Environment",
-    sub_category: "Accomodation",
-    subcategory_label: "Accommodation",
-    classification_ar: "تصنيف 3",
-    classification_en_label: "Facility Issue",
-    complaint_text: "This is a sample complaint text for record 3.",
-    immediate_action: "Action 3",
-    taken_action: "Taken Action 3",
-    severity_level: "Low",
-    stage: "Discharge",
-    harm_level: "High",
-    status: "In Progress",
-    status_id: 3,
-    improvement_opportunity_type: "Yes"
-  },
-  {
-    created_at: "2025-12-07 09:20:00",
-    feedback_received_date: "2025-11-24",
-    record_id: "INC0004",
-    patient_full_name: "Patient 4",
-    issuing_department: "Radiology",
-    target_department: "Ward 1",
-    source_1: "Phone",
-    feedback_type: "Suggestion",
-    domain: "Clinical",
-    category: "Safety",
-    category_label: "Safety",
-    sub_category: "Bureaucracy",
-    subcategory_label: "Bureaucracy",
-    classification_ar: "تصنيف 4",
-    classification_en_label: "Administrative Delay",
-    complaint_text: "This is a sample complaint text for record 4.",
-    immediate_action: "Action 4",
-    taken_action: "Taken Action 4",
-    severity_level: "High",
-    stage: "Care",
-    harm_level: "Medium",
-    status: "Closed",
-    status_id: 1,
-    improvement_opportunity_type: "No"
-  },
-  {
-    created_at: "2025-12-06 11:30:00",
-    feedback_received_date: "2025-11-23",
-    record_id: "INC0005",
-    patient_full_name: "Patient 5",
-    issuing_department: "Cardiology",
-    target_department: "ER",
-    source_1: "Walk-in",
-    feedback_type: "Complaint",
-    domain: "Management",
-    category: "Quality",
-    category_label: "Quality",
-    sub_category: "Clinician -Errors",
-    subcategory_label: "Clinician - Errors",
-    classification_ar: "تصنيف 5",
-    classification_en_label: "Clinical Error",
-    complaint_text: "This is a sample complaint text for record 5.",
-    immediate_action: "Action 5",
-    taken_action: "Taken Action 5",
-    severity_level: "Medium",
-    stage: "Admission",
-    harm_level: "Low",
-    status: "In Progress",
-    status_id: 3,
-    improvement_opportunity_type: "Yes"
-  },
-  {
-    created_at: "2025-12-05 15:10:00",
-    feedback_received_date: "2025-11-22",
-    record_id: "INC0006",
-    patient_full_name: "Patient 6",
-    issuing_department: "Admin",
-    target_department: "ICU",
-    source_1: "Email",
-    feedback_type: "Suggestion",
-    domain: "Relational",
-    category: "Environment",
-    category_label: "Environment",
-    sub_category: "Delay -Access",
-    subcategory_label: "Delay - Access",
-    classification_ar: "تصنيف 6",
-    classification_en_label: "Access Delay",
-    complaint_text: "This is a sample complaint text for record 6.",
-    immediate_action: "Action 6",
-    taken_action: "Taken Action 6",
-    severity_level: "Low",
-    stage: "Discharge",
-    harm_level: "High",
-    status: "Closed",
-    status_id: 1,
-    improvement_opportunity_type: "No"
-  },
-  {
-    created_at: "2025-12-04 08:45:00",
-    feedback_received_date: "2025-11-21",
-    record_id: "INC0007",
-    patient_full_name: "Patient 7",
-    issuing_department: "ER",
-    target_department: "Cardiology",
-    source_1: "Phone",
-    feedback_type: "Complaint",
-    domain: "Clinical",
-    category: "Safety",
-    category_label: "Safety",
-    sub_category: "Delay -General",
-    subcategory_label: "Delay - General",
-    classification_ar: "تصنيف 7",
-    classification_en_label: "General Delay",
-    complaint_text: "This is a sample complaint text for record 7.",
-    immediate_action: "Action 7",
-    taken_action: "Taken Action 7",
-    severity_level: "High",
-    stage: "Care",
-    harm_level: "Medium",
-    status: "In Progress",
-    status_id: 3,
-    improvement_opportunity_type: "Yes"
-  },
-  {
-    created_at: "2025-12-03 13:20:00",
-    feedback_received_date: "2025-11-20",
-    record_id: "INC0008",
-    patient_full_name: "Patient 8",
-    issuing_department: "Ward 2",
-    target_department: "Radiology",
-    source_1: "Walk-in",
-    feedback_type: "Suggestion",
-    domain: "Management",
-    category: "Quality",
-    category_label: "Quality",
-    sub_category: "Delayed Communication",
-    subcategory_label: "Delayed Communication",
-    classification_ar: "تصنيف 8",
-    classification_en_label: "Communication Delay",
-    complaint_text: "This is a sample complaint text for record 8.",
-    immediate_action: "Action 8",
-    taken_action: "Taken Action 8",
-    severity_level: "Medium",
-    stage: "Admission",
-    harm_level: "Low",
-    status: "Closed",
-    status_id: 1,
-    improvement_opportunity_type: "No"
-  },
-  {
-    created_at: "2025-12-02 17:55:00",
-    feedback_received_date: "2025-11-19",
-    record_id: "INC0009",
-    patient_full_name: "Patient 9",
-    issuing_department: "ICU",
-    target_department: "Admin",
-    source_1: "Email",
-    feedback_type: "Complaint",
-    domain: "Relational",
-    category: "Environment",
-    category_label: "Environment",
-    sub_category: "Dimissing Patients",
-    subcategory_label: "Dismissing Patients",
-    classification_ar: "تصنيف 9",
-    classification_en_label: "Patient Dismissal Issue",
-    complaint_text: "This is a sample complaint text for record 9.",
-    immediate_action: "Action 9",
-    taken_action: "Taken Action 9",
-    severity_level: "Low",
-    stage: "Discharge",
-    harm_level: "High",
-    status: "In Progress",
-    status_id: 3,
-    improvement_opportunity_type: "Yes"
-  },
-  {
-    created_at: "2025-12-01 12:00:00",
-    feedback_received_date: "2025-11-18",
-    record_id: "INC0010",
-    patient_full_name: "Patient 10",
-    issuing_department: "Radiology",
-    target_department: "Ward 2",
-    source_1: "Phone",
-    feedback_type: "Suggestion",
-    domain: "Clinical",
-    category: "Safety",
-    category_label: "Safety",
-    sub_category: "Disrespect",
-    subcategory_label: "Disrespect",
-    classification_ar: "تصنيف 10",
-    classification_en_label: "Disrespectful Behavior",
-    complaint_text: "This is a sample complaint text for record 10.",
-    immediate_action: "Action 10",
-    taken_action: "Taken Action 10",
-    severity_level: "High",
-    stage: "Care",
-    harm_level: "Medium",
-    status: "Closed",
-    status_id: 1,
-    improvement_opportunity_type: "No"
-  }
-];
+import SearchBar from "../components/TableView/SearchBar";
+import FilterPanel from "../components/TableView/FilterPanel";
+import DataTable from "../components/TableView/DataTable";
+import Pagination from "../components/TableView/Pagination";
+import { fetchComplaints, fetchFilterOptions, exportComplaints } from "../api/complaints";
 
 const TableView = () => {
+  const navigate = useNavigate();
+
+  // Data state
+  const [complaints, setComplaints] = useState([]);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    page_size: 50,
+    total_records: 0,
+    total_pages: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Filter options
+  const [filterOptions, setFilterOptions] = useState(null);
+  const [loadingFilters, setLoadingFilters] = useState(true);
+
+  // Search and filters
+  const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({
-    searchText: "",
-    issuingDept: "All",
-    targetDept: "All",
-    source: "All"
+    issuing_org_unit_id: null,
+    domain_id: null,
+    category_id: null,
+    severity_id: null,
+    stage_id: null,
+    harm_level_id: null,
+    case_status_id: null,
+    year: null,
+    month: null,
+    start_date: null,
+    end_date: null,
   });
 
-  const [selectedView, setSelectedView] = useState("complete"); // Default to complete view
+  // Sorting
+  const [sortBy, setSortBy] = useState("FeedbackRecievedDate");
+  const [sortOrder, setSortOrder] = useState("desc");
 
-  // Calculate filtered records count
-  const filteredRecords = exampleRecords.filter((record) => {
-    const matchesSearch =
-      record.record_id.toLowerCase().includes(filters.searchText.toLowerCase()) ||
-      record.patient_full_name.toLowerCase().includes(filters.searchText.toLowerCase());
-    const matchesIssuing =
-      filters.issuingDept === "All" || record.issuing_department === filters.issuingDept;
-    const matchesTarget =
-      filters.targetDept === "All" || record.target_department === filters.targetDept;
-    const matchesSource =
-      filters.source === "All" || record.source_1 === filters.source;
-    return matchesSearch && matchesIssuing && matchesTarget && matchesSource;
-  });
+  // View mode
+  const [viewMode, setViewMode] = useState("complete");
 
+  // Export state
+  const [exporting, setExporting] = useState(false);
+
+  // ========================================
+  // FETCH FILTER OPTIONS
+  // ========================================
+  useEffect(() => {
+    console.log("🔄 Loading filter options...");
+    fetchFilterOptions()
+      .then((data) => {
+        setFilterOptions(data);
+      })
+      .catch((err) => {
+        console.error("❌ Failed to load filter options:", err);
+      })
+      .finally(() => setLoadingFilters(false));
+  }, []);
+
+  // ========================================
+  // FETCH COMPLAINTS DATA
+  // ========================================
+  const loadComplaints = useCallback(() => {
+    console.log("🔄 Loading complaints...");
+    setLoading(true);
+    setError(null);
+
+    const params = {
+      page: pagination.page,
+      page_size: pagination.page_size,
+      search: searchQuery || undefined,
+      sort_by: sortBy,
+      sort_order: sortOrder,
+      view: viewMode,
+      ...Object.fromEntries(
+        Object.entries(filters).filter(([_, value]) => value !== null && value !== undefined && value !== "")
+      ),
+    };
+
+    fetchComplaints(params)
+      .then((data) => {
+        setComplaints(data.complaints || []);
+        setPagination(data.pagination);
+        console.log("✅ Complaints loaded:", data.complaints.length, "records");
+      })
+      .catch((err) => {
+        console.error("❌ Error loading complaints:", err);
+        setError(err.message);
+      })
+      .finally(() => setLoading(false));
+  }, [pagination.page, pagination.page_size, searchQuery, filters, sortBy, sortOrder, viewMode]);
+
+  useEffect(() => {
+    loadComplaints();
+  }, [loadComplaints]);
+
+  // ========================================
+  // HANDLERS
+  // ========================================
+  const handleSearchChange = (value) => {
+    setSearchQuery(value);
+    setPagination((prev) => ({ ...prev, page: 1 })); // Reset to page 1
+  };
+
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+    setPagination((prev) => ({ ...prev, page: 1 })); // Reset to page 1
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      issuing_org_unit_id: null,
+      domain_id: null,
+      category_id: null,
+      severity_id: null,
+      stage_id: null,
+      harm_level_id: null,
+      case_status_id: null,
+      year: null,
+      month: null,
+      start_date: null,
+      end_date: null,
+    });
+    setSearchQuery("");
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  const handleSort = (column) => {
+    if (sortBy === column) {
+      // Toggle order
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      // New column
+      setSortBy(column);
+      setSortOrder("asc");
+    }
+  };
+
+  const handlePageChange = (newPage) => {
+    setPagination((prev) => ({ ...prev, page: newPage }));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleRowClick = (complaintId) => {
+    navigate(`/complaints/${complaintId}`);
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const exportParams = {
+        format: "xlsx",
+        filters: Object.fromEntries(
+          Object.entries(filters).filter(([_, value]) => value !== null && value !== undefined && value !== "")
+        ),
+      };
+
+      const blob = await exportComplaints(exportParams);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `complaints-export-${new Date().toISOString().split("T")[0]}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      console.log("✅ Export complete");
+    } catch (err) {
+      console.error("❌ Export failed:", err);
+      alert("Failed to export data. Please try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // ========================================
+  // RENDER
+  // ========================================
   return (
     <MainLayout>
-      <Box sx={{ maxWidth: "100%", mx: "auto" }}>
-        <Box sx={{ mb: 3 }}>
-          <Typography level="h2" sx={{ fontWeight: 800, color: "#1a1e3f", mb: 1 }}>
-            Records Table
-          </Typography>
-          <Typography level="body-sm" sx={{ color: "#667eea" }}>
-            Search, filter, and manage all feedback records
-          </Typography>
+      <Box sx={{ p: 3 }}>
+        {/* Header */}
+        <Box sx={{ mb: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Box>
+            <Typography
+              level="h2"
+              sx={{
+                fontWeight: 800,
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                mb: 1,
+              }}
+            >
+              📋 جدول البلاغات (Complaints Table)
+            </Typography>
+            <Typography level="body-md" sx={{ color: "#666" }}>
+              View and filter all submitted complaints
+            </Typography>
+          </Box>
+
+          <Box sx={{ display: "flex", gap: 2 }}>
+            <Button
+              variant="outlined"
+              color="neutral"
+              startDecorator={<ArrowBackIcon />}
+              onClick={() => navigate("/")}
+            >
+              Back to Dashboard
+            </Button>
+            <Button
+              variant="solid"
+              color="primary"
+              startDecorator={<DownloadIcon />}
+              onClick={handleExport}
+              loading={exporting}
+              disabled={loading || complaints.length === 0}
+            >
+              Export
+            </Button>
+          </Box>
         </Box>
 
-        {/* View Selector */}
-        <ViewSelector selectedView={selectedView} onViewChange={setSelectedView} />
+        {/* Search and View Toggle */}
+        <Box sx={{ mb: 3, display: "flex", gap: 2, alignItems: "center" }}>
+          <Box sx={{ flex: 1 }}>
+            <SearchBar value={searchQuery} onChange={handleSearchChange} />
+          </Box>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button
+              variant={viewMode === "complete" ? "solid" : "outlined"}
+              color="neutral"
+              onClick={() => setViewMode("complete")}
+              size="sm"
+            >
+              Complete View
+            </Button>
+            <Button
+              variant={viewMode === "simplified" ? "solid" : "outlined"}
+              color="neutral"
+              onClick={() => setViewMode("simplified")}
+              size="sm"
+            >
+              Simplified View
+            </Button>
+          </Box>
+        </Box>
 
-        <Card
-          sx={{
+        {/* Filter Panel */}
+        <FilterPanel
+          filters={filters}
+          filterOptions={filterOptions}
+          loading={loadingFilters}
+          onChange={handleFilterChange}
+          onClear={handleClearFilters}
+        />
+
+        {/* Results Summary */}
+        {!loading && (
+          <Box sx={{ mb: 2 }}>
+            <Typography level="body-sm" sx={{ color: "#666", fontWeight: 600 }}>
+              📊 Showing {complaints.length} of {pagination.total_records} complaints
+              {(searchQuery || Object.values(filters).some(v => v)) && (
+                <Chip size="sm" variant="soft" color="primary" sx={{ ml: 1 }}>
+                  Filtered
+                </Chip>
+              )}
+            </Typography>
+          </Box>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <Card sx={{ 
+            p: 4, 
+            textAlign: "center",
             background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
             border: "1px solid rgba(102, 126, 234, 0.1)",
-            boxShadow: "0 4px 12px rgba(102, 126, 234, 0.08)",
-            p: 2,
-          }}
-        >
-          <SearchFilters filters={filters} setFilters={setFilters} />
-          <Box sx={{ mt: 2, overflow: "auto" }}>
-            <RecordsTable records={exampleRecords} filters={filters} selectedView={selectedView} />
-          </Box>
-        </Card>
+          }}>
+            <CircularProgress size="lg" sx={{ "--CircularProgress-color": "#667eea" }} />
+            <Typography level="body-md" sx={{ mt: 2, color: "#667eea", fontWeight: 600 }}>
+              Loading complaints...
+            </Typography>
+          </Card>
+        )}
 
-        {/* Export Section */}
-        <ExportSection filteredRecordCount={filteredRecords.length} allRecords={filteredRecords} />
+        {/* Error State */}
+        {error && (
+          <Card sx={{ p: 3, bgcolor: "danger.softBg" }}>
+            <Typography color="danger">
+              ❌ Error loading complaints: {error}
+            </Typography>
+          </Card>
+        )}
+
+        {/* Data Table */}
+        {!loading && !error && (
+          <>
+            <DataTable
+              complaints={complaints}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={handleSort}
+              onRowClick={handleRowClick}
+              viewMode={viewMode}
+            />
+
+            {/* Pagination */}
+            {pagination.total_pages > 1 && (
+              <Box sx={{ mt: 3 }}>
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.total_pages}
+                  onPageChange={handlePageChange}
+                />
+              </Box>
+            )}
+
+            {/* Empty State */}
+            {complaints.length === 0 && (
+              <Card sx={{ 
+                p: 4, 
+                textAlign: "center", 
+                mt: 3,
+                background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
+                border: "1px solid rgba(102, 126, 234, 0.1)",
+              }}>
+                <Typography level="h4" sx={{ mb: 1, color: "#667eea" }}>
+                  📭 No complaints found
+                </Typography>
+                <Typography level="body-sm" sx={{ color: "#666" }}>
+                  {searchQuery || Object.values(filters).some(v => v)
+                    ? "Try adjusting your filters or search query"
+                    : "No complaints have been submitted yet"}
+                </Typography>
+              </Card>
+            )}
+          </>
+        )}
       </Box>
     </MainLayout>
   );
 };
 
 export default TableView;
+
+

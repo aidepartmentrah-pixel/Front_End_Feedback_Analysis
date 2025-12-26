@@ -306,7 +306,8 @@ const InvestigationPage = () => {
               🔍 Debug Info (Development Only)
             </Typography>
             <Box sx={{ fontFamily: "monospace", fontSize: "0.7rem" }}>
-              <div>Season: {selectedYear}-{selectedSeason.toUpperCase()}</div>
+              <div>Season ID: {selectedSeason || "null"}</div>
+              <div>Season Label: {availableSeasons.find(s => s.season_id === selectedSeason)?.season_label || "Not selected"}</div>
               <div>Tree Type: {selectedTreeType}</div>
               <div>Administration ID: {selectedAdmin || "null"}</div>
               <div>Department ID: {selectedDept || "null"}</div>
@@ -347,8 +348,6 @@ const InvestigationPage = () => {
         {!loadingTree && !treeError && treeData && (
           <IncidentCountTree 
             data={treeData}
-            selectedSeason={selectedSeason}
-            selectedYear={selectedYear}
             selectedAdmin={selectedAdmin} 
             selectedDept={selectedDept}
             selectedSection={selectedSection}

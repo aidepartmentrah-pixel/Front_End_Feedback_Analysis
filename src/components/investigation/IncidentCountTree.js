@@ -4,9 +4,10 @@ import { Box, Card, Typography, Button } from "@mui/joy";
 import DownloadIcon from "@mui/icons-material/Download";
 import html2canvas from "html2canvas";
 
-const TreeNode = ({ name, displayValue, level, x, y, children, parentX, parentY, nodeColor, nodeSize = "normal" }) => {
+const TreeNode = ({ name, displayValue, level, x, y, children, parentX, parentY, nodeColor, nodeSize = "normal", isVirtualRoot = false }) => {
   // Default neutral colors (used for Number of Incidents tree)
   const defaultColors = {
+    '-1': { bg: "#1f2937", text: "#fff", border: "#111827" },  // Virtual hospital root
     0: { bg: "#9ca3af", text: "#fff", border: "#6b7280" },
     1: { bg: "#9ca3af", text: "#fff", border: "#6b7280" },
     2: { bg: "#9ca3af", text: "#fff", border: "#6b7280" },
@@ -20,6 +21,22 @@ const TreeNode = ({ name, displayValue, level, x, y, children, parentX, parentY,
   const sizeMultiplier = nodeSize === "large" ? 1.5 : nodeSize === "small" ? 0.8 : 1;
   const nodeWidth = 240 * sizeMultiplier;
   const nodeHeight = 85 * sizeMultiplier;
+
+  // For virtual root, just render children without showing the root node itself
+  if (isVirtualRoot) {
+    return (
+      <g>
+        {children && children.map((child, idx) => (
+          <TreeNode
+            key={child.node_id || idx}
+            {...child}
+            parentX={undefined}  // No parent for root administrations
+            parentY={undefined}
+          />
+        ))}
+      </g>
+    );
+  }
 
   return (
     <g>
@@ -78,7 +95,7 @@ const TreeNode = ({ name, displayValue, level, x, y, children, parentX, parentY,
       {/* Render children */}
       {children && children.map((child, idx) => (
         <TreeNode
-          key={idx}
+          key={child.node_id || idx}
           {...child}
           parentX={x}
           parentY={y}
@@ -103,27 +120,70 @@ const IncidentCountTree = ({ data, selectedAdmin, selectedDept, selectedSection,
   }
 
   console.log("🌳 Rendering investigation tree with data:", data);
+  console.log("=== TREE DATA DEBUG ===");
+  console.log("📊 Scope level:", data.scope?.level);
+  console.log("📊 Number of root nodes:", data.tree?.length);
+  console.log("📊 Root node IDs:", data.tree?.map(n => n.node_id));
+  console.log("📊 Root node types:", data.tree?.map(n => n.node_type));
+  
+  // Validate tree structure - ensure no duplicate node_ids
+  const validateTreeStructure = (nodes, seenIds = new Set(), path = []) => {
+    nodes.forEach(node => {
+      const currentPath = [...path, node.node_name || node.node_id];
+      
+      if (seenIds.has(node.node_id)) {
+        console.warn(`⚠️ DUPLICATE NODE DETECTED: ${node.node_id} at path:`, currentPath.join(" → "));
+      } else {
+        seenIds.add(node.node_id);
+      }
+      
+      if (node.children && node.children.length > 0) {
+        validateTreeStructure(node.children, seenIds, currentPath);
+      }
+    });
+    
+    return seenIds.size;
+  };
+  
+  const uniqueNodeCount = validateTreeStructure(data.tree);
+  console.log("📊 Unique nodes in API data:", uniqueNodeCount);
+  
+  // Check if this is hospital-wide view (multiple administrations)
+  const isHospitalWide = data.scope?.level === "hospital";
+  console.log("📊 Is hospital-wide view:", isHospitalWide);
 
   // ========================================
   // API DATA TRANSFORMATION
   // ========================================
   
   /**
-   * Transform API tree structure to component format
-   * API provides hierarchical tree with node_id, node_name, node_type, value, children
-   * Component expects name, count, level, x, y, children structure
+   * Transform API tree structure to component format with proper positioning
+   * Uses a Y-counter to ensure each node gets a unique vertical position
+   * This prevents overlaps and ensures clean tree hierarchy
    */
-  const transformApiTreeToComponentFormat = (apiNodes, level = 0, startY = 20, xPosition = 50) => {
-    const VERTICAL_SPACING = level === 0 ? 400 : level === 1 ? 360 : 180;
+  
+  let globalYCounter = 20; // Start Y position
+  
+  const transformApiTreeToComponentFormat = (apiNodes, level = 0, isFirstLevelAfterVirtualRoot = false) => {
     const X_POSITIONS = [50, 420, 790, 1160]; // x position for each level
+    const VERTICAL_SPACING = 150; // Fixed spacing between nodes
+    const ADMINISTRATION_GAP = 100; // Extra gap between different administrations
     
     return apiNodes.map((node, index) => {
-      const currentY = startY + (index * VERTICAL_SPACING);
+      // Add extra spacing between administrations in hospital-wide view
+      if (isFirstLevelAfterVirtualRoot && index > 0) {
+        globalYCounter += ADMINISTRATION_GAP;
+      }
+      
+      // Get current Y position and increment for next node
+      const currentY = globalYCounter;
+      globalYCounter += VERTICAL_SPACING;
+      
       const currentX = X_POSITIONS[level] || X_POSITIONS[X_POSITIONS.length - 1];
       
       const transformed = {
         node_id: node.node_id,
-        name: node.node_name_ar || node.node_name, // Prefer Arabic name
+        name: node.node_name_ar || node.node_name,
         nameEn: node.node_name,
         nameAr: node.node_name_ar,
         count: node.value || 0,
@@ -131,20 +191,18 @@ const IncidentCountTree = ({ data, selectedAdmin, selectedDept, selectedSection,
         level: level,
         x: currentX,
         y: currentY,
-        // For domain/severity trees, the value might be an object
         domains: node.domain_breakdown || { medical: 0, nursing: 0, administrative: 0 },
         severity: node.severity_breakdown || { low: 0, medium: 0, high: 0 },
         redFlags: node.red_flag_count || 0,
         neverEver: node.never_event_count || 0,
       };
       
-      // Recursively transform children
+      // Recursively transform children - they will get sequential Y positions
       if (node.children && node.children.length > 0) {
         transformed.children = transformApiTreeToComponentFormat(
           node.children,
           level + 1,
-          currentY,
-          X_POSITIONS[level + 1] || X_POSITIONS[X_POSITIONS.length - 1]
+          false  // Only first level after virtual root gets extra spacing
         );
       }
       
@@ -152,9 +210,71 @@ const IncidentCountTree = ({ data, selectedAdmin, selectedDept, selectedSection,
     });
   };
 
-  // Transform API data to component format
-  const apiTreeNodes = transformApiTreeToComponentFormat(data.tree || []);
-  const baseTreeData = apiTreeNodes.length > 0 ? apiTreeNodes[0] : null;
+  // ========================================
+  // HANDLE MULTIPLE ROOT NODES (Hospital-Wide View)
+  // ========================================
+  
+  let baseTreeData;
+  let allRootNodes = [];
+  
+  if (isHospitalWide && data.tree.length > 1) {
+    // Multiple administrations - create a virtual hospital root
+    console.log("🏥 Creating virtual hospital root for multiple administrations");
+    
+    // Reset Y counter before transforming
+    globalYCounter = 20;
+    
+    // Transform all root nodes with sequential Y positions
+    // Pass true to indicate these are administrations (first level after virtual root)
+    allRootNodes = transformApiTreeToComponentFormat(data.tree, 0, true);
+    
+    // Create virtual root to hold all administrations
+    baseTreeData = {
+      node_id: "virtual-hospital-root",
+      name: "King Fahad Hospital",
+      nameEn: "King Fahad Hospital",
+      nameAr: "مستشفى الملك فهد",
+      count: data.summary?.total_incidents || 0,
+      nodeType: "hospital",
+      level: -1,
+      x: 50,
+      y: 20,
+      domains: { medical: 0, nursing: 0, administrative: 0 },
+      severity: { low: 0, medium: 0, high: 0 },
+      redFlags: 0,
+      neverEver: 0,
+      children: allRootNodes,
+      isVirtualRoot: true,
+    };
+    
+    console.log("✅ Virtual hospital root created with", allRootNodes.length, "administration children");
+    console.log("📊 Total nodes in tree:", countNodes(baseTreeData));
+  } else {
+    // Single root (filtered view or single administration)
+    console.log("🏢 Single root node view");
+    
+    // Reset Y counter before transforming
+    globalYCounter = 20;
+    
+    const apiTreeNodes = transformApiTreeToComponentFormat(data.tree);
+    baseTreeData = apiTreeNodes.length > 0 ? apiTreeNodes[0] : null;
+    
+    if (baseTreeData) {
+      console.log("📊 Total nodes in tree:", countNodes(baseTreeData));
+    }
+  }
+
+  // Helper function to count total nodes (for debugging)
+  function countNodes(node) {
+    if (!node) return 0;
+    let count = 1;
+    if (node.children) {
+      node.children.forEach(child => {
+        count += countNodes(child);
+      });
+    }
+    return count;
+  }
 
   if (!baseTreeData) {
     return (
@@ -855,7 +975,8 @@ const IncidentCountTree = ({ data, selectedAdmin, selectedDept, selectedSection,
           {data.season_label && (
             <Typography level="body-xs" sx={{ color: "#999", fontStyle: "italic" }}>
               📅 Season: {data.season_label} | 
-              🔍 Scope: {data.scope.level} | 
+              🔍 Scope: {data.scope.level}
+              {isHospitalWide && ` (${data.tree.length} Administrations)`} | 
               📊 Total Incidents: {data.summary?.total_incidents || 0}
             </Typography>
           )}
