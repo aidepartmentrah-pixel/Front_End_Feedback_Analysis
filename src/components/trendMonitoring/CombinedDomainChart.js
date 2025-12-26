@@ -10,94 +10,119 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-  ReferenceLine,
 } from "recharts";
-import { monthlyDomainData, domainLimits } from "../../data/trendMonitoringData";
 
-const CombinedDomainChart = () => {
-  // Prepare combined data
-  const combinedData = monthlyDomainData.map((item, index) => ({
-    month: item.month,
-    clinical: item.clinical,
-    management: item.management,
-    relational: item.relational,
-    monthIndex: index,
-  }));
+const CombinedDomainChart = ({ data }) => {
+  if (!data || !data.domains || data.domains.length === 0) {
+    return (
+      <Card sx={{ p: 3, mb: 3, textAlign: "center" }}>
+        <Typography level="body-md" sx={{ color: "#999" }}>
+          No domain data available
+        </Typography>
+      </Card>
+    );
+  }
+
+  // Get all unique months from the first domain
+  const monthsData = data.domains[0]?.monthly_data || [];
+  
+  // Prepare chart data - combine all domains by month
+  const chartData = monthsData.map((monthData) => {
+    const dataPoint = {
+      period: monthData.period,
+      label: monthData.period_label,
+      labelAr: monthData.period_label_ar,
+      month: monthData.month,
+      year: monthData.year,
+    };
+    
+    // Add each domain's count for this month
+    data.domains.forEach((domain) => {
+      const domainMonth = domain.monthly_data.find(m => m.period === monthData.period);
+      dataPoint[domain.domain_code] = domainMonth?.incident_count || 0;
+      dataPoint[`${domain.domain_code}_name`] = domain.domain_name;
+      dataPoint[`${domain.domain_code}_nameAr`] = domain.domain_name_ar;
+      dataPoint[`${domain.domain_code}_color`] = domain.domain_color;
+    });
+    
+    return dataPoint;
+  });
+
+  // Custom tooltip
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <Box
+          sx={{
+            background: "white",
+            border: "2px solid #667eea",
+            borderRadius: "8px",
+            p: 1.5,
+            fontSize: "12px",
+          }}
+        >
+          <Typography level="body-sm" sx={{ fontWeight: 700, mb: 1 }}>
+            {label}
+          </Typography>
+          {payload.map((entry, index) => (
+            <Box key={index} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+              <Box
+                sx={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: "50%",
+                  bgcolor: entry.color,
+                }}
+              />
+              <Typography level="body-xs">
+                {entry.name}: <strong>{entry.value}</strong>
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      );
+    }
+    return null;
+  };
 
   return (
     <Card sx={{ p: 3, mb: 3 }}>
       <Typography level="h5" sx={{ mb: 3, fontWeight: 700, color: "#667eea" }}>
-        📈 اتجاه المجالات (Domain Trends with Limits)
+        📈 اتجاه المجالات (Domain Trends)
       </Typography>
       
       <Box sx={{ width: "100%", height: 400 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={combinedData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
             <XAxis
-              dataKey="month"
+              dataKey="label"
               stroke="#666"
-              style={{ fontSize: "12px", fontWeight: 600 }}
+              style={{ fontSize: "11px", fontWeight: 600 }}
+              angle={-45}
+              textAnchor="end"
+              height={80}
             />
             <YAxis
               stroke="#666"
               style={{ fontSize: "12px", fontWeight: 600 }}
             />
-            <Tooltip
-              contentStyle={{
-                background: "white",
-                border: "2px solid #667eea",
-                borderRadius: "8px",
-                fontWeight: 600,
-              }}
-            />
+            <Tooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={{ fontSize: "13px", fontWeight: 600 }} />
             
-            {/* Season separators - every 4 months */}
-            <ReferenceLine x={3} stroke="#999" strokeWidth={2} strokeDasharray="5 5" label={{ value: "Q2", position: "top", fill: "#999" }} />
-            <ReferenceLine x={7} stroke="#999" strokeWidth={2} strokeDasharray="5 5" label={{ value: "Q3", position: "top", fill: "#999" }} />
-            <ReferenceLine x={11} stroke="#999" strokeWidth={2} strokeDasharray="5 5" label={{ value: "Q4", position: "top", fill: "#999" }} />
-            
-            {/* Threshold lines for each domain */}
-            <ReferenceLine
-              y={domainLimits.clinical}
-              stroke="#ff4757"
-              strokeWidth={2}
-              strokeDasharray="3 3"
-              label={{ value: `حد سريري: ${domainLimits.clinical}`, position: "right", fill: "#ff4757", fontSize: 11 }}
-            />
-            <ReferenceLine
-              y={domainLimits.management}
-              stroke="#ffa502"
-              strokeWidth={2}
-              strokeDasharray="3 3"
-              label={{ value: `حد إداري: ${domainLimits.management}`, position: "right", fill: "#ffa502", fontSize: 11 }}
-            />
-            <ReferenceLine
-              y={domainLimits.relational}
-              stroke="#2ed573"
-              strokeWidth={2}
-              strokeDasharray="3 3"
-              label={{ value: `حد علائقي: ${domainLimits.relational}`, position: "right", fill: "#2ed573", fontSize: 11 }}
-            />
-            
-            {/* Clinical Line */}
-            <Line
-              type="monotone"
-              dataKey="clinical"
-              stroke="#ff4757"
-              strokeWidth={3}
-              dot={{ fill: "#ff4757", r: 5 }}
-              activeDot={{ r: 7 }}
-              name="سريري (Clinical)"
-            />
-            
-            {/* Management Line */}
-            <Line
-              type="monotone"
-              dataKey="management"
-              stroke="#ffa502"
-              strokeWidth={3}
+            {/* Render a line for each domain */}
+            {data.domains.map((domain, index) => (
+              <Line
+                key={domain.domain_id}
+                type="monotone"
+                dataKey={domain.domain_code}
+                stroke={domain.domain_color || `hsl(${index * 60}, 70%, 50%)`}
+                strokeWidth={3}
+                dot={{ fill: domain.domain_color, r: 5 }}
+                activeDot={{ r: 7 }}
+                name={`${domain.domain_name_ar || domain.domain_name} (${domain.domain_code})`}
+              />
+            ))}
               dot={{ fill: "#ffa502", r: 5 }}
               activeDot={{ r: 7 }}
               name="إداري (Management)"

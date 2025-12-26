@@ -88,10 +88,88 @@ const TreeNode = ({ name, displayValue, level, x, y, children, parentX, parentY,
   );
 };
 
-const IncidentCountTree = ({ selectedAdmin, selectedDept, selectedSection, treeType = "incident-count" }) => {
+const IncidentCountTree = ({ data, selectedAdmin, selectedDept, selectedSection, treeType = "incident_count" }) => {
   const treeRef = useRef(null);
 
-  // Complete hospital base data
+  // If no data is provided, show placeholder
+  if (!data) {
+    return (
+      <Card sx={{ p: 4, textAlign: "center" }}>
+        <Typography level="body-md" sx={{ color: "#666" }}>
+          No investigation tree data available.
+        </Typography>
+      </Card>
+    );
+  }
+
+  console.log("🌳 Rendering investigation tree with data:", data);
+
+  // ========================================
+  // API DATA TRANSFORMATION
+  // ========================================
+  
+  /**
+   * Transform API tree structure to component format
+   * API provides hierarchical tree with node_id, node_name, node_type, value, children
+   * Component expects name, count, level, x, y, children structure
+   */
+  const transformApiTreeToComponentFormat = (apiNodes, level = 0, startY = 20, xPosition = 50) => {
+    const VERTICAL_SPACING = level === 0 ? 400 : level === 1 ? 360 : 180;
+    const X_POSITIONS = [50, 420, 790, 1160]; // x position for each level
+    
+    return apiNodes.map((node, index) => {
+      const currentY = startY + (index * VERTICAL_SPACING);
+      const currentX = X_POSITIONS[level] || X_POSITIONS[X_POSITIONS.length - 1];
+      
+      const transformed = {
+        node_id: node.node_id,
+        name: node.node_name_ar || node.node_name, // Prefer Arabic name
+        nameEn: node.node_name,
+        nameAr: node.node_name_ar,
+        count: node.value || 0,
+        nodeType: node.node_type,
+        level: level,
+        x: currentX,
+        y: currentY,
+        // For domain/severity trees, the value might be an object
+        domains: node.domain_breakdown || { medical: 0, nursing: 0, administrative: 0 },
+        severity: node.severity_breakdown || { low: 0, medium: 0, high: 0 },
+        redFlags: node.red_flag_count || 0,
+        neverEver: node.never_event_count || 0,
+      };
+      
+      // Recursively transform children
+      if (node.children && node.children.length > 0) {
+        transformed.children = transformApiTreeToComponentFormat(
+          node.children,
+          level + 1,
+          currentY,
+          X_POSITIONS[level + 1] || X_POSITIONS[X_POSITIONS.length - 1]
+        );
+      }
+      
+      return transformed;
+    });
+  };
+
+  // Transform API data to component format
+  const apiTreeNodes = transformApiTreeToComponentFormat(data.tree || []);
+  const baseTreeData = apiTreeNodes.length > 0 ? apiTreeNodes[0] : null;
+
+  if (!baseTreeData) {
+    return (
+      <Card sx={{ p: 4, textAlign: "center" }}>
+        <Typography level="body-md" sx={{ color: "#666" }}>
+          No tree nodes available for the selected scope.
+        </Typography>
+      </Card>
+    );
+  }
+
+  // ========================================
+  // ORIGINAL MOCK DATA (keeping for reference/fallback)
+  // ========================================
+  /*
   const baseTreeData = {
     name: "King Fahad Hospital",
     count: 1250,
@@ -435,6 +513,10 @@ const IncidentCountTree = ({ selectedAdmin, selectedDept, selectedSection, treeT
       },
     ],
   };
+  */
+  // ========================================
+  // END MOCK DATA
+  // ========================================
 
   // Judgment/Evaluation Protocols (configurable thresholds - mock data)
   const thresholds = {
@@ -460,7 +542,7 @@ const IncidentCountTree = ({ selectedAdmin, selectedDept, selectedSection, treeT
   // Color evaluation functions
   const evaluateNodeColor = (node, level) => {
     switch (treeType) {
-      case "incident-count": {
+      case "incident_count": {
         // Blue gradient by hierarchy level (no judgment)
         const blueColors = {
           0: { bg: "#667eea", text: "#fff", border: "#5568d3" },
@@ -471,7 +553,7 @@ const IncidentCountTree = ({ selectedAdmin, selectedDept, selectedSection, treeT
         return blueColors[level] || blueColors[3];
       }
 
-      case "domain-count": {
+      case "domain_distribution_numbers": {
         // Count-based threshold evaluation
         const clinical = node.domains.medical;
         const management = node.domains.administrative;
@@ -493,7 +575,7 @@ const IncidentCountTree = ({ selectedAdmin, selectedDept, selectedSection, treeT
         }
       }
 
-      case "domain-percentage": {
+      case "domain_distribution_percentage": {
         // Percentage-based threshold evaluation
         const total = node.count;
         const clinicalPct = (node.domains.medical / total) * 100;
@@ -515,7 +597,7 @@ const IncidentCountTree = ({ selectedAdmin, selectedDept, selectedSection, treeT
         }
       }
 
-      case "severity-count": {
+      case "severity_distribution_numbers": {
         // Traffic light system for severity counts
         const low = node.severity.low;
         const medium = node.severity.medium;
@@ -532,7 +614,7 @@ const IncidentCountTree = ({ selectedAdmin, selectedDept, selectedSection, treeT
         }
       }
 
-      case "severity-percentage": {
+      case "severity_distribution_percentage": {
         // High severity percentage evaluation
         const total = node.count;
         const highPct = (node.severity.high / total) * 100;
@@ -546,7 +628,7 @@ const IncidentCountTree = ({ selectedAdmin, selectedDept, selectedSection, treeT
         }
       }
 
-      case "red-flag": {
+      case "red_flag_incidents": {
         // Red intensity increases with count (no green state)
         const count = node.redFlags;
         if (count === 0) {
@@ -560,7 +642,7 @@ const IncidentCountTree = ({ selectedAdmin, selectedDept, selectedSection, treeT
         }
       }
 
-      case "never-ever": {
+      case "never_event_incidents": {
         // Binary: 0 = acceptable, ≥1 = violation
         const count = node.neverEver;
         if (count === 0) {
@@ -587,45 +669,45 @@ const IncidentCountTree = ({ selectedAdmin, selectedDept, selectedSection, treeT
     transformed.nodeColor = evaluateNodeColor(node, node.level);
     
     switch (treeType) {
-      case "incident-count":
+      case "incident_count":
         transformed.displayValue = node.count.toString();
         transformed.nodeSize = "normal";
         break;
         
-      case "domain-count":
+      case "domain_distribution_numbers":
         transformed.displayValue = `Clinical: ${node.domains.medical}\nManagement: ${node.domains.administrative}\nRelational: ${node.domains.nursing}`;
         transformed.nodeSize = "large";
         break;
         
-      case "domain-percentage":
+      case "domain_distribution_percentage":
         const total = node.count;
-        const clinicalPct = ((node.domains.medical / total) * 100).toFixed(1);
-        const managementPct = ((node.domains.administrative / total) * 100).toFixed(1);
-        const relationalPct = ((node.domains.nursing / total) * 100).toFixed(1);
+        const clinicalPct = total > 0 ? ((node.domains.medical / total) * 100).toFixed(1) : "0.0";
+        const managementPct = total > 0 ? ((node.domains.administrative / total) * 100).toFixed(1) : "0.0";
+        const relationalPct = total > 0 ? ((node.domains.nursing / total) * 100).toFixed(1) : "0.0";
         transformed.displayValue = `Clinical: ${clinicalPct}%\nManagement: ${managementPct}%\nRelational: ${relationalPct}%`;
         transformed.nodeSize = "large";
         break;
         
-      case "severity-count":
+      case "severity_distribution_numbers":
         transformed.displayValue = `Low: ${node.severity.low}\nMedium: ${node.severity.medium}\nHigh: ${node.severity.high}`;
         transformed.nodeSize = "large";
         break;
         
-      case "severity-percentage":
+      case "severity_distribution_percentage":
         const sevTotal = node.count;
-        const lowPct = ((node.severity.low / sevTotal) * 100).toFixed(1);
-        const medSevPct = ((node.severity.medium / sevTotal) * 100).toFixed(1);
-        const highPct = ((node.severity.high / sevTotal) * 100).toFixed(1);
+        const lowPct = sevTotal > 0 ? ((node.severity.low / sevTotal) * 100).toFixed(1) : "0.0";
+        const medSevPct = sevTotal > 0 ? ((node.severity.medium / sevTotal) * 100).toFixed(1) : "0.0";
+        const highPct = sevTotal > 0 ? ((node.severity.high / sevTotal) * 100).toFixed(1) : "0.0";
         transformed.displayValue = `Low: ${lowPct}%\nMedium: ${medSevPct}%\nHigh: ${highPct}%`;
         transformed.nodeSize = "large";
         break;
         
-      case "red-flag":
+      case "red_flag_incidents":
         transformed.displayValue = node.redFlags === 0 ? "0" : `⚠️ ${node.redFlags}`;
         transformed.nodeSize = "normal";
         break;
         
-      case "never-ever":
+      case "never_event_incidents":
         transformed.displayValue = node.neverEver === 0 ? "✓ 0" : `⚠️ ${node.neverEver}`;
         transformed.nodeSize = "normal";
         break;
@@ -664,82 +746,13 @@ const IncidentCountTree = ({ selectedAdmin, selectedDept, selectedSection, treeT
     };
   };
 
-  // Filter tree based on selections
-  const getFilteredTree = () => {
-    if (!selectedAdmin && !selectedDept && !selectedSection) {
-      return transformNodeData(baseTreeData);
-    }
-
-    let filtered = { ...baseTreeData };
-
-    if (selectedAdmin) {
-      const admin = baseTreeData.children.find(a => a.name === selectedAdmin);
-      if (admin) {
-        filtered = {
-          ...admin,
-          level: 0,
-          x: 50,
-          y: 20,
-          children: admin.children?.map((dept, idx) => ({
-            ...dept,
-            level: 1,
-            x: 420,
-            y: 30 + idx * 400,
-            children: dept.children?.map((sec, secIdx) => ({
-              ...sec,
-              level: 2,
-              x: 790,
-              y: 30 + idx * 400 + secIdx * 180,
-            })),
-          })),
-        };
-      }
-    }
-
-    if (selectedDept && selectedAdmin) {
-      const admin = baseTreeData.children.find(a => a.name === selectedAdmin);
-      if (admin) {
-        const dept = admin.children.find(d => d.name === selectedDept);
-        if (dept) {
-          filtered = {
-            ...dept,
-            level: 0,
-            x: 50,
-            y: 20,
-            children: dept.children?.map((sec, idx) => ({
-              ...sec,
-              level: 1,
-              x: 420,
-              y: 30 + idx * 180,
-            })),
-          };
-        }
-      }
-    }
-
-    if (selectedSection && selectedDept && selectedAdmin) {
-      const admin = baseTreeData.children.find(a => a.name === selectedAdmin);
-      if (admin) {
-        const dept = admin.children.find(d => d.name === selectedDept);
-        if (dept) {
-          const section = dept.children?.find(s => s.name === selectedSection);
-          if (section) {
-            filtered = {
-              ...section,
-              level: 0,
-              x: 50,
-              y: 20,
-              children: undefined,
-            };
-          }
-        }
-      }
-    }
-
-    return transformNodeData(filtered);
+  // The API handles filtering now, so we just transform the data
+  // The baseTreeData already represents the filtered view based on scope
+  const getProcessedTree = () => {
+    return transformNodeData(baseTreeData);
   };
 
-  const treeData = centerParentNodes(getFilteredTree());
+  const treeData = centerParentNodes(getProcessedTree());
 
   // Calculate dynamic SVG dimensions based on actual node positions
   const calculateTreeDimensions = (node, depth = 0) => {
@@ -804,40 +817,48 @@ const IncidentCountTree = ({ selectedAdmin, selectedDept, selectedSection, treeT
 
   const getTreeTitle = () => {
     const titles = {
-      "incident-count": "Number of Incidents",
-      "domain-count": "Domain Distribution (Numbers)",
-      "domain-percentage": "Domain Distribution (Percentage)",
-      "severity-count": "Severity Distribution (Numbers)",
-      "severity-percentage": "Severity Distribution (Percentage)",
-      "red-flag": "Red Flag Incident",
-      "never-ever": "Never Ever Incident",
+      "incident_count": "Number of Incidents",
+      "domain_distribution_numbers": "Domain Distribution (Numbers)",
+      "domain_distribution_percentage": "Domain Distribution (Percentage)",
+      "severity_distribution_numbers": "Severity Distribution (Numbers)",
+      "severity_distribution_percentage": "Severity Distribution (Percentage)",
+      "red_flag_incidents": "Red Flag Incident",
+      "never_event_incidents": "Never Event Incident",
     };
     return titles[treeType] || "Incident Tree";
   };
 
   const getTreeDescription = () => {
     const descriptions = {
-      "incident-count": "Pure distribution of incident counts. Neutral visualization with no pass/fail judgment.",
-      "domain-count": "Evaluates domains (Clinical, Management, Relational) using count-based thresholds. Green = within limits, Red = exceeds limits.",
-      "domain-percentage": "Evaluates domains using percentage thresholds normalized by total incidents. Color indicates threshold compliance.",
-      "severity-count": "Evaluates Low and Medium severity incidents using count-based thresholds. Traffic-light colors: Green (safe), Amber (warning), Red (exceeds).",
-      "severity-percentage": "Evaluates High severity incidents using percentage thresholds. Color reflects policy compliance.",
-      "red-flag": "Critical-risk incidents concentration. Red intensity increases with count (no green state).",
-      "never-ever": "Zero-tolerance incidents tracking. Binary judgment: 0 = acceptable (green), ≥1 = violation (red).",
+      "incident_count": "Pure distribution of incident counts. Neutral visualization with no pass/fail judgment.",
+      "domain_distribution_numbers": "Evaluates domains (Clinical, Management, Relational) using count-based thresholds. Green = within limits, Red = exceeds limits.",
+      "domain_distribution_percentage": "Evaluates domains using percentage thresholds normalized by total incidents. Color indicates threshold compliance.",
+      "severity_distribution_numbers": "Evaluates Low and Medium severity incidents using count-based thresholds. Traffic-light colors: Green (safe), Amber (warning), Red (exceeds).",
+      "severity_distribution_percentage": "Evaluates High severity incidents using percentage thresholds. Color reflects policy compliance.",
+      "red_flag_incidents": "Critical-risk incidents concentration. Red intensity increases with count (no green state).",
+      "never_event_incidents": "Zero-tolerance incidents tracking. Binary judgment: 0 = acceptable (green), ≥1 = violation (red).",
     };
     return descriptions[treeType] || "Incident distribution tree visualization.";
   };
 
   return (
     <Card>
-      <Box sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Box>
+      <Box sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <Box sx={{ flex: 1 }}>
           <Typography level="h4" sx={{ fontWeight: 700, mb: 1 }}>
             {getTreeTitle()}
           </Typography>
-          <Typography level="body-sm" sx={{ color: "#666" }}>
+          <Typography level="body-sm" sx={{ color: "#666", mb: 1 }}>
             {getTreeDescription()}
           </Typography>
+          {/* Display API metadata */}
+          {data.season_label && (
+            <Typography level="body-xs" sx={{ color: "#999", fontStyle: "italic" }}>
+              📅 Season: {data.season_label} | 
+              🔍 Scope: {data.scope.level} | 
+              📊 Total Incidents: {data.summary?.total_incidents || 0}
+            </Typography>
+          )}
         </Box>
         <Button
           variant="outlined"

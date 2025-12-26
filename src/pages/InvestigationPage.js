@@ -1,5 +1,5 @@
 // src/pages/InvestigationPage.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -8,133 +8,148 @@ import {
   Option,
   FormControl,
   FormLabel,
+  CircularProgress,
 } from "@mui/joy";
 import MainLayout from "../components/common/MainLayout";
 import IncidentCountTree from "../components/investigation/IncidentCountTree";
+import { fetchDashboardHierarchy } from "../api/dashboard";
+import { fetchInvestigationTree, fetchSeasons } from "../api/investigation";
 
 const InvestigationPage = () => {
-  const [selectedSeason, setSelectedSeason] = useState("q4");
-  const [selectedYear, setSelectedYear] = useState("2025");
+  // Season selection state - now uses season_id from API
+  const [selectedSeason, setSelectedSeason] = useState("");
+  const [availableSeasons, setAvailableSeasons] = useState([]);
+  const [loadingSeasons, setLoadingSeasons] = useState(true);
+  
+  // Other filters
   const [selectedAdmin, setSelectedAdmin] = useState("");
   const [selectedDept, setSelectedDept] = useState("");
   const [selectedSection, setSelectedSection] = useState("");
-  const [selectedTreeType, setSelectedTreeType] = useState("incident-count");
+  const [selectedTreeType, setSelectedTreeType] = useState("incident_count");
 
-  // Season options
-  const seasons = [
-    { value: "q1", label: "Q1 (Jan-Mar)" },
-    { value: "q2", label: "Q2 (Apr-Jun)" },
-    { value: "q3", label: "Q3 (Jul-Sep)" },
-    { value: "q4", label: "Q4 (Oct-Dec)" },
-  ];
+  // Hierarchy state
+  const [hierarchy, setHierarchy] = useState(null);
+  const [loadingHierarchy, setLoadingHierarchy] = useState(true);
 
-  // Year options
-  const years = [
-    { value: "2025", label: "2025" },
-    { value: "2024", label: "2024" },
-    { value: "2023", label: "2023" },
-    { value: "2022", label: "2022" },
-  ];
+  // Investigation tree data state
+  const [treeData, setTreeData] = useState(null);
+  const [loadingTree, setLoadingTree] = useState(false);
+  const [treeError, setTreeError] = useState(null);
 
-  // Tree type options
+  // Fetch seasons on mount
+  useEffect(() => {
+    console.log("🔄 Fetching available seasons...");
+    fetchSeasons()
+      .then((data) => {
+        setAvailableSeasons(data.seasons || []);
+        // Set current season as default
+        if (data.current_season) {
+          setSelectedSeason(data.current_season);
+          console.log("✅ Default season set to:", data.current_season);
+        }
+      })
+      .catch((error) => {
+        console.error("❌ Failed to load seasons:", error);
+        // Fallback to empty - user will need to select manually
+      })
+      .finally(() => setLoadingSeasons(false));
+  }, []);
+
+  // Fetch hierarchy on mount
+  useEffect(() => {
+    fetchDashboardHierarchy()
+      .then((data) => setHierarchy(data))
+      .catch((error) => console.error("Failed to load hierarchy:", error))
+      .finally(() => setLoadingHierarchy(false));
+  }, []);
+
+  // Fetch investigation tree when filters change
+  useEffect(() => {
+    console.log("=== INVESTIGATION PAGE STATE ===");
+    console.log("🔄 Filter state changed:", {
+      selectedSeason,
+      selectedAdmin,
+      selectedDept,
+      selectedSection,
+      selectedTreeType,
+    });
+    
+    // Validate required fields before fetching
+    if (!selectedSeason || !selectedTreeType) {
+      console.warn("⚠️ Missing required fields (season or tree type), skipping fetch");
+      if (!selectedSeason) {
+        setTreeError("Please select a season");
+      }
+      return;
+    }
+
+    console.log("🔄 Fetching investigation tree data...");
+    setLoadingTree(true);
+    setTreeError(null);
+
+    // Use season_id directly from the API
+    const seasonId = selectedSeason;
+    console.log("📅 Using season ID:", seasonId);
+
+    // Convert empty strings to null for optional IDs
+    const administrationId = selectedAdmin && selectedAdmin !== "" ? selectedAdmin : null;
+    const departmentId = selectedDept && selectedDept !== "" ? selectedDept : null;
+    const sectionId = selectedSection && selectedSection !== "" ? selectedSection : null;
+
+    console.log("📦 Prepared parameters for API call:", {
+      season: seasonId,
+      tree_type: selectedTreeType,
+      administration_id: administrationId,
+      department_id: departmentId,
+      section_id: sectionId,
+    });
+
+    fetchInvestigationTree({
+      season: seasonId,
+      tree_type: selectedTreeType,
+      administration_id: administrationId,
+      department_id: departmentId,
+      section_id: sectionId,
+    })
+      .then((data) => {
+        console.log("✅ Investigation tree loaded successfully:", data);
+        setTreeData(data);
+      })
+      .catch((error) => {
+        console.error("❌ Failed to load investigation tree:", error);
+        setTreeError(error.message);
+      })
+      .finally(() => {
+        setLoadingTree(false);
+        console.log("=================================");
+      });
+  }, [selectedSeason, selectedAdmin, selectedDept, selectedSection, selectedTreeType]);
+
+  // Tree type options (updated to match API naming)
   const treeTypes = [
-    { value: "incident-count", label: "Number of Incidents" },
-    { value: "domain-count", label: "Domain Distribution (Numbers)" },
-    { value: "domain-percentage", label: "Domain Distribution (Percentage)" },
-    { value: "severity-count", label: "Severity Distribution (Numbers)" },
-    { value: "severity-percentage", label: "Severity Distribution (Percentage)" },
-    { value: "red-flag", label: "Red Flag Incident" },
-    { value: "never-ever", label: "Never Ever Incident" },
-  ];
-
-  // Administration options
-  const administrations = [
-    { value: "", label: "All Administrations" },
-    { value: "Nursing Administration", label: "Nursing Administration" },
-    { value: "Medical Administration", label: "Medical Administration" },
-    { value: "Support Services", label: "Support Services" },
+    { value: "incident_count", label: "Number of Incidents" },
+    { value: "domain_distribution_numbers", label: "Domain Distribution (Numbers)" },
+    { value: "domain_distribution_percentage", label: "Domain Distribution (Percentage)" },
+    { value: "severity_distribution_numbers", label: "Severity Distribution (Numbers)" },
+    { value: "severity_distribution_percentage", label: "Severity Distribution (Percentage)" },
+    { value: "red_flag_incidents", label: "Red Flag Incident" },
+    { value: "never_event_incidents", label: "Never Event Incident" },
   ];
 
   // Department options (filtered by selected administration)
   const getDepartments = () => {
-    const deptsByAdmin = {
-      "Nursing Administration": [
-        { value: "", label: "All Departments" },
-        { value: "Emergency Nursing", label: "Emergency Nursing" },
-        { value: "ICU Nursing", label: "ICU Nursing" },
-        { value: "Ward Nursing", label: "Ward Nursing" },
-      ],
-      "Medical Administration": [
-        { value: "", label: "All Departments" },
-        { value: "Surgery Department", label: "Surgery Department" },
-        { value: "Internal Medicine", label: "Internal Medicine" },
-        { value: "Pediatrics Department", label: "Pediatrics Department" },
-      ],
-      "Support Services": [
-        { value: "", label: "All Departments" },
-        { value: "Radiology Department", label: "Radiology Department" },
-        { value: "Laboratory Department", label: "Laboratory Department" },
-      ],
-    };
-
-    if (!selectedAdmin) {
-      return [{ value: "", label: "Select Administration First" }];
+    if (!selectedAdmin || !hierarchy) {
+      return [];
     }
-
-    return deptsByAdmin[selectedAdmin] || [{ value: "", label: "All Departments" }];
+    return hierarchy.Department?.[selectedAdmin] || [];
   };
 
   // Section options (filtered by selected department)
   const getSections = () => {
-    const sectionsByDept = {
-      "Emergency Nursing": [
-        { value: "", label: "All Sections" },
-        { value: "ER Triage", label: "ER Triage" },
-        { value: "ER Treatment", label: "ER Treatment" },
-      ],
-      "ICU Nursing": [
-        { value: "", label: "All Sections" },
-        { value: "ICU Ward 1", label: "ICU Ward 1" },
-        { value: "ICU Ward 2", label: "ICU Ward 2" },
-      ],
-      "Ward Nursing": [
-        { value: "", label: "All Sections" },
-        { value: "Ward A", label: "Ward A" },
-        { value: "Ward B", label: "Ward B" },
-        { value: "Ward C", label: "Ward C" },
-      ],
-      "Surgery Department": [
-        { value: "", label: "All Sections" },
-        { value: "General Surgery", label: "General Surgery" },
-        { value: "Orthopedic Surgery", label: "Orthopedic Surgery" },
-      ],
-      "Internal Medicine": [
-        { value: "", label: "All Sections" },
-        { value: "Cardiology", label: "Cardiology" },
-        { value: "Gastroenterology", label: "Gastroenterology" },
-      ],
-      "Pediatrics Department": [
-        { value: "", label: "All Sections" },
-        { value: "Pediatric Ward", label: "Pediatric Ward" },
-        { value: "NICU", label: "NICU" },
-      ],
-      "Radiology Department": [
-        { value: "", label: "All Sections" },
-        { value: "X-Ray", label: "X-Ray" },
-        { value: "CT Scan", label: "CT Scan" },
-      ],
-      "Laboratory Department": [
-        { value: "", label: "All Sections" },
-        { value: "Clinical Lab", label: "Clinical Lab" },
-        { value: "Pathology", label: "Pathology" },
-      ],
-    };
-
-    if (!selectedDept) {
-      return [{ value: "", label: "Select Department First" }];
+    if (!selectedDept || !hierarchy) {
+      return [];
     }
-
-    return sectionsByDept[selectedDept] || [{ value: "", label: "All Sections" }];
+    return hierarchy.Section?.[selectedDept] || [];
   };
 
   const handleAdminChange = (event, newValue) => {
@@ -179,37 +194,24 @@ const InvestigationPage = () => {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr 1fr 1fr" },
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr 1fr" },
               gap: 3,
             }}
           >
-            {/* Season Selector */}
+            {/* Season Selector - Dynamic from API */}
             <FormControl>
               <FormLabel sx={{ fontWeight: 600 }}>📅 Season</FormLabel>
               <Select
                 value={selectedSeason}
                 onChange={(e, newValue) => setSelectedSeason(newValue)}
                 size="lg"
+                disabled={loadingSeasons}
+                placeholder={loadingSeasons ? "Loading seasons..." : "Select Season"}
               >
-                {seasons.map((season) => (
-                  <Option key={season.value} value={season.value}>
-                    {season.label}
-                  </Option>
-                ))}
-              </Select>
-            </FormControl>
-
-            {/* Year Selector */}
-            <FormControl>
-              <FormLabel sx={{ fontWeight: 600 }}>📆 Year</FormLabel>
-              <Select
-                value={selectedYear}
-                onChange={(e, newValue) => setSelectedYear(newValue)}
-                size="lg"
-              >
-                {years.map((year) => (
-                  <Option key={year.value} value={year.value}>
-                    {year.label}
+                {availableSeasons.map((season) => (
+                  <Option key={season.season_id} value={season.season_id}>
+                    {season.season_label}
+                    {season.is_current && " (Current)"}
                   </Option>
                 ))}
               </Select>
@@ -224,10 +226,12 @@ const InvestigationPage = () => {
                 value={selectedAdmin}
                 onChange={handleAdminChange}
                 size="lg"
+                disabled={loadingHierarchy}
               >
-                {administrations.map((admin) => (
-                  <Option key={admin.value} value={admin.value}>
-                    {admin.label}
+                <Option value="">All Administrations</Option>
+                {(hierarchy?.Administration || []).map((admin) => (
+                  <Option key={admin.id} value={admin.id}>
+                    {admin.nameAr} ({admin.nameEn})
                   </Option>
                 ))}
               </Select>
@@ -242,11 +246,12 @@ const InvestigationPage = () => {
                 value={selectedDept}
                 onChange={handleDeptChange}
                 size="lg"
-                disabled={!selectedAdmin}
+                disabled={!selectedAdmin || loadingHierarchy}
               >
+                <Option value="">All Departments</Option>
                 {getDepartments().map((dept) => (
-                  <Option key={dept.value} value={dept.value}>
-                    {dept.label}
+                  <Option key={dept.id} value={dept.id}>
+                    {dept.nameAr} ({dept.nameEn})
                   </Option>
                 ))}
               </Select>
@@ -261,11 +266,12 @@ const InvestigationPage = () => {
                 value={selectedSection}
                 onChange={(e, newValue) => setSelectedSection(newValue)}
                 size="lg"
-                disabled={!selectedDept}
+                disabled={!selectedDept || loadingHierarchy}
               >
+                <Option value="">All Sections</Option>
                 {getSections().map((section) => (
-                  <Option key={section.value} value={section.value}>
-                    {section.label}
+                  <Option key={section.id} value={section.id}>
+                    {section.nameAr} ({section.nameEn})
                   </Option>
                 ))}
               </Select>
@@ -293,15 +299,62 @@ const InvestigationPage = () => {
           </FormControl>
         </Card>
 
+        {/* Debug Info Panel - Shows API Request Details */}
+        {process.env.NODE_ENV === 'development' && (
+          <Card variant="soft" sx={{ p: 2, mb: 3, bgcolor: "#f0f9ff", fontSize: "0.75rem" }}>
+            <Typography level="body-xs" sx={{ fontWeight: 700, mb: 1 }}>
+              🔍 Debug Info (Development Only)
+            </Typography>
+            <Box sx={{ fontFamily: "monospace", fontSize: "0.7rem" }}>
+              <div>Season: {selectedYear}-{selectedSeason.toUpperCase()}</div>
+              <div>Tree Type: {selectedTreeType}</div>
+              <div>Administration ID: {selectedAdmin || "null"}</div>
+              <div>Department ID: {selectedDept || "null"}</div>
+              <div>Section ID: {selectedSection || "null"}</div>
+              <div style={{ marginTop: "8px", color: "#0369a1" }}>
+                Check browser console for detailed API logs
+              </div>
+            </Box>
+          </Card>
+        )}
+
         {/* Investigation Tree */}
-        <IncidentCountTree 
-          selectedSeason={selectedSeason}
-          selectedYear={selectedYear}
-          selectedAdmin={selectedAdmin} 
-          selectedDept={selectedDept}
-          selectedSection={selectedSection}
-          treeType={selectedTreeType}
-        />
+        {loadingTree && (
+          <Card sx={{ p: 4, textAlign: "center", mb: 3 }}>
+            <CircularProgress size="lg" />
+            <Typography level="body-md" sx={{ mt: 2 }}>
+              Loading investigation tree...
+            </Typography>
+          </Card>
+        )}
+
+        {treeError && (
+          <Card sx={{ p: 3, mb: 3, bgcolor: "danger.softBg" }}>
+            <Typography color="danger" sx={{ fontWeight: 600, mb: 1 }}>
+              ❌ Error loading investigation tree
+            </Typography>
+            <Typography level="body-sm" color="danger" sx={{ mb: 2 }}>
+              {treeError}
+            </Typography>
+            {treeError.includes("not found") && (
+              <Typography level="body-xs" sx={{ color: "#991b1b", fontStyle: "italic" }}>
+                💡 Tip: The selected season may not have data in the database. Try selecting a different season or year that has recorded incidents.
+              </Typography>
+            )}
+          </Card>
+        )}
+
+        {!loadingTree && !treeError && treeData && (
+          <IncidentCountTree 
+            data={treeData}
+            selectedSeason={selectedSeason}
+            selectedYear={selectedYear}
+            selectedAdmin={selectedAdmin} 
+            selectedDept={selectedDept}
+            selectedSection={selectedSection}
+            treeType={selectedTreeType}
+          />
+        )}
 
         {/* Footer Note */}
         <Card variant="soft" sx={{ mt: 4, p: 3, bgcolor: "#fef3c7" }}>

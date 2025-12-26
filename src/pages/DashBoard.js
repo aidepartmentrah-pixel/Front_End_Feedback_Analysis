@@ -1,6 +1,6 @@
 // src/pages/DashboardPage.js
 import React, { useEffect, useState } from "react";
-import { fetchDashboardHierarchy } from "../api/dashboard";
+import { fetchDashboardHierarchy, fetchDashboardStats } from "../api/dashboard";
 
 import { Box, Card, Typography } from "@mui/joy";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
@@ -26,19 +26,106 @@ const DashboardPage = () => {
 
   const [hierarchy, setHierarchy] = useState(null);
   const [loadingHierarchy, setLoadingHierarchy] = useState(true);
+  
+  const [dashboardStats, setDashboardStats] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [statsError, setStatsError] = useState(null);
+  
+  // Date range for stats (defaults to last 30 days)
+  const [dateRange, setDateRange] = useState({
+    start_date: null, // Will default to 30 days ago on backend
+    end_date: null,   // Will default to today on backend
+  });
 
   // ============================
-  // FETCH HIERARCHY (NEW)
+  // FETCH HIERARCHY
   // ============================
   useEffect(() => {
+    console.log("🔄 Fetching hierarchy from API...");
     fetchDashboardHierarchy()
       .then((data) => {
+        console.log("✅ Hierarchy loaded successfully:", data);
+        console.log("✅ Hierarchy structure:", {
+          hasAdministration: !!data?.Administration,
+          hasDepartment: !!data?.Department,
+          hasSection: !!data?.Section,
+          administrations: data?.Administration || [],
+          fullData: JSON.stringify(data, null, 2)
+        });
         setHierarchy(data);
-        console.log("Hierarchy loaded:", data); // 👈 YOU WILL SEE DATA HERE
       })
-      .catch(console.error)
+      .catch((error) => {
+        console.error("❌ Failed to load hierarchy:", error);
+        alert(`Failed to load department hierarchy: ${error.message}`);
+      })
       .finally(() => setLoadingHierarchy(false));
   }, []);
+
+  // ============================
+  // FETCH DASHBOARD STATS
+  // ============================
+  useEffect(() => {
+    // Build params based on current scope
+    const params = {
+      scope,
+      start_date: dateRange.start_date,
+      end_date: dateRange.end_date,
+    };
+
+    // Add IDs based on scope
+    if (scope === "administration" || scope === "department" || scope === "section") {
+      if (selectedAdministration) {
+        // Ensure we're sending the ID as a number if it's numeric
+        const adminId = selectedAdministration.id;
+        params.administration_id = isNaN(adminId) ? adminId : Number(adminId);
+        console.log("📍 Selected Administration:", selectedAdministration, "ID:", params.administration_id);
+      } else {
+        return; // Wait for administration selection
+      }
+    }
+
+    if (scope === "department" || scope === "section") {
+      if (selectedDepartment) {
+        // Ensure we're sending the ID as a number if it's numeric
+        const deptId = selectedDepartment.id;
+        params.department_id = isNaN(deptId) ? deptId : Number(deptId);
+        console.log("📍 Selected Department:", selectedDepartment, "ID:", params.department_id);
+      } else {
+        return; // Wait for department selection
+      }
+    }
+
+    if (scope === "section") {
+      if (selectedSection) {
+        // Ensure we're sending the ID as a number if it's numeric
+        const sectionId = selectedSection.id;
+        params.section_id = isNaN(sectionId) ? sectionId : Number(sectionId);
+        console.log("📍 Selected Section:", selectedSection, "ID:", params.section_id);
+      } else {
+        return; // Wait for section selection
+      }
+    }
+
+    console.log("🔄 Fetching dashboard stats with params:", params);
+    setLoadingStats(true);
+    setStatsError(null);
+
+    fetchDashboardStats(params)
+      .then((data) => {
+        console.log("✅ Dashboard stats loaded successfully:", data);
+        setDashboardStats(data);
+      })
+      .catch((error) => {
+        console.error("❌ Failed to load dashboard stats:", error);
+        console.error("❌ Error details - Scope:", scope, "Selected:", {
+          administration: selectedAdministration,
+          department: selectedDepartment,
+          section: selectedSection
+        });
+        setStatsError(error.message);
+      })
+      .finally(() => setLoadingStats(false));
+  }, [scope, selectedAdministration, selectedDepartment, selectedSection, dateRange]);
 
   // ============================
   // VIEW FLAGS
@@ -51,6 +138,25 @@ const DashboardPage = () => {
   return (
     <MainLayout>
       <Box sx={{ maxWidth: "1400px", mx: "auto" }}>
+        {/* Loading states */}
+        {loadingHierarchy && (
+          <Card sx={{ p: 3, mb: 3, textAlign: "center" }}>
+            <Typography>Loading department hierarchy...</Typography>
+          </Card>
+        )}
+
+        {loadingStats && !loadingHierarchy && (
+          <Card sx={{ p: 3, mb: 3, textAlign: "center" }}>
+            <Typography>Loading dashboard statistics...</Typography>
+          </Card>
+        )}
+
+        {statsError && (
+          <Card sx={{ p: 3, mb: 3, textAlign: "center", bgcolor: "danger.softBg" }}>
+            <Typography color="danger">Error loading stats: {statsError}</Typography>
+          </Card>
+        )}
+
         {/* Simplified Cascading Selector */}
         <DepartmentSelector
           scope={scope}
@@ -61,6 +167,7 @@ const DashboardPage = () => {
           setSelectedDepartment={setSelectedDepartment}
           selectedSection={selectedSection}
           setSelectedSection={setSelectedSection}
+          hierarchy={hierarchy} // 👈 Pass real hierarchy data
         />
 
         {/* Simplified Dashboard Title */}
@@ -69,13 +176,14 @@ const DashboardPage = () => {
           selectedAdministration={selectedAdministration}
           selectedDepartment={selectedDepartment}
           selectedSection={selectedSection}
+          hierarchy={hierarchy} // 👈 Pass real hierarchy data
         />
 
         {/* Conditional Dashboard Views */}
-        {isGlobalView && <GlobalDashboardStats />}
-        {isIdaraView && <IdaraDashboardStats idara={selectedAdministration} />}
-        {isDayraView && <DayraDashboardStats dayra={selectedDepartment} />}
-        {isQismView && <QismDashboardStats qism={selectedSection} />}
+        {isGlobalView && <GlobalDashboardStats stats={dashboardStats} loading={loadingStats} />}
+        {isIdaraView && <IdaraDashboardStats idara={selectedAdministration} stats={dashboardStats} loading={loadingStats} />}
+        {isDayraView && <DayraDashboardStats dayra={selectedDepartment} stats={dashboardStats} loading={loadingStats} />}
+        {isQismView && <QismDashboardStats qism={selectedSection} stats={dashboardStats} loading={loadingStats} />}
 
         {/* Dashboard Actions */}
         <Box sx={{ mt: 3 }}>

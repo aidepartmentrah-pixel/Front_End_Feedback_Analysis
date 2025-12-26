@@ -2,9 +2,21 @@
 import React from "react";
 import { Box, Card, Typography, FormControl, FormLabel, Input, Select, Option, Grid, Radio, RadioGroup } from "@mui/joy";
 
-const ReportFilters = ({ filters, setFilters, reportType }) => {
+const ReportFilters = ({ filters, setFilters, reportType, hierarchy, loadingHierarchy }) => {
   const handleChange = (field, value) => {
     setFilters({ ...filters, [field]: value });
+  };
+
+  // Get available departments based on selected administration
+  const getAvailableDepartments = () => {
+    if (!filters.idara || !hierarchy) return [];
+    return hierarchy.Department?.[filters.idara] || [];
+  };
+
+  // Get available sections based on selected department
+  const getAvailableSections = () => {
+    if (!filters.dayra || !hierarchy) return [];
+    return hierarchy.Section?.[filters.dayra] || [];
   };
 
   // Handle date mode toggle
@@ -183,12 +195,19 @@ const ReportFilters = ({ filters, setFilters, reportType }) => {
             <FormLabel sx={{ fontWeight: 600, mb: 1 }}>إدارة (Administration)</FormLabel>
             <Select
               value={filters.idara}
-              onChange={(e, value) => handleChange("idara", value)}
+              onChange={(e, value) => {
+                handleChange("idara", value);
+                // Reset dependent fields
+                setFilters({ ...filters, idara: value, dayra: "", qism: "" });
+              }}
+              disabled={loadingHierarchy}
             >
               <Option value="">الكل (All)</Option>
-              <Option value="Nursing Administration">Nursing Administration</Option>
-              <Option value="Medical Administration">Medical Administration</Option>
-              <Option value="Support Services">Support Services</Option>
+              {(hierarchy?.Administration || []).map((idara) => (
+                <Option key={idara.id} value={idara.id}>
+                  {idara.nameAr} ({idara.nameEn})
+                </Option>
+              ))}
             </Select>
           </FormControl>
         </Grid>
@@ -199,15 +218,19 @@ const ReportFilters = ({ filters, setFilters, reportType }) => {
             <FormLabel sx={{ fontWeight: 600, mb: 1 }}>دائرة (Department)</FormLabel>
             <Select
               value={filters.dayra}
-              onChange={(e, value) => handleChange("dayra", value)}
+              onChange={(e, value) => {
+                handleChange("dayra", value);
+                // Reset dependent field
+                setFilters({ ...filters, dayra: value, qism: "" });
+              }}
+              disabled={loadingHierarchy || !filters.idara}
             >
               <Option value="">الكل (All)</Option>
-              <Option value="Emergency Nursing Dept">Emergency Nursing Dept</Option>
-              <Option value="Inpatient Nursing Dept">Inpatient Nursing Dept</Option>
-              <Option value="Diagnostic Services">Diagnostic Services</Option>
-              <Option value="Surgical Services">Surgical Services</Option>
-              <Option value="Pharmacy Services">Pharmacy Services</Option>
-              <Option value="Pediatric Services">Pediatric Services</Option>
+              {getAvailableDepartments().map((dayra) => (
+                <Option key={dayra.id} value={dayra.id}>
+                  {dayra.nameAr} ({dayra.nameEn})
+                </Option>
+              ))}
             </Select>
           </FormControl>
         </Grid>
@@ -219,15 +242,14 @@ const ReportFilters = ({ filters, setFilters, reportType }) => {
             <Select
               value={filters.qism}
               onChange={(e, value) => handleChange("qism", value)}
+              disabled={loadingHierarchy || !filters.dayra}
             >
               <Option value="">الكل (All)</Option>
-              <Option value="Emergency Department">Emergency Department</Option>
-              <Option value="ICU">ICU</Option>
-              <Option value="Cardiology">Cardiology</Option>
-              <Option value="Radiology">Radiology</Option>
-              <Option value="General Surgery">General Surgery</Option>
-              <Option value="Pediatrics">Pediatrics</Option>
-              <Option value="Outpatient Pharmacy">Outpatient Pharmacy</Option>
+              {getAvailableSections().map((qism) => (
+                <Option key={qism.id} value={qism.id}>
+                  {qism.nameAr} ({qism.nameEn})
+                </Option>
+              ))}
             </Select>
           </FormControl>
         </Grid>

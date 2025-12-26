@@ -4,7 +4,8 @@ import { AccessTime, Warning, CheckCircle, Error } from "@mui/icons-material";
 
 const RecentActivityFeed = ({ incidents = [] }) => {
   const getSeverityColor = (severity) => {
-    switch (severity?.toLowerCase()) {
+    const severityStr = typeof severity === 'string' ? severity.toLowerCase() : '';
+    switch (severityStr) {
       case "high":
         return "#ff4757";
       case "medium":
@@ -17,7 +18,8 @@ const RecentActivityFeed = ({ incidents = [] }) => {
   };
 
   const getStatusIcon = (status) => {
-    switch (status?.toLowerCase()) {
+    const statusStr = typeof status === 'string' ? status.toLowerCase() : '';
+    switch (statusStr) {
       case "closed":
         return <CheckCircle sx={{ fontSize: 16 }} />;
       case "pending":
@@ -30,7 +32,8 @@ const RecentActivityFeed = ({ incidents = [] }) => {
   };
 
   const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
+    const statusStr = typeof status === 'string' ? status.toLowerCase() : '';
+    switch (statusStr) {
       case "closed":
         return "#2ed573";
       case "pending":
@@ -165,7 +168,7 @@ const RecentActivityFeed = ({ incidents = [] }) => {
                         border: `1px solid ${getSeverityColor(incident.severity)}30`,
                       }}
                     >
-                      {incident.severity}
+                      {incident.severity || 'Unknown'}
                     </Chip>
                   </td>
                   <td style={{ textAlign: "center" }}>
@@ -181,7 +184,7 @@ const RecentActivityFeed = ({ incidents = [] }) => {
                         border: `1px solid ${getStatusColor(incident.status)}30`,
                       }}
                     >
-                      {incident.status}
+                      {incident.status || 'Unknown'}
                     </Chip>
                   </td>
                 </tr>

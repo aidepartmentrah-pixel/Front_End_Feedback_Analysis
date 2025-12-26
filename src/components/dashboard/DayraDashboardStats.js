@@ -7,8 +7,37 @@ import Top5ClassificationChart from "./Top5ClassificationChart";
 import StageHistogram from "./StageHistogram";
 import RecentActivityFeed from "./RecentActivityFeed";
 
-// Mock data for department-level view
-const mockDayraData = {
+const DayraDashboardStats = ({ dayra, stats, loading }) => {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalContent, setModalContent] = useState({ title: "", data: [] });
+
+  // Use real API data if available, otherwise use default empty data
+  const metrics = stats?.metrics || {
+    totalIncidents: 0,
+    uniquePatients: 0,
+    openClosed: { open: 0, closed: 0, forciblyClosed: 0 },
+    severityBreakdown: { high: 0, medium: 0, low: 0 },
+    domainBreakdown: { clinical: 0, management: 0, relational: 0 },
+    redFlags: 0
+  };
+
+  const trends = stats?.trends || {
+    incidentsPatients: { value: 0, direction: "neutral" },
+    openClosed: { value: 0, direction: "neutral" },
+    severity: { value: 0, direction: "neutral" },
+    domain: { value: 0, direction: "neutral" },
+    redFlags: { value: 0, direction: "neutral" }
+  };
+
+  const charts = stats?.charts || {
+    top5Classification: [],
+    stageHistogram: []
+  };
+
+  const recentActivity = stats?.recentActivity || [];
+
+  // Skip the old mock data object
+const _oldMockData = {
   emergency_nursing: {
     metrics: {
       totalIncidents: 28,
@@ -146,12 +175,6 @@ const mockDayraData = {
   }
 };
 
-const DayraDashboardStats = ({ dayra }) => {
-  const data = mockDayraData[dayra] || mockDayraData.emergency_nursing;
-  const { metrics, trends, charts, recentActivity } = data;
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalContent, setModalContent] = useState({ title: "", data: [] });
-
   const handleChartClick = (chartType, item) => {
     let title = "";
     let data = [];
@@ -180,8 +203,16 @@ const DayraDashboardStats = ({ dayra }) => {
 
   return (
     <Box>
-      {/* Metrics Row */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      {loading && (
+        <Box sx={{ textAlign: "center", py: 4 }}>
+          <Typography>Loading statistics...</Typography>
+        </Box>
+      )}
+
+      {!loading && (
+        <>
+          {/* Metrics Row */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid xs={12} sm={6} md={2.4}>
           <MetricCard 
             title="Total Incidents / Patients" 
@@ -246,6 +277,8 @@ const DayraDashboardStats = ({ dayra }) => {
 
       {/* Recent Activity Feed */}
       <RecentActivityFeed incidents={recentActivity} />
+        </>
+      )}
 
       {/* Modal for Chart Details */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)}>

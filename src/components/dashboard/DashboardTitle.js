@@ -7,28 +7,32 @@ const DashboardTitle = ({
   scope, 
   selectedAdministration, 
   selectedDepartment, 
-  selectedSection 
+  selectedSection,
+  hierarchy // 👈 Receive real hierarchy from parent
 }) => {
+  // Use real hierarchy or fallback to mock
+  const departmentHierarchy = hierarchy || mockDepartmentHierarchy;
+
   // Helper to get entity name by ID
   const getEntityName = (type, id) => {
     if (!id) return null;
 
     if (type === "administration") {
-      const entity = mockDepartmentHierarchy.idarat.find((i) => i.id === id);
+      const entity = (departmentHierarchy.Administration || []).find((i) => i.id === id);
       return entity ? entity.nameEn : null;
     }
 
     if (type === "department") {
-      for (const key in mockDepartmentHierarchy.dayrat) {
-        const entity = mockDepartmentHierarchy.dayrat[key].find((d) => d.id === id);
+      for (const key in (departmentHierarchy.Department || {})) {
+        const entity = departmentHierarchy.Department[key].find((d) => d.id === id);
         if (entity) return entity.nameEn;
       }
       return null;
     }
 
     if (type === "section") {
-      for (const key in mockDepartmentHierarchy.aqsam) {
-        const entity = mockDepartmentHierarchy.aqsam[key].find((q) => q.id === id);
+      for (const key in (departmentHierarchy.Section || {})) {
+        const entity = departmentHierarchy.Section[key].find((q) => q.id === id);
         if (entity) return entity.nameEn;
       }
       return null;

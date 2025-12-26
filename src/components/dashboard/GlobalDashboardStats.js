@@ -8,81 +8,35 @@ import StageHistogram from "./StageHistogram";
 import IssuingDeptBarGraph from "./IssuingDeptBarGraph";
 import RecentActivityFeed from "./RecentActivityFeed";
 
-// Mock data for global view
-const mockGlobalData = {
-  metrics: {
-    totalIncidents: 124,
-    uniquePatients: 89,
-    openClosed: { open: 32, closed: 92, forciblyClosed: 12 },
-    severityBreakdown: { high: 15, medium: 50, low: 59 },
-    domainBreakdown: { clinical: 65, management: 35, relational: 24 },
-    redFlags: 8
-  },
-  trends: {
-    incidentsPatients: { value: 12, direction: "up" },
-    openClosed: { value: 5, direction: "down" },
-    severity: { value: 8, direction: "up" },
-    domain: { value: 3, direction: "up" },
-    redFlags: { value: 15, direction: "down" }
-  },
-  charts: {
-    top5Classification: [
-      { classification: "Neglect - General", count: 30 },
-      { classification: "Absent Communication", count: 25 },
-      { classification: "Accommodation", count: 20 },
-      { classification: "Bureaucracy", count: 15 },
-      { classification: "Clinical Delay", count: 10 }
-    ],
-    stageHistogram: [
-      { stage: "Admission", count: 40 },
-      { stage: "Care", count: 60 },
-      { stage: "Discharge", count: 24 }
-    ],
-    issuingDept: [
-      { department: "ER", count: 50 },
-      { department: "ICU", count: 30 },
-      { department: "Ward 1", count: 20 },
-      { department: "Ward 2", count: 24 }
-    ]
-  },
-  recentActivity: [
-    {
-      timestamp: new Date(Date.now() - 5 * 60000),
-      description: "Patient fall incident in Ward 3 - Neglect reported",
-      severity: "High",
-      status: "Open"
-    },
-    {
-      timestamp: new Date(Date.now() - 15 * 60000),
-      description: "Medication delay in ICU - Clinical process issue",
-      severity: "Medium",
-      status: "Pending"
-    },
-    {
-      timestamp: new Date(Date.now() - 45 * 60000),
-      description: "Communication gap during shift handover",
-      severity: "Low",
-      status: "Closed"
-    },
-    {
-      timestamp: new Date(Date.now() - 120 * 60000),
-      description: "Equipment malfunction in ER - Urgent attention needed",
-      severity: "High",
-      status: "Open"
-    },
-    {
-      timestamp: new Date(Date.now() - 180 * 60000),
-      description: "Administrative delay in patient discharge process",
-      severity: "Medium",
-      status: "Closed"
-    }
-  ]
-};
-
-const GlobalDashboardStats = () => {
-  const { metrics, trends, charts, recentActivity } = mockGlobalData;
+const GlobalDashboardStats = ({ stats, loading }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState({ title: "", data: [] });
+
+  // Use real API data if available, otherwise use mock data
+  const metrics = stats?.metrics || {
+    totalIncidents: 0,
+    uniquePatients: 0,
+    openClosed: { open: 0, closed: 0, forciblyClosed: 0 },
+    severityBreakdown: { high: 0, medium: 0, low: 0 },
+    domainBreakdown: { clinical: 0, management: 0, relational: 0 },
+    redFlags: 0
+  };
+
+  const trends = stats?.trends || {
+    incidentsPatients: { value: 0, direction: "neutral" },
+    openClosed: { value: 0, direction: "neutral" },
+    severity: { value: 0, direction: "neutral" },
+    domain: { value: 0, direction: "neutral" },
+    redFlags: { value: 0, direction: "neutral" }
+  };
+
+  const charts = stats?.charts || {
+    top5Classification: [],
+    stageHistogram: [],
+    issuingDept: []
+  };
+
+  const recentActivity = stats?.recentActivity || [];
 
   const handleChartClick = (chartType, item) => {
     let title = "";
@@ -120,80 +74,90 @@ const GlobalDashboardStats = () => {
 
   return (
     <Box>
-      {/* Metrics Row */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid xs={12} sm={6} md={2.4}>
-          <MetricCard 
-            title="Total Incidents / Patients" 
-            value={`${metrics.totalIncidents} / ${metrics.uniquePatients}`} 
-            color="#667eea"
-            trend={trends.incidentsPatients}
-          />
-        </Grid>
-        <Grid xs={12} sm={6} md={2.4}>
-          <MetricCard
-            title="Open / Closed / Forcibly Closed"
-            value={`${metrics.openClosed.open} / ${metrics.openClosed.closed} / ${metrics.openClosed.forciblyClosed}`}
-            color="#ff4757"
-            trend={trends.openClosed}
-          />
-        </Grid>
-        <Grid xs={12} sm={6} md={2.4}>
-          <MetricCard
-            title="Severity"
-            value={`H:${metrics.severityBreakdown.high} M:${metrics.severityBreakdown.medium} L:${metrics.severityBreakdown.low}`}
-            color="#ffa502"
-            trend={trends.severity}
-          />
-        </Grid>
-        <Grid xs={12} sm={6} md={2.4}>
-          <MetricCard
-            title="Domain"
-            value={`C:${metrics.domainBreakdown.clinical} M:${metrics.domainBreakdown.management} R:${metrics.domainBreakdown.relational}`}
-            color="#2ed573"
-            trend={trends.domain}
-          />
-        </Grid>
-        <Grid xs={12} sm={6} md={2.4}>
-          <MetricCard
-            title="Red Flags"
-            value={metrics.redFlags}
-            color="#ff4757"
-            trend={trends.redFlags}
-          />
-        </Grid>
-      </Grid>
+      {loading && (
+        <Box sx={{ textAlign: "center", py: 4 }}>
+          <Typography>Loading statistics...</Typography>
+        </Box>
+      )}
 
-      {/* Charts Row */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid xs={12} md={4}>
-          <ChartCard title="Top 5 Classifications">
-            <Top5ClassificationChart 
-              data={charts.top5Classification}
-              onBarClick={(item) => handleChartClick("classification", item)}
-            />
-          </ChartCard>
-        </Grid>
-        <Grid xs={12} md={4}>
-          <ChartCard title="Stage Histogram">
-            <StageHistogram 
-              data={charts.stageHistogram}
-              onBarClick={(item) => handleChartClick("stage", item)}
-            />
-          </ChartCard>
-        </Grid>
-        <Grid xs={12} md={4}>
-          <ChartCard title="Issuing Department">
-            <IssuingDeptBarGraph 
-              data={charts.issuingDept}
-              onBarClick={(item) => handleChartClick("department", item)}
-            />
-          </ChartCard>
-        </Grid>
-      </Grid>
+      {!loading && (
+        <>
+          {/* Metrics Row */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid xs={12} sm={6} md={2.4}>
+              <MetricCard 
+                title="Total Incidents / Patients" 
+                value={`${metrics.totalIncidents} / ${metrics.uniquePatients}`} 
+                color="#667eea"
+                trend={trends.incidentsPatients}
+              />
+            </Grid>
+            <Grid xs={12} sm={6} md={2.4}>
+              <MetricCard
+                title="Open / Closed / Forcibly Closed"
+                value={`${metrics.openClosed.open} / ${metrics.openClosed.closed} / ${metrics.openClosed.forciblyClosed}`}
+                color="#ff4757"
+                trend={trends.openClosed}
+              />
+            </Grid>
+            <Grid xs={12} sm={6} md={2.4}>
+              <MetricCard
+                title="Severity"
+                value={`H:${metrics.severityBreakdown.high} M:${metrics.severityBreakdown.medium} L:${metrics.severityBreakdown.low}`}
+                color="#ffa502"
+                trend={trends.severity}
+              />
+            </Grid>
+            <Grid xs={12} sm={6} md={2.4}>
+              <MetricCard
+                title="Domain"
+                value={`C:${metrics.domainBreakdown.clinical} M:${metrics.domainBreakdown.management} R:${metrics.domainBreakdown.relational}`}
+                color="#2ed573"
+                trend={trends.domain}
+              />
+            </Grid>
+            <Grid xs={12} sm={6} md={2.4}>
+              <MetricCard
+                title="Red Flags"
+                value={metrics.redFlags}
+                color="#ff4757"
+                trend={trends.redFlags}
+              />
+            </Grid>
+          </Grid>
 
-      {/* Recent Activity Feed */}
-      <RecentActivityFeed incidents={recentActivity} />
+          {/* Charts Row */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid xs={12} md={4}>
+              <ChartCard title="Top 5 Classifications">
+                <Top5ClassificationChart 
+                  data={charts.top5Classification}
+                  onBarClick={(item) => handleChartClick("classification", item)}
+                />
+              </ChartCard>
+            </Grid>
+            <Grid xs={12} md={4}>
+              <ChartCard title="Stage Histogram">
+                <StageHistogram 
+                  data={charts.stageHistogram}
+                  onBarClick={(item) => handleChartClick("stage", item)}
+                />
+              </ChartCard>
+            </Grid>
+            <Grid xs={12} md={4}>
+              <ChartCard title="Issuing Department">
+                <IssuingDeptBarGraph 
+                  data={charts.issuingDept}
+                  onBarClick={(item) => handleChartClick("department", item)}
+                />
+              </ChartCard>
+            </Grid>
+          </Grid>
+
+          {/* Recent Activity Feed */}
+          <RecentActivityFeed incidents={recentActivity} />
+        </>
+      )}
 
       {/* Modal for Chart Details */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)}>

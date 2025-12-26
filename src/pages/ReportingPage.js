@@ -1,7 +1,8 @@
 // src/pages/ReportingPage.js
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Box, Typography, Alert } from "@mui/joy";
 import MainLayout from "../components/common/MainLayout";
+import { fetchDashboardHierarchy } from "../api/dashboard";
 
 // Components
 import ReportTypeSwitch from "../components/reports/ReportTypeSwitch";
@@ -25,6 +26,18 @@ import {
 } from "../utils/reportHelpers";
 
 const ReportingPage = () => {
+  // Hierarchy state
+  const [hierarchy, setHierarchy] = useState(null);
+  const [loadingHierarchy, setLoadingHierarchy] = useState(true);
+
+  // Fetch hierarchy on mount
+  useEffect(() => {
+    fetchDashboardHierarchy()
+      .then((data) => setHierarchy(data))
+      .catch((error) => console.error("Failed to load hierarchy:", error))
+      .finally(() => setLoadingHierarchy(false));
+  }, []);
+
   // Report type: monthly or seasonal
   const [reportType, setReportType] = useState("monthly");
 
@@ -177,7 +190,13 @@ const ReportingPage = () => {
         {/* Filters - Only show if Single Report */}
         {exportScope === "single" && (
           <>
-            <ReportFilters filters={filters} setFilters={setFilters} reportType={reportType} />
+            <ReportFilters 
+              filters={filters} 
+              setFilters={setFilters} 
+              reportType={reportType}
+              hierarchy={hierarchy}
+              loadingHierarchy={loadingHierarchy}
+            />
 
             {/* Threshold Settings - Only for Seasonal Reports */}
             {reportType === "seasonal" && (

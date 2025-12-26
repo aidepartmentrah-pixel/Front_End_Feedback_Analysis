@@ -7,8 +7,36 @@ import Top5ClassificationChart from "./Top5ClassificationChart";
 import RecentActivityFeed from "./RecentActivityFeed";
 import InfoIcon from "@mui/icons-material/Info";
 
-// Mock data for section-level view
-const mockQismData = {
+const QismDashboardStats = ({ qism, stats, loading }) => {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalContent, setModalContent] = useState({ title: "", data: [] });
+
+  // Use real API data if available, otherwise use default empty data
+  const metrics = stats?.metrics || {
+    totalIncidents: 0,
+    uniquePatients: 0,
+    openClosed: { open: 0, closed: 0, forciblyClosed: 0 },
+    severityBreakdown: { high: 0, medium: 0, low: 0 },
+    domainBreakdown: { clinical: 0, management: 0, relational: 0 },
+    redFlags: 0
+  };
+
+  const trends = stats?.trends || {
+    incidentsPatients: { value: 0, direction: "neutral" },
+    openClosed: { value: 0, direction: "neutral" },
+    severity: { value: 0, direction: "neutral" },
+    domain: { value: 0, direction: "neutral" },
+    redFlags: { value: 0, direction: "neutral" }
+  };
+
+  const charts = stats?.charts || {
+    top5Classification: []
+  };
+
+  const recentActivity = stats?.recentActivity || [];
+
+  // Skip the old mock data object
+const _oldMockData = {
   er_triage: {
     metrics: {
       totalIncidents: 12,
@@ -131,12 +159,6 @@ const mockQismData = {
   }
 };
 
-const QismDashboardStats = ({ qism }) => {
-  const data = mockQismData[qism] || mockQismData.er_triage;
-  const { metrics, trends, charts, recentActivity } = data;
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalContent, setModalContent] = useState({ title: "", data: [] });
-
   const handleChartClick = (item) => {
     const title = `Incidents: ${item.classification}`;
     const data = [
@@ -152,25 +174,33 @@ const QismDashboardStats = ({ qism }) => {
 
   return (
     <Box>
-      {/* Info Alert */}
-      <Alert
-        color="primary"
-        variant="soft"
-        startDecorator={<InfoIcon />}
-        sx={{ mb: 3 }}
-      >
-        <Box>
-          <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-            عرض على مستوى القسم (Section-Level View)
-          </Typography>
-          <Typography level="body-xs" sx={{ mt: 0.5 }}>
-            البيانات المعروضة خاصة بهذا القسم فقط. للحصول على نظرة أشمل، اختر مستوى أعلى.
-          </Typography>
+      {loading && (
+        <Box sx={{ textAlign: "center", py: 4 }}>
+          <Typography>Loading statistics...</Typography>
         </Box>
-      </Alert>
+      )}
 
-      {/* Metrics Row */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      {!loading && (
+        <>
+          {/* Info Alert */}
+          <Alert
+            color="primary"
+            variant="soft"
+            startDecorator={<InfoIcon />}
+            sx={{ mb: 3 }}
+          >
+            <Box>
+              <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                عرض على مستوى القسم (Section-Level View)
+              </Typography>
+              <Typography level="body-xs" sx={{ mt: 0.5 }}>
+                البيانات المعروضة خاصة بهذا القسم فقط. للحصول على نظرة أشمل، اختر مستوى أعلى.
+              </Typography>
+            </Box>
+          </Alert>
+
+          {/* Metrics Row */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid xs={12} sm={6} md={2.4}>
           <MetricCard 
             title="Total Incidents / Patients" 
@@ -241,6 +271,8 @@ const QismDashboardStats = ({ qism }) => {
           • عدد العلامات الحمراء: {metrics.redFlags} (تتطلب اهتمام فوري)
         </Typography>
       </Card>
+        </>
+      )}
 
       {/* Modal for Chart Details */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
