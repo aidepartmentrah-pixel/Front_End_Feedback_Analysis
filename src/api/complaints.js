@@ -170,21 +170,36 @@ export async function fetchComplaintsCount(filters = {}) {
 
 /**
  * Export complaints data
- * @param {Object} params - Export parameters
+ * @param {Object} params - Export parameters (filters)
  * @returns {Promise<Blob>} File blob
  */
 export async function exportComplaints(params = {}) {
-  console.log("📤 Exporting complaints...");
-  const url = `${BASE_URL}/export`;
+  console.log("📤 Exporting complaints with filters:", params);
+  
+  // Build query string with _id suffix for backend compatibility
+  const queryParams = new URLSearchParams();
+  if (params.search) queryParams.append("search", params.search);
+  if (params.issuing_org_unit) queryParams.append("issuing_org_unit_id", params.issuing_org_unit);
+  if (params.domain) queryParams.append("domain_id", params.domain);
+  if (params.category) queryParams.append("category_id", params.category);
+  if (params.severity) queryParams.append("severity_id", params.severity);
+  if (params.stage) queryParams.append("stage_id", params.stage);
+  if (params.harm_level) queryParams.append("harm_level_id", params.harm_level);
+  if (params.case_status) queryParams.append("case_status_id", params.case_status);
+  if (params.year) queryParams.append("year", params.year);
+  if (params.month) queryParams.append("month", params.month);
+  if (params.start_date) queryParams.append("start_date", params.start_date);
+  if (params.end_date) queryParams.append("end_date", params.end_date);
+
+  const url = `${BASE_URL}/export?${queryParams.toString()}`;
+  console.log("📤 Export URL:", url);
 
   try {
     const response = await fetch(url, {
-      method: "POST",
+      method: "GET",
       headers: {
-        "Content-Type": "application/json",
         "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       },
-      body: JSON.stringify(params),
     });
 
     if (!response.ok) {
@@ -192,7 +207,7 @@ export async function exportComplaints(params = {}) {
     }
 
     const blob = await response.blob();
-    console.log("✅ Export complete");
+    console.log("✅ Export complete, blob size:", blob.size);
     return blob;
   } catch (error) {
     console.error("❌ Error exporting:", error);

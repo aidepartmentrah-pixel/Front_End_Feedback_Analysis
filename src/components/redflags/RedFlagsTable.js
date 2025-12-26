@@ -1,9 +1,15 @@
-// src/components/neverEvents/NeverEventsTable.js
+// src/components/redflags/RedFlagsTable.js
 import React from "react";
 import { Box, Table, Chip, Typography } from "@mui/joy";
-import WarningIcon from "@mui/icons-material/Warning";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
-const NeverEventsTable = ({ neverEvents, loading, onRowClick }) => {
+const RedFlagsTable = ({ redFlags, loading, onRowClick }) => {
+  const getSeverityColor = (severity) => {
+    if (severity === "CRITICAL") return "danger";
+    if (severity === "HIGH") return "warning";
+    return "neutral";
+  };
+
   const getStatusColor = (status) => {
     if (status === "OPEN") return "primary";
     if (status === "UNDER_REVIEW") return "warning";
@@ -18,6 +24,12 @@ const NeverEventsTable = ({ neverEvents, loading, onRowClick }) => {
     return status;
   };
 
+  const getSeverityLabel = (severity) => {
+    if (severity === "CRITICAL") return "حرج";
+    if (severity === "HIGH") return "عالي";
+    return severity;
+  };
+
   if (loading) {
     return (
       <Box sx={{ p: 4, textAlign: "center" }}>
@@ -26,10 +38,10 @@ const NeverEventsTable = ({ neverEvents, loading, onRowClick }) => {
     );
   }
 
-  if (!neverEvents || neverEvents.length === 0) {
+  if (!redFlags || redFlags.length === 0) {
     return (
       <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
-        <Typography>لا توجد أحداث</Typography>
+        <Typography>لا توجد أعلام حمراء</Typography>
       </Box>
     );
   }
@@ -84,33 +96,33 @@ const NeverEventsTable = ({ neverEvents, loading, onRowClick }) => {
         <thead>
           <tr>
             <th>رقم السجل</th>
-            <th>التاريخ</th>
             <th>اسم المريض</th>
-            <th>نوع الحدث</th>
-            <th>الفئة</th>
+            <th>تاريخ الاستلام</th>
             <th>القسم</th>
-            <th>القسم الفرعي</th>
+            <th>التصنيف</th>
+            <th>الخطورة</th>
             <th>الحالة</th>
-            <th>رقم الحادثة</th>
+            <th>حدث لا يجب أن يحدث</th>
+            <th>الملخص</th>
           </tr>
         </thead>
         <tbody>
-          {neverEvents.map((event) => (
+          {redFlags.map((redFlag) => (
             <tr
-              key={event.id}
-              onClick={() => onRowClick(event.id)}
+              key={redFlag.red_flag_id}
+              onClick={() => onRowClick(redFlag.red_flag_id)}
             >
               <td>
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5 }}>
-                  <WarningIcon sx={{ color: "#dc2626", fontSize: 18 }} />
-                  <Box sx={{ fontWeight: 600, color: "#0f172a" }}>
-                    {event.recordID}
-                  </Box>
+                <Box sx={{ fontWeight: 600, color: "#0f172a" }}>
+                  {redFlag.recordID}
                 </Box>
               </td>
               <td>
+                <Box sx={{ color: "#4b5563" }}>{redFlag.patient_name}</Box>
+              </td>
+              <td>
                 <Box sx={{ color: "#6b7280", fontSize: "0.8125rem" }}>
-                  {new Date(event.date).toLocaleDateString("ar-SA", {
+                  {new Date(redFlag.date_received).toLocaleDateString("ar-SA", {
                     year: "numeric",
                     month: "short",
                     day: "numeric",
@@ -118,24 +130,7 @@ const NeverEventsTable = ({ neverEvents, loading, onRowClick }) => {
                 </Box>
               </td>
               <td>
-                <Box sx={{ color: "#4b5563" }}>{event.patientName}</Box>
-              </td>
-              <td>
-                <Box
-                  sx={{
-                    display: "inline-block",
-                    px: 1.5,
-                    py: 0.5,
-                    borderRadius: "4px",
-                    fontSize: "0.8125rem",
-                    fontWeight: 500,
-                    bgcolor: "#fef2f2",
-                    color: "#991b1b",
-                    border: "1px solid #fecaca",
-                  }}
-                >
-                  {event.neverEventTypeAr || event.neverEventType}
-                </Box>
+                <Box sx={{ color: "#4b5563" }}>{redFlag.department}</Box>
               </td>
               <td>
                 <Box
@@ -151,32 +146,49 @@ const NeverEventsTable = ({ neverEvents, loading, onRowClick }) => {
                     border: "1px solid #bfdbfe",
                   }}
                 >
-                  {event.neverEventCategory}
-                </Box>
-              </td>
-              <td>
-                <Box sx={{ color: "#4b5563", fontSize: "0.8125rem" }}>
-                  {event.department}
-                </Box>
-              </td>
-              <td>
-                <Box sx={{ color: "#6b7280", fontSize: "0.8125rem" }}>
-                  {event.qism || "-"}
+                  {redFlag.category}
                 </Box>
               </td>
               <td>
                 <Chip
-                  color={getStatusColor(event.status)}
+                  color={getSeverityColor(redFlag.severity)}
+                  size="sm"
+                  sx={{ fontWeight: 700, fontSize: "0.8125rem" }}
+                >
+                  {getSeverityLabel(redFlag.severity)}
+                </Chip>
+              </td>
+              <td>
+                <Chip
+                  color={getStatusColor(redFlag.status)}
                   size="sm"
                   variant="soft"
                   sx={{ fontWeight: 500, fontSize: "0.75rem" }}
                 >
-                  {getStatusLabel(event.status)}
+                  {getStatusLabel(redFlag.status)}
                 </Chip>
               </td>
               <td>
-                <Box sx={{ color: "#6b7280", fontSize: "0.8125rem" }}>
-                  {event.incidentID || "-"}
+                {redFlag.isNeverEvent ? (
+                  <Box sx={{ display: "flex", justifyContent: "center" }}>
+                    <CheckCircleIcon sx={{ color: "#dc2626", fontSize: 20 }} />
+                  </Box>
+                ) : (
+                  <Box sx={{ color: "#9ca3af" }}>-</Box>
+                )}
+              </td>
+              <td>
+                <Box
+                  sx={{
+                    color: "#6b7280",
+                    fontSize: "0.8125rem",
+                    maxWidth: 300,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {redFlag.complaint_summary}
                 </Box>
               </td>
             </tr>
@@ -187,4 +199,4 @@ const NeverEventsTable = ({ neverEvents, loading, onRowClick }) => {
   );
 };
 
-export default NeverEventsTable;
+export default RedFlagsTable;
