@@ -10,17 +10,15 @@ import {
   Grid,
 } from "@mui/joy";
 
-import {
-  DOMAIN_OPTIONS,
-  CATEGORY_OPTIONS,
-  SUBCATEGORY_OPTIONS,
-  CLASSIFICATION_OPTIONS,
-  SEVERITY_OPTIONS,
-  STAGE_OPTIONS,
-  HARM_OPTIONS,
-} from "../../utils/fieldMappings";
-
-const ClassificationFields = ({ formData, onInputChange }) => {
+const ClassificationFields = ({
+  formData,
+  onInputChange,
+  referenceData,
+  categories,
+  subcategories,
+  classifications,
+  errorField,
+}) => {
   return (
     <Card
       sx={{
@@ -58,12 +56,20 @@ const ClassificationFields = ({ formData, onInputChange }) => {
                   sx: { maxHeight: 250, overflowY: 'auto' }
                 }
               }}
+              sx={{
+                borderColor: errorField === "domain_id" ? "#ff4757" : undefined,
+              }}
             >
-              {DOMAIN_OPTIONS.map((opt) => (
-                <Option key={opt.id} value={opt.id}>
-                  {opt.label}
-                </Option>
-              ))}
+              {referenceData?.domains && Array.isArray(referenceData.domains) && referenceData.domains.map((opt) => {
+                console.log("Domain option FULL:", JSON.stringify(opt, null, 2));
+                const displayName = opt.name || opt.label || opt.domain_name || opt.name_en || opt.name_ar || opt.domain_name_en || opt.domain_name_ar;
+                console.log("Domain display name:", displayName, "for ID:", opt.id);
+                return (
+                  <Option key={opt.id} value={opt.id}>
+                    {displayName || `Domain ${opt.id}`}
+                  </Option>
+                );
+              })}
             </Select>
           </FormControl>
         </Grid>
@@ -78,6 +84,7 @@ const ClassificationFields = ({ formData, onInputChange }) => {
               value={formData.category_id || ""}
               onChange={(e, value) => onInputChange("category_id", value)}
               placeholder="Select Category"
+              disabled={!formData.domain_id || !Array.isArray(categories) || categories.length === 0}
               onClose={() => {}}
               onBlur={() => {}}
               slotProps={{
@@ -85,12 +92,20 @@ const ClassificationFields = ({ formData, onInputChange }) => {
                   sx: { maxHeight: 250, overflowY: 'auto' }
                 }
               }}
+              sx={{
+                borderColor: errorField === "category_id" ? "#ff4757" : undefined,
+              }}
             >
-              {CATEGORY_OPTIONS.map((opt) => (
-                <Option key={opt.id} value={opt.id}>
-                  {opt.label}
-                </Option>
-              ))}
+              {Array.isArray(categories) && categories.map((opt) => {
+                console.log("Category option FULL:", JSON.stringify(opt, null, 2));
+                const displayName = opt.name || opt.label || opt.category_name || opt.name_en || opt.name_ar || opt.category_name_en || opt.category_name_ar;
+                console.log("Category display name:", displayName, "for ID:", opt.id);
+                return (
+                  <Option key={opt.id} value={opt.id}>
+                    {displayName || `Category ${opt.id}`}
+                  </Option>
+                );
+              })}
             </Select>
           </FormControl>
         </Grid>
@@ -99,12 +114,13 @@ const ClassificationFields = ({ formData, onInputChange }) => {
         <Grid xs={12} sm={6} md={3}>
           <FormControl fullWidth>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              📑 Sub-Category *
+              📑 Sub-Category
             </FormLabel>
             <Select
               value={formData.subcategory_id || ""}
               onChange={(e, value) => onInputChange("subcategory_id", value)}
               placeholder="Select Sub-Category"
+              disabled={!formData.category_id || !Array.isArray(subcategories) || subcategories.length === 0}
               onClose={() => {}}
               onBlur={() => {}}
               slotProps={{
@@ -113,11 +129,16 @@ const ClassificationFields = ({ formData, onInputChange }) => {
                 }
               }}
             >
-              {SUBCATEGORY_OPTIONS.map((opt) => (
-                <Option key={opt.id} value={opt.id}>
-                  {opt.label}
-                </Option>
-              ))}
+              {Array.isArray(subcategories) && subcategories.map((opt) => {
+                console.log("Subcategory option FULL:", JSON.stringify(opt, null, 2));
+                const displayName = opt.name || opt.label || opt.subcategory_name || opt.name_en || opt.name_ar || opt.subcategory_name_en || opt.subcategory_name_ar;
+                console.log("Subcategory display name:", displayName, "for ID:", opt.id);
+                return (
+                  <Option key={opt.id} value={opt.id}>
+                    {displayName || `Subcategory ${opt.id}`}
+                  </Option>
+                );
+              })}
             </Select>
           </FormControl>
         </Grid>
@@ -126,12 +147,13 @@ const ClassificationFields = ({ formData, onInputChange }) => {
         <Grid xs={12} sm={6} md={3}>
           <FormControl fullWidth>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              🏷️ Classification *
+              🏷️ Classification
             </FormLabel>
             <Select
               value={formData.classification_id || ""}
               onChange={(e, value) => onInputChange("classification_id", value)}
               placeholder="Select Classification"
+              disabled={!formData.subcategory_id || !Array.isArray(classifications) || classifications.length === 0}
               onClose={() => {}}
               onBlur={() => {}}
               slotProps={{
@@ -140,11 +162,16 @@ const ClassificationFields = ({ formData, onInputChange }) => {
                 }
               }}
             >
-              {CLASSIFICATION_OPTIONS.map((opt) => (
-                <Option key={opt.id} value={opt.id}>
-                  {opt.label}
-                </Option>
-              ))}
+              {Array.isArray(classifications) && classifications.map((opt) => {
+                console.log("Classification option FULL:", JSON.stringify(opt, null, 2));
+                const displayName = opt.name || opt.label || opt.classification_name || opt.name_en || opt.name_ar || opt.classification_name_en || opt.classification_name_ar;
+                console.log("Classification display name:", displayName, "for ID:", opt.id);
+                return (
+                  <Option key={opt.id} value={opt.id}>
+                    {displayName || `Classification ${opt.id}`}
+                  </Option>
+                );
+              })}
             </Select>
           </FormControl>
         </Grid>
@@ -170,12 +197,18 @@ const ClassificationFields = ({ formData, onInputChange }) => {
                   sx: { maxHeight: 250, overflowY: 'auto' }
                 }
               }}
+              sx={{
+                borderColor: errorField === "severity_id" ? "#ff4757" : undefined,
+              }}
             >
-              {SEVERITY_OPTIONS.map((opt) => (
-                <Option key={opt.id} value={opt.id}>
-                  {opt.label}
-                </Option>
-              ))}
+              {referenceData?.severity && Array.isArray(referenceData.severity) && referenceData.severity.map((opt) => {
+                const displayName = opt.name || opt.label || opt.severity_name || opt.level_name || opt.name_en || opt.name_ar || `Severity ${opt.id}`;
+                return (
+                  <Option key={opt.id} value={opt.id}>
+                    {displayName}
+                  </Option>
+                );
+              })}
             </Select>
           </FormControl>
         </Grid>
@@ -184,7 +217,7 @@ const ClassificationFields = ({ formData, onInputChange }) => {
         <Grid xs={12} sm={6} md={3}>
           <FormControl fullWidth>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              📍 Stage *
+              📍 Stage
             </FormLabel>
             <Select
               value={formData.stage_id || ""}
@@ -198,11 +231,14 @@ const ClassificationFields = ({ formData, onInputChange }) => {
                 }
               }}
             >
-              {STAGE_OPTIONS.map((opt) => (
-                <Option key={opt.id} value={opt.id}>
-                  {opt.label}
-                </Option>
-              ))}
+              {referenceData?.stages && Array.isArray(referenceData.stages) && referenceData.stages.map((opt) => {
+                const displayName = opt.name || opt.label || opt.stage_name || opt.name_en || opt.name_ar || `Stage ${opt.id}`;
+                return (
+                  <Option key={opt.id} value={opt.id}>
+                    {displayName}
+                  </Option>
+                );
+              })}
             </Select>
           </FormControl>
         </Grid>
@@ -211,7 +247,7 @@ const ClassificationFields = ({ formData, onInputChange }) => {
         <Grid xs={12} sm={6} md={3}>
           <FormControl fullWidth>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              🩹 Harm Level *
+              🩹 Harm Level
             </FormLabel>
             <Select
               value={formData.harm_id || ""}
@@ -225,24 +261,28 @@ const ClassificationFields = ({ formData, onInputChange }) => {
                 }
               }}
             >
-              {HARM_OPTIONS.map((opt) => (
-                <Option key={opt.id} value={opt.id}>
-                  {opt.label}
-                </Option>
-              ))}
+              {referenceData?.harm && Array.isArray(referenceData.harm) && referenceData.harm.map((opt) => {
+                const displayName = opt.name || opt.label || opt.harm_name || opt.level_name || opt.name_en || opt.name_ar || `Harm ${opt.id}`;
+                return (
+                  <Option key={opt.id} value={opt.id}>
+                    {displayName}
+                  </Option>
+                );
+              })}
             </Select>
           </FormControl>
         </Grid>
 
-        {/* Improvement Type */}
+        {/* Feedback Intent Type */}
         <Grid xs={12} sm={6} md={3}>
           <FormControl fullWidth>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              💡 Improvement Opportunity
+              💬 Feedback Intent Type
             </FormLabel>
             <Select
-              value={formData.improvement_type || 0}
-              onChange={(e, value) => onInputChange("improvement_type", value)}
+              value={formData.feedback_intent_type_id || ""}
+              onChange={(e, value) => onInputChange("feedback_intent_type_id", value)}
+              placeholder="Select Intent Type"
               onClose={() => {}}
               onBlur={() => {}}
               slotProps={{
@@ -251,8 +291,44 @@ const ClassificationFields = ({ formData, onInputChange }) => {
                 }
               }}
             >
-              <Option value={1}>Yes</Option>
-              <Option value={0}>No</Option>
+              {Array.isArray(referenceData?.feedback_intent_types) && referenceData.feedback_intent_types.map((type) => {
+                const displayName = type.name || type.label || type.intent_type_name || type.name_en || type.name_ar;
+                return (
+                  <Option key={type.id} value={type.id}>
+                    {displayName || `Type ${type.id}`}
+                  </Option>
+                );
+              })}
+            </Select>
+          </FormControl>
+        </Grid>
+
+        {/* Clinical Risk Type */}
+        <Grid xs={12} sm={6} md={3}>
+          <FormControl fullWidth>
+            <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
+              ⚕️ Clinical Risk Type
+            </FormLabel>
+            <Select
+              value={formData.clinical_risk_type_id || ""}
+              onChange={(e, value) => onInputChange("clinical_risk_type_id", value)}
+              placeholder="Select Risk Type"
+              onClose={() => {}}
+              onBlur={() => {}}
+              slotProps={{
+                listbox: {
+                  sx: { maxHeight: 250, overflowY: 'auto' }
+                }
+              }}
+            >
+              {Array.isArray(referenceData?.clinical_risk_types) && referenceData.clinical_risk_types.map((type) => {
+                const displayName = type.name || type.label || type.risk_type_name || type.name_en || type.name_ar;
+                return (
+                  <Option key={type.id} value={type.id}>
+                    {displayName || `Type ${type.id}`}
+                  </Option>
+                );
+              })}
             </Select>
           </FormControl>
         </Grid>
