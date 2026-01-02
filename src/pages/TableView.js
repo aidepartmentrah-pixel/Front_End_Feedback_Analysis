@@ -9,6 +9,7 @@ import SearchBar from "../components/TableView/SearchBar";
 import FilterPanel from "../components/TableView/FilterPanel";
 import DataTable from "../components/TableView/DataTable";
 import Pagination from "../components/TableView/Pagination";
+import CustomViewManager from "../components/TableView/CustomViewManager";
 import { fetchComplaints, fetchFilterOptions, exportComplaints } from "../api/complaints";
 
 const TableView = () => {
@@ -51,6 +52,9 @@ const TableView = () => {
 
   // View mode
   const [viewMode, setViewMode] = useState("complete");
+
+  // Custom view
+  const [selectedCustomView, setSelectedCustomView] = useState(null);
 
   // Export state
   const [exporting, setExporting] = useState(false);
@@ -237,28 +241,15 @@ const TableView = () => {
           </Box>
         </Box>
 
-        {/* Search and View Toggle */}
+        {/* Custom View Manager */}
+        <Box sx={{ mb: 3 }}>
+          <CustomViewManager onViewSelect={setSelectedCustomView} />
+        </Box>
+
+        {/* Search Bar */}
         <Box sx={{ mb: 3, display: "flex", gap: 2, alignItems: "center" }}>
           <Box sx={{ flex: 1 }}>
             <SearchBar value={searchQuery} onChange={handleSearchChange} />
-          </Box>
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Button
-              variant={viewMode === "complete" ? "solid" : "outlined"}
-              color="neutral"
-              onClick={() => setViewMode("complete")}
-              size="sm"
-            >
-              Complete View
-            </Button>
-            <Button
-              variant={viewMode === "simplified" ? "solid" : "outlined"}
-              color="neutral"
-              onClick={() => setViewMode("simplified")}
-              size="sm"
-            >
-              Simplified View
-            </Button>
           </Box>
         </Box>
 
@@ -319,6 +310,7 @@ const TableView = () => {
               onSort={handleSort}
               onRowClick={handleRowClick}
               viewMode={viewMode}
+              customView={selectedCustomView}
             />
 
             {/* Pagination */}

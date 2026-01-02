@@ -69,7 +69,7 @@ const getStatusColor = (status) => {
   return "neutral";
 };
 
-const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode }) => {
+const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode, customView }) => {
   const renderSortIcon = (column) => {
     if (sortBy !== column) return null;
     return sortOrder === "asc" ? (
@@ -107,7 +107,35 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
     </th>
   );
 
-  // Define columns based on view mode - Ordered as per user specification
+  // Define all available columns with their mapping
+  const allColumnsDefinition = [
+    { key: "complaint_number", label: "Complaint #", sortable: true, showKey: "ShowIncidentRequestCaseID" },
+    { key: "complaint_text", label: "Complaint Text", sortable: false, showKey: "ShowComplaintText" },
+    { key: "immediate_action", label: "Immediate Action", sortable: false, showKey: "ShowImmediateAction" },
+    { key: "taken_action", label: "Taken Action", sortable: false, showKey: "ShowTakenAction" },
+    { key: "received_date", label: "Received Date", sortable: true, showKey: "ShowFeedbackRecievedDate" },
+    { key: "patient_name", label: "Patient Name", sortable: false, showKey: "ShowPatientName" },
+    { key: "issuing_org_unit_name", label: "Issuing Dept", sortable: false, showKey: "ShowIssuingOrgUnitID" },
+    { key: "created_at", label: "Created At", sortable: false, showKey: "ShowCreatedAt" },
+    { key: "created_by_user_id", label: "Created By", sortable: false, showKey: "ShowCreatedByUserID" },
+    { key: "is_in_patient", label: "In Patient", sortable: false, showKey: "ShowIsInPatient" },
+    { key: "clinical_risk_type_name", label: "Clinical Risk", sortable: false, showKey: "ShowClinicalRiskTypeID" },
+    { key: "feedback_intent_type_name", label: "Feedback Intent", sortable: false, showKey: "ShowFeedbackIntentTypeID" },
+    { key: "building_name", label: "Building", sortable: false, showKey: "ShowBuildingID" },
+    { key: "domain_name", label: "Domain", sortable: false, showKey: "ShowDomainID" },
+    { key: "category_name", label: "Category", sortable: false, showKey: "ShowCategoryID" },
+    { key: "subcategory_name", label: "Subcategory", sortable: false, showKey: "ShowSubCategoryID" },
+    { key: "classification_en_label", label: "Classification (EN)", sortable: false, showKey: "ShowClassificationID" },
+    { key: "severity_name", label: "Severity", sortable: false, showKey: "ShowSeverityID" },
+    { key: "stage_name", label: "Stage", sortable: false, showKey: "ShowStageID" },
+    { key: "harm_level_name", label: "Harm Level", sortable: false, showKey: "ShowHarmLevelID" },
+    { key: "case_status_name", label: "Case Status", sortable: false, showKey: "ShowCaseStatusID" },
+    { key: "source_name", label: "Source", sortable: false, showKey: "ShowSourceID" },
+    { key: "explanation_status_name", label: "Explanation Status", sortable: false, showKey: "ShowExplanationStatusID" },
+    { key: "status_name", label: "Status", sortable: false, showKey: null },
+  ];
+
+  // Define columns based on view mode or custom view
   const completeViewColumns = [
     { key: "complaint_number", label: "Complaint #", sortable: true },
     { key: "received_date", label: "Received Date", sortable: true },
@@ -131,7 +159,13 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
     { key: "status_name", label: "Status", sortable: false },
   ];
 
-  const columns = viewMode === "complete" ? completeViewColumns : simplifiedViewColumns;
+  // If custom view is selected, filter columns based on ShowX flags
+  let columns;
+  if (customView) {
+    columns = allColumnsDefinition.filter(col => col.showKey === null || customView[col.showKey] === true);
+  } else {
+    columns = viewMode === "complete" ? completeViewColumns : simplifiedViewColumns;
+  }
 
   return (
     <Box

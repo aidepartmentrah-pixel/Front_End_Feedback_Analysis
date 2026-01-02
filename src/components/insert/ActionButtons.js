@@ -1,6 +1,6 @@
 // src/components/insert/ActionButtons.js
 import React from "react";
-import { Box, Button, Typography } from "@mui/joy";
+import { Box, Button, Typography, LinearProgress } from "@mui/joy";
 import SendIcon from "@mui/icons-material/Send";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 
@@ -59,6 +59,35 @@ const ActionButtons = ({ onExtract, onAddRecord, loading, hasComplaintText }) =>
       >
         {loading ? "Saving..." : "➕ Add Record"}
       </Button>
+
+      {/* Progress Bar - Show when loading */}
+      {loading && (
+        <Box sx={{ width: "100%", mt: 2 }}>
+          <LinearProgress 
+            variant="plain" 
+            sx={{ 
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: "rgba(255, 255, 255, 0.3)",
+              "& .MuiLinearProgress-bar": {
+                backgroundColor: "#4caf50"
+              }
+            }} 
+          />
+          <Typography 
+            level="body-sm" 
+            sx={{ 
+              color: "white", 
+              textAlign: "center", 
+              mt: 1, 
+              fontWeight: 600,
+              opacity: 0.9
+            }}
+          >
+            🤖 Processing with AI models... Please wait
+          </Typography>
+        </Box>
+      )}
 
       <Box sx={{ width: "100%", mt: 1 }}>
         <Typography level="body-xs" sx={{ color: "rgba(255, 255, 255, 0.9)", textAlign: "center" }}>

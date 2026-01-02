@@ -133,6 +133,27 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField }) 
           </FormControl>
         </Grid>
 
+        {/* Building */}
+        <Grid xs={12} sm={6} md={3}>
+          <FormControl fullWidth>
+            <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
+              🏢 Building
+            </FormLabel>
+
+            <Select
+              value={formData.building || ""}
+              onChange={(e, value) => onInputChange("building", value)}
+              placeholder="Select Building"
+              slotProps={{
+                listbox: { sx: { maxHeight: 250, overflowY: "auto" } },
+              }}
+            >
+              <Option value="RAH">RAH</Option>
+              <Option value="BIC">BIC</Option>
+            </Select>
+          </FormControl>
+        </Grid>
+
         {/* Issuing Department (Single Select) */}
         <Grid xs={12} sm={6} md={4}>
           <FormControl fullWidth>
@@ -173,133 +194,99 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField }) 
 
 
 
-        {/* Target Departments */}
+        {/* Target Departments (Multi-Select, Issuing Style) */}
         <Grid xs={12} sm={6} md={8}>
           <FormControl fullWidth>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
               🏥 Target Departments (Multiple)
             </FormLabel>
-
-            {/* Selected */}
-            {formData.target_department_ids?.length > 0 && (
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 1 }}>
-                {formData.target_department_ids.map((deptId) => {
-                  const dept = referenceData?.departments?.find(
-                    (d) => d.id === deptId
-                  );
-
-                  const displayName =
-                    dept?.name ||
-                    dept?.label ||
-                    dept?.department_name ||
-                    dept?.name_en ||
-                    dept?.name_ar ||
-                    dept?.department_name_en ||
-                    dept?.department_name_ar ||
-                    `Department ${deptId}`;
-
-                  return (
-                    <Chip
-                      key={deptId}
-                      variant="soft"
-                      color="info"
-                      endDecorator={
-                        <CloseIcon
-                          sx={{
-                            fontSize: 18,
-                            cursor: "pointer",
-                            ml: 0.5,
-                            "&:hover": { color: "error.main" },
-                          }}
-                          onClick={() => handleRemoveTargetDepartment(deptId)}
-                        />
-                      }
-                    >
-                      {displayName}
-                    </Chip>
-                  );
-                })}
-              </Box>
-            )}
-
-            {/* Search */}
-            <Box sx={{ position: "relative" }}>
-              <Input
-                placeholder="ابحث عن قسم..."
-                value={formData.departmentQuery || ""}
-                onChange={(e) =>
-                  onInputChange("departmentQuery", e.target.value)
+            <Select
+              multiple
+              value={formData.target_department_ids || []}
+              placeholder="Select target departments"
+              onChange={(e, value) => {
+                const normalized = Array.isArray(value)
+                  ? value
+                      .map((v) => (typeof v === "object" ? (v?.value ?? v?.id) : v))
+                      .map((v) => {
+                        const num = Number(v);
+                        return Number.isNaN(num) ? v : num;
+                      })
+                      .filter((v) => v !== null && v !== undefined)
+                  : [];
+                // Remove duplicates while preserving order
+                const unique = [];
+                for (const id of normalized) {
+                  if (!unique.includes(id)) unique.push(id);
                 }
-                onFocus={() =>
-                  formData.departmentQuery?.length >= 1 &&
-                  onInputChange("showDepartmentDropdown", true)
-                }
-                slotProps={{
-                  input: { dir: "rtl" },
-                }}
-              />
-
-              {formData.showDepartmentDropdown && (
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: "100%",
-                    left: 0,
-                    right: 0,
-                    zIndex: 1000,
-                    mt: 0.5,
-                    maxHeight: 250,
-                    overflowY: "auto",
-                    backgroundColor: "#fff",
-                    border: "1px solid #ddd",
-                    borderRadius: "8px",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                  }}
-                >
-                  {(referenceData?.departments || [])
-                    .filter((dept) => {
-                      const name =
-                        dept?.name ||
-                        dept?.label ||
-                        dept?.department_name ||
-                        dept?.name_en ||
-                        dept?.name_ar ||
-                        "";
-
-                      return (
-                        name
-                          .toLowerCase()
-                          .includes(
-                            (formData.departmentQuery || "").toLowerCase()
-                          ) &&
-                        !formData.target_department_ids.includes(dept.id)
-                      );
-                    })
-                    .map((dept) => (
-                      <ListItem key={dept.id}>
-                        <ListItemButton
-                          onClick={() => {
-                            handleAddTargetDepartment(dept.id);
-                            onInputChange("departmentQuery", "");
-                            onInputChange(
-                              "showDepartmentDropdown",
-                              false
-                            );
-                          }}
-                        >
-                          <Typography level="body-sm" sx={{ dir: "rtl" }}>
-                            {dept.name ||
-                              dept.label ||
-                              dept.department_name ||
-                              dept.name_ar ||
-                              dept.name_en}
-                          </Typography>
-                        </ListItemButton>
-                      </ListItem>
-                    ))}
+                onInputChange("target_department_ids", unique);
+              }}
+              renderValue={(selected) => (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                  {(formData.target_department_ids || []).map((deptId) => {
+                    const dept = (referenceData?.departments || []).find((d) => Number(d.id) === Number(deptId));
+                    const displayName =
+                      dept?.name ||
+                      dept?.label ||
+                      dept?.department_name ||
+                      dept?.name_en ||
+                      dept?.name_ar ||
+                      `Department ${deptId}`;
+                    return (
+                      <Chip
+                        key={deptId}
+                        variant="soft"
+                        color="info"
+                        endDecorator={
+                          <CloseIcon
+                            sx={{ 
+                              fontSize: 16, 
+                              cursor: "pointer", 
+                              ml: 0.5, 
+                              '&:hover': { color: "error.main" }
+                            }}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              const newIds = (formData.target_department_ids || []).filter(id => Number(id) !== Number(deptId));
+                              onInputChange("target_department_ids", newIds);
+                            }}
+                          />
+                        }
+                        sx={{ 
+                          fontWeight: 600,
+                          pointerEvents: "none",
+                          "& .MuiChip-endDecorator": {
+                            pointerEvents: "auto"
+                          }
+                        }}
+                      >
+                        {displayName}
+                      </Chip>
+                    );
+                  })}
                 </Box>
               )}
-            </Box>
+              slotProps={{
+                listbox: {
+                  sx: { maxHeight: 250, overflowY: "auto" },
+                },
+              }}
+            >
+              {(referenceData?.departments || []).map((dept) => {
+                const displayName =
+                  dept.name ||
+                  dept.label ||
+                  dept.department_name ||
+                  dept.name_en ||
+                  dept.name_ar;
+                return (
+                  <Option key={dept.id} value={Number(dept.id)}>
+                    {displayName}
+                  </Option>
+                );
+              })}
+            </Select>
           </FormControl>
         </Grid>
       </Grid>

@@ -8,6 +8,7 @@ import {
   Divider,
 } from "@mui/joy";
 import { Link, useLocation } from "react-router-dom";
+import logo from "../../assests/logo.png";
 
 const Sidebar = () => {
   const location = useLocation();
@@ -51,19 +52,45 @@ const Sidebar = () => {
       }}
     >
       {/* Logo Section */}
-      <Box sx={{ p: 3, textAlign: "center" }}>
+      <Box
+        sx={{
+          p: 3,
+          textAlign: "center",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 1.5,
+        }}
+      >
+        <Box
+          component="img"
+          src={logo}
+          alt="Logo"
+          sx={{
+            width: 150,
+            height: 150,
+            objectFit: "contain",
+            borderRadius: "12px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+          }}
+        />
+
         <Typography
           level="h3"
           sx={{
             color: "#fff",
             fontWeight: 800,
-            fontSize: "28px",
+            fontSize: "24px",
             textShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
           }}
         >
           FeedbackAI
         </Typography>
-        <Typography level="body-xs" sx={{ color: "#e0e7ff", mt: 1, fontSize: "12px" }}>
+
+        <Typography
+          level="body-xs"
+          sx={{ color: "#e0e7ff", fontSize: "12px" }}
+        >
           Hospital Feedback System
         </Typography>
       </Box>

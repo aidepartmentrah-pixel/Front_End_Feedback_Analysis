@@ -1,6 +1,10 @@
-// src/pages/InsertRecord.js
-import React, { useState, useEffect } from "react";
+// src/components/insert/InsertRecord.js
+import React, { useState, useEffect, useRef } from "react";
+import { flushSync } from "react-dom";
 import { Box, Container } from "@mui/joy";
+
+// Utils
+import { normalizeClassifications } from "../utils/classificationMappings";
 
 // Components
 import MainLayout from "../components/common/MainLayout";
@@ -18,6 +22,7 @@ import {
   fetchClassifications,
   submitRecord,
   extractNER,
+  classifyText,
   searchPatients,
   searchDoctors,
   searchEmployees,
@@ -37,6 +42,7 @@ const InsertRecord = () => {
     target_department_ids: [], // Multiple departments
     source_id: null,
     in_out: null, // IN or OUT
+    building: null, // RAH or BIC
     worker_type: null, // Doctor, Clerk, Nurse, etc.
 
     // Step 3: NER Outputs
@@ -80,6 +86,10 @@ const InsertRecord = () => {
   const [error, setError] = useState(null);
   const [errorField, setErrorField] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [isAiExtracting, setIsAiExtracting] = useState(false); // Flag to prevent clearing during AI
+  const [extractionDebug, setExtractionDebug] = useState(null); // Debug info to show what's being set
+  const [resetNER, setResetNER] = useState(0); // Trigger to reset NER outputs
+  const isAiExtractingRef = useRef(false); // Ref for immediate access in useEffect
 
   // Load reference data on mount
   useEffect(() => {
@@ -97,6 +107,42 @@ const InsertRecord = () => {
       console.log("Worker types count:", data?.worker_types?.length);
       console.log("Worker types data:", data?.worker_types);
       setReferenceData(data);
+      
+      // Pre-load ALL categories, subcategories, classifications on mount
+      // This way they're ALWAYS available and we can set values instantly during extraction
+      if (data?.domains && Array.isArray(data.domains)) {
+        for (const domain of data.domains) {
+          try {
+            const catsData = await fetchCategories(domain.id);
+            // Store categories keyed by domain ID
+            console.log(`Pre-loaded ${catsData?.length || 0} categories for domain ${domain.id}`);
+            
+            if (catsData && Array.isArray(catsData)) {
+              for (const cat of catsData) {
+                try {
+                  const subCatsData = await fetchSubcategories(cat.id);
+                  console.log(`Pre-loaded ${subCatsData?.length || 0} subcategories for category ${cat.id}`);
+                  
+                  if (subCatsData && Array.isArray(subCatsData)) {
+                    for (const subCat of subCatsData) {
+                      try {
+                        const classData = await fetchClassifications(subCat.id);
+                        console.log(`Pre-loaded ${classData?.length || 0} classifications for subcategory ${subCat.id}`);
+                      } catch (e) {
+                        // Ignore errors, just log
+                      }
+                    }
+                  }
+                } catch (e) {
+                  // Ignore errors, just log
+                }
+              }
+            }
+          } catch (e) {
+            // Ignore errors, just log
+          }
+        }
+      }
     } catch (err) {
       setError("Failed to load reference data. Please refresh the page.");
       console.error("Error loading reference data:", err);
@@ -107,54 +153,66 @@ const InsertRecord = () => {
 
   // Handle domain change - fetch categories and clear dependent fields
   useEffect(() => {
+    if (isAiExtractingRef.current) return; // Skip during AI extraction
+    
     if (formData.domain_id) {
       loadCategories(formData.domain_id);
-      // Clear dependent fields
-      setFormData((prev) => ({
-        ...prev,
-        category_id: null,
-        subcategory_id: null,
-        classification_id: null,
-      }));
-      setSubcategories([]);
-      setClassifications([]);
+      // Only clear dependent fields if NOT during AI extraction
+      if (!isAiExtracting && !isAiExtractingRef.current) {
+        setFormData((prev) => ({
+          ...prev,
+          category_id: null,
+          subcategory_id: null,
+          classification_id: null,
+        }));
+        setSubcategories([]);
+        setClassifications([]);
+      }
     } else {
       setCategories([]);
       setSubcategories([]);
       setClassifications([]);
     }
-  }, [formData.domain_id]);
+  }, [formData.domain_id, isAiExtracting]);
 
   // Handle category change - fetch subcategories and clear dependent fields
   useEffect(() => {
+    if (isAiExtractingRef.current) return; // Skip during AI extraction
+    
     if (formData.category_id) {
       loadSubcategories(formData.category_id);
-      // Clear dependent fields
-      setFormData((prev) => ({
-        ...prev,
-        subcategory_id: null,
-        classification_id: null,
-      }));
-      setClassifications([]);
+      // Only clear dependent fields if NOT during AI extraction
+      if (!isAiExtracting && !isAiExtractingRef.current) {
+        setFormData((prev) => ({
+          ...prev,
+          subcategory_id: null,
+          classification_id: null,
+        }));
+        setClassifications([]);
+      }
     } else {
       setSubcategories([]);
       setClassifications([]);
     }
-  }, [formData.category_id]);
+  }, [formData.category_id, isAiExtracting]);
 
   // Handle subcategory change - fetch classifications and clear dependent fields
   useEffect(() => {
+    if (isAiExtractingRef.current) return; // Skip during AI extraction
+    
     if (formData.subcategory_id) {
       loadClassifications(formData.subcategory_id);
-      // Clear dependent field
-      setFormData((prev) => ({
-        ...prev,
-        classification_id: null,
-      }));
+      // Only clear dependent field if NOT during AI extraction
+      if (!isAiExtracting && !isAiExtractingRef.current) {
+        setFormData((prev) => ({
+          ...prev,
+          classification_id: null,
+        }));
+      }
     } else {
       setClassifications([]);
     }
-  }, [formData.subcategory_id]);
+  }, [formData.subcategory_id, isAiExtracting]);
 
   const loadCategories = async (domainId) => {
     try {
@@ -289,6 +347,13 @@ const InsertRecord = () => {
         return;
       }
 
+      if (!formData.doctor_ids || formData.doctor_ids.length === 0) {
+        setError("At least one doctor is required");
+        setErrorField("doctor_ids");
+        setSubmitLoading(false);
+        return;
+      }
+
       if (!formData.severity_id) {
         setError("Severity is required");
         setErrorField("severity_id");
@@ -310,15 +375,44 @@ const InsertRecord = () => {
       if (formData.taken_action) payload.taken_action = formData.taken_action;
       if (formData.issuing_department_id) payload.issuing_department_id = formData.issuing_department_id;
       if (formData.target_department_ids && formData.target_department_ids.length > 0) {
-        // Send first target department as target_department_id
-        payload.target_department_id = formData.target_department_ids[0];
+        payload.target_department_ids = formData.target_department_ids;
       }
       if (formData.source_id) payload.source_id = formData.source_id;
-      if (formData.in_out) payload.in_out = formData.in_out;
+      
+      // Convert in_out to is_inpatient (IN = true, OUT = false)
+      if (formData.in_out) {
+        payload.is_inpatient = formData.in_out === "IN";
+      }
+      
+      // Map building to buildingId and buildingCode
+      if (formData.building) {
+        payload.buildingCode = formData.building; // Store the code (RAH/BIC)
+        // Map building codes to IDs (you may need to adjust this mapping)
+        const buildingIdMap = {
+          "RAH": 1,
+          "BIC": 2
+        };
+        payload.buildingId = buildingIdMap[formData.building] || 1;
+      }
+      
       if (formData.worker_type) payload.worker_type = formData.worker_type;
-      if (formData.patient_admission_id) payload.patient_admission_id = formData.patient_admission_id;
-      if (formData.doctor_ids && formData.doctor_ids.length > 0) payload.doctor_ids = formData.doctor_ids;
-      if (formData.employee_ids && formData.employee_ids.length > 0) payload.employee_ids = formData.employee_ids;
+      
+      // Map patient info
+      if (formData.patient_name) payload.patientName = formData.patient_name;
+      
+      // Map doctors array - REQUIRED (at least one doctor)
+      if (formData.doctor_ids && formData.doctor_ids.length > 0) {
+        payload.doctors = formData.doctor_ids.map(id => ({ id }));
+      } else {
+        payload.doctors = [];
+      }
+      
+      // Map employees array - format as objects if needed
+      if (formData.employee_ids && formData.employee_ids.length > 0) {
+        payload.employees = formData.employee_ids.map(id => ({ id }));
+      } else {
+        payload.employees = [];
+      }
       if (formData.subcategory_id) payload.subcategory_id = formData.subcategory_id;
       if (formData.classification_id) payload.classification_id = formData.classification_id;
       if (formData.stage_id) payload.stage_id = formData.stage_id;
@@ -349,6 +443,7 @@ const InsertRecord = () => {
           target_department_ids: [],
           source_id: null,
           in_out: null,
+          building: null,
           worker_type: null,
           patient_name: "",
           doctor_name: "",
@@ -367,6 +462,8 @@ const InsertRecord = () => {
         setCategories([]);
         setSubcategories([]);
         setClassifications([]);
+        // Trigger NER component to clear selected entities
+        setResetNER(prev => prev + 1);
       }, 3000);
     } catch (err) {
       // Handle error response format from backend
@@ -386,9 +483,6 @@ const InsertRecord = () => {
       <Container maxWidth="lg" sx={{ py: 3 }}>
         <Box sx={{ mb: 3 }}>
           <h1 style={{ color: "#1a1e3f", marginBottom: "8px" }}>Insert New Record</h1>
-          <p style={{ color: "#667eea", margin: 0 }}>
-            Create and submit a new feedback/incident record (4-step wizard)
-          </p>
         </Box>
 
         {/* Loading indicator */}
@@ -465,26 +559,18 @@ const InsertRecord = () => {
           onInputChange={handleInputChange}
           onRunNER={async () => {
             const response = await handleRunNER();
-            // Copy NER results to search bar fields
             if (response) {
-              if (response.patient) {
-                setFormData((prev) => ({ ...prev, patientQuery: response.patient }));
-              }
-              if (response.doctor) {
-                setFormData((prev) => ({ ...prev, doctorQuery: response.doctor }));
-              }
-              if (response.employee) {
-                setFormData((prev) => ({ ...prev, employeeQuery: response.employee }));
-              }
-              if (response.department) {
-                setFormData((prev) => ({ ...prev, departmentQuery: response.department }));
-              }
+              if (response.patient) setFormData((prev) => ({ ...prev, patientQuery: response.patient }));
+              if (response.doctor) setFormData((prev) => ({ ...prev, doctorQuery: response.doctor }));
+              if (response.employee) setFormData((prev) => ({ ...prev, employeeQuery: response.employee }));
+              if (response.department) setFormData((prev) => ({ ...prev, departmentQuery: response.department }));
             }
             return response;
           }}
           loading={nerLoading}
           errorField={errorField}
           referenceData={referenceData}
+          resetTrigger={resetNER}
         />
 
         {/* Step 4: AI Classification & Severity Fields (merged Step 4 + 5) */}
@@ -500,10 +586,213 @@ const InsertRecord = () => {
 
         {/* Action Buttons */}
         <ActionButtons
-          onExtract={handleRunNER}
+          onExtract={async () => {
+            try {
+              setNerLoading(true);
+              setError(null);
+              setErrorField(null);
+              setIsAiExtracting(true); // Prevent clearing during AI extraction
+              isAiExtractingRef.current = true; // Immediate access for useEffect
+              
+              console.log("Starting NER extraction...");
+              
+              if (!formData.complaint_text || formData.complaint_text.trim().length === 0) {
+                setError("Please enter complaint text first");
+                setNerLoading(false);
+                setIsAiExtracting(false);
+                return;
+              }
+              
+              // NER
+              console.log("Calling extractNER with text:", formData.complaint_text);
+              const nerResp = await extractNER(formData.complaint_text);
+              console.log("NER Response:", nerResp);
+              
+              if (nerResp) {
+                // Extract entities from nested structure
+                const entities = nerResp.entities || {};
+                
+                // Take first patient name
+                if (entities.patients && entities.patients.length > 0) {
+                  const patientName = entities.patients[0];
+                  console.log("Setting patientQuery to:", patientName);
+                  handleInputChange("patientQuery", patientName);
+                  setSuccess(`Found patient: ${patientName}`);
+                }
+
+                // Take first doctor name
+                if (entities.doctors && entities.doctors.length > 0) {
+                  const doctorName = entities.doctors[0];
+                  console.log("Setting doctorQuery to:", doctorName);
+                  handleInputChange("doctorQuery", doctorName);
+                }
+
+                // Take first employee name
+                if (entities.employees && entities.employees.length > 0) {
+                  const employeeName = entities.employees[0];
+                  console.log("Setting employeeQuery to:", employeeName);
+                  handleInputChange("employeeQuery", employeeName);
+                }
+                
+                // Show success message with all found entities
+                const foundNames = [];
+                if (entities.patients && entities.patients.length > 0) foundNames.push(`Patient: ${entities.patients[0]}`);
+                if (entities.doctors && entities.doctors.length > 0) foundNames.push(`Doctor: ${entities.doctors[0]}`);
+                if (entities.employees && entities.employees.length > 0) foundNames.push(`Employee: ${entities.employees[0]}`);
+                
+                if (foundNames.length > 0) {
+                  setSuccess(`NER extracted: ${foundNames.join(', ')}`);
+                } else {
+                  setSuccess("NER completed - no names found");
+                }
+              } else {
+                setError("NER returned no data");
+              }
+              
+              // Classification
+              console.log("Calling classifyText with text:", formData.complaint_text);
+              const classResp = await classifyText(formData.complaint_text);
+              console.log("Classification Response:", classResp);
+              
+              if (classResp) {
+                console.log("Updating classification fields...");
+                
+                // Extract classifications from nested structure AND normalize text values to IDs
+                const classificationsRaw = classResp.classifications || classResp;
+                const classifications = normalizeClassifications(classificationsRaw);
+                
+                console.log("Normalized classifications:", classifications);
+                
+                // Show what fields were found
+                const foundFields = [];
+                if (classifications.domain_id) foundFields.push(`Domain: ${classifications.domain_id}`);
+                if (classifications.category_id) foundFields.push(`Category: ${classifications.category_id}`);
+                if (classifications.sub_category_id) foundFields.push(`Sub: ${classifications.sub_category_id}`);
+                if (classifications.classification_id) foundFields.push(`Class: ${classifications.classification_id}`);
+                if (classifications.severity_id) foundFields.push(`Severity: ${classifications.severity_id}`);
+                if (classifications.stage_id) foundFields.push(`Stage: ${classifications.stage_id}`);
+                if (classifications.harm_level_id) foundFields.push(`Harm: ${classifications.harm_level_id}`);
+                
+                if (foundFields.length > 0) {
+                  setSuccess(`Classifications: ${foundFields.join(', ')}`);
+                } else {
+                  setError(`Classification Response: ${JSON.stringify(classResp)} - No IDs found`);
+                }
+                
+                // Set classification fields one by one with delays for cascading dropdowns
+                const setClassificationFieldsSequentially = async () => {
+                  console.log("Starting extraction...");
+                  const debug = [];
+                  
+                  try {
+                    // Set ALL values at once, immediately
+                    debug.push("Setting domain_id: " + Number(classifications.domain_id));
+                    debug.push("Setting category_id: " + Number(classifications.category_id));
+                    debug.push("Setting subcategory_id: " + Number(classifications.sub_category_id));
+                    debug.push("Setting classification_id: " + Number(classifications.classification_id));
+                    debug.push("Setting severity_id: " + Number(classifications.severity_id));
+                    debug.push("Setting stage_id: " + Number(classifications.stage_id));
+                    debug.push("Setting harm_id: " + Number(classifications.harm_level_id));
+                    
+                    // Flush domain and load categories
+                    flushSync(() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        domain_id: Number(classifications.domain_id),
+                      }));
+                    });
+                    
+                    // Immediately load categories
+                    const catsData = await fetchCategories(classifications.domain_id);
+                    const normalizedCats = catsData.map(c => ({ ...c, id: Number(c.id) }));
+                    
+                    flushSync(() => {
+                      setCategories(normalizedCats);
+                    });
+                    
+                    // Wait just a tiny bit, then set category
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    
+                    flushSync(() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        category_id: Number(classifications.category_id),
+                        severity_id: Number(classifications.severity_id),
+                        stage_id: Number(classifications.stage_id),
+                        harm_id: Number(classifications.harm_level_id),
+                      }));
+                    });
+                    
+                    // Load subcategories
+                    const subCatsData = await fetchSubcategories(classifications.category_id);
+                    const normalizedSubCats = subCatsData.map(s => ({ ...s, id: Number(s.id) }));
+                    
+                    flushSync(() => {
+                      setSubcategories(normalizedSubCats);
+                    });
+                    
+                    // Wait tiny bit, set subcategory
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    
+                    flushSync(() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        subcategory_id: Number(classifications.sub_category_id),
+                      }));
+                    });
+                    
+                    // Load classifications
+                    const classData = await fetchClassifications(classifications.sub_category_id);
+                    const normalizedClass = classData.map(c => ({ ...c, id: Number(c.id) }));
+                    
+                    flushSync(() => {
+                      setClassifications(normalizedClass);
+                    });
+                    
+                    // Wait tiny bit, set classification
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    
+                    flushSync(() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        classification_id: Number(classifications.classification_id),
+                      }));
+                    });
+                    
+                    debug.push("All values flushed to DOM");
+                    setExtractionDebug(debug);
+                    
+                  } finally {
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    
+                    flushSync(() => {
+                      setIsAiExtracting(false);
+                    });
+                    isAiExtractingRef.current = false;
+                    console.log("Extraction complete");
+                  }
+                };
+                
+                setClassificationFieldsSequentially();
+              } else {
+                setError("Classification returned no data");
+              }
+              
+              setSuccess("NER + Classification completed!");
+              setTimeout(() => setSuccess(null), 3000);
+            } catch (err) {
+              console.error("Extract Error:", err);
+              setError(`Error during NER + Classification: ${err.message}`);
+              setTimeout(() => setError(null), 5000);
+            } finally {
+              setNerLoading(false);
+              // Keep isAiExtracting true until complete
+              // Will be set to false after setClassificationFieldsSequentially finishes
+            }
+          }}
           onAddRecord={handleAddRecord}
-          loading={submitLoading}
-          hasComplaintText={formData.complaint_text.trim().length > 0}
+          loading={nerLoading || submitLoading}
+          hasComplaintText={true}
         />
       </Container>
     </MainLayout>

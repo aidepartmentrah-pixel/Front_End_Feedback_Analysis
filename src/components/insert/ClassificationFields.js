@@ -33,10 +33,6 @@ const ClassificationFields = ({
         Step 4: AI Classification & Severity Fields
       </Typography>
 
-      <Typography level="body-sm" sx={{ color: "#e65100", mb: 2 }}>
-        Classify your record starting from Domain → Category → Subcategory → Classification, then set Severity, Stage, Harm & Improvement.
-      </Typography>
-
       <Grid container spacing={2}>
 
         {/* Domain */}

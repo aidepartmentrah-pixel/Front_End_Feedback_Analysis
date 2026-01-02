@@ -6,72 +6,10 @@ import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
 import { searchPatients, searchDoctors, searchEmployees } from "../../api/insertRecord";
 
-// Helper to normalize department display name
-const getDepartmentDisplayName = (dept) => {
-  return dept?.name || dept?.label || dept?.department_name || dept?.name_en || dept?.name_ar || dept?.department_name_en || dept?.department_name_ar || `Department ${dept?.id}`;
-};
+// ...existing code...
 
-const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, referenceData }) => {
-      // Department search states
-      const [departmentQuery, setDepartmentQuery] = useState("");
-      const [departmentResults, setDepartmentResults] = useState([]);
-      const [departmentLoading, setDepartmentLoading] = useState(false);
-      const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
-      const departmentTimerRef = useRef(null);
-
-      // Selected departments (for chip display)
-      const [selectedDepartments, setSelectedDepartments] = useState([]);
-    // Search departments with debounce
-    useEffect(() => {
-      if (departmentTimerRef.current) {
-        clearTimeout(departmentTimerRef.current);
-      }
-      if (departmentQuery.length >= 1) {
-        setDepartmentLoading(true);
-        setShowDepartmentDropdown(true);
-        departmentTimerRef.current = setTimeout(() => {
-          // Filter referenceData.departments by query
-          if (referenceData?.departments && Array.isArray(referenceData.departments)) {
-            const results = referenceData.departments.filter((dept) => {
-              const displayName = getDepartmentDisplayName(dept);
-              return displayName.toLowerCase().includes(departmentQuery.toLowerCase());
-            });
-            setDepartmentResults(results);
-          } else {
-            setDepartmentResults([]);
-          }
-          setDepartmentLoading(false);
-        }, 400);
-      } else {
-        setDepartmentResults([]);
-        setShowDepartmentDropdown(false);
-      }
-      return () => {
-        if (departmentTimerRef.current) {
-          clearTimeout(departmentTimerRef.current);
-        }
-      };
-    }, [departmentQuery, referenceData]);
-
-    // Handle department selection
-    const handleSelectDepartment = (dept) => {
-      if (!formData.target_department_ids.includes(dept.id)) {
-        const newDepartments = [...selectedDepartments, dept];
-        const newDeptIds = [...formData.target_department_ids, dept.id];
-        setSelectedDepartments(newDepartments);
-        onInputChange("target_department_ids", newDeptIds);
-      }
-      setDepartmentQuery("");
-      setShowDepartmentDropdown(false);
-    };
-
-    // Handle remove department
-    const handleRemoveDepartment = (deptId) => {
-      const newDepartments = selectedDepartments.filter((d) => d.id !== deptId);
-      const newDeptIds = formData.target_department_ids.filter((id) => id !== deptId);
-      setSelectedDepartments(newDepartments);
-      onInputChange("target_department_ids", newDeptIds);
-    };
+const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, referenceData, resetTrigger }) => {
+// ...existing code...
   // Search states
   const [patientQuery, setPatientQuery] = useState("");
   const [doctorQuery, setDoctorQuery] = useState("");
@@ -101,6 +39,68 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, re
   const patientTimerRef = useRef(null);
   const doctorTimerRef = useRef(null);
   const employeeTimerRef = useRef(null);
+
+  // Reset handler when form is successfully submitted
+  useEffect(() => {
+    if (resetTrigger !== undefined && resetTrigger !== null) {
+      console.log("NEROutputs: Resetting selected entities");
+      setSelectedPatient(null);
+      setSelectedDoctors([]);
+      setSelectedEmployees([]);
+      setPatientQuery("");
+      setDoctorQuery("");
+      setEmployeeQuery("");
+      setPatientResults([]);
+      setDoctorResults([]);
+      setEmployeeResults([]);
+    }
+  }, [resetTrigger]);
+
+  // Paste queries coming from parent formData without auto-selection
+  useEffect(() => {
+    if (typeof formData.patientQuery !== "undefined") {
+      console.log("NEROutputs: Updating patientQuery to:", formData.patientQuery);
+      setPatientQuery(formData.patientQuery || "");
+      if (formData.patientQuery) {
+        setShowPatientDropdown(true);
+      }
+    }
+  }, [formData.patientQuery]);
+  useEffect(() => {
+    if (typeof formData.doctorQuery !== "undefined") {
+      console.log("NEROutputs: Updating doctorQuery to:", formData.doctorQuery);
+      setDoctorQuery(formData.doctorQuery || "");
+      if (formData.doctorQuery) {
+        setShowDoctorDropdown(true);
+      }
+    }
+  }, [formData.doctorQuery]);
+  useEffect(() => {
+    if (typeof formData.employeeQuery !== "undefined") {
+      console.log("NEROutputs: Updating employeeQuery to:", formData.employeeQuery);
+      setEmployeeQuery(formData.employeeQuery || "");
+      if (formData.employeeQuery) {
+        setShowEmployeeDropdown(true);
+      }
+    }
+  }, [formData.employeeQuery]);
+
+  const handleRunExtract = async () => {
+    try {
+      const resp = await (onRunNER ? onRunNER() : null);
+      if (resp) {
+        if (resp.patient) setPatientQuery(resp.patient);
+        if (resp.doctor) setDoctorQuery(resp.doctor);
+        if (resp.employee) setEmployeeQuery(resp.employee);
+        // Do not auto-select; let user choose from dropdown results
+        setShowPatientDropdown(!!resp.patient);
+        setShowDoctorDropdown(!!resp.doctor);
+        setShowEmployeeDropdown(!!resp.employee);
+      }
+    } catch (e) {
+      console.error("Error running NER extract:", e);
+    }
+  };
   
   // Search patients with debounce
   useEffect(() => {
@@ -213,6 +213,7 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, re
   const handleSelectPatient = (patient) => {
     setSelectedPatient(patient);
     onInputChange("patient_admission_id", patient.patient_admission_id);
+    onInputChange("patient_name", patient.full_name || patient.name || "");
     setPatientQuery("");
     setShowPatientDropdown(false);
   };
@@ -222,6 +223,7 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, re
     console.log("Removing patient");
     setSelectedPatient(null);
     onInputChange("patient_admission_id", null);
+    onInputChange("patient_name", "");
   };
   
   // Handle doctor selection
@@ -287,7 +289,7 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, re
       </Typography>
 
       <Typography level="body-sm" sx={{ color: "#558b2f", mb: 2 }}>
-        Extract patient and doctor names from the complaint text. Click "Run NER Extraction" or search manually.
+        Extract patient and doctor names from the complaint text or search manually.
       </Typography>
 
       <Grid container spacing={2}>
@@ -371,11 +373,7 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, re
                       <Box sx={{ p: 2, textAlign: "center" }}>
                         <CircularProgress size="sm" />
                       </Box>
-                    ) : patientResults.length === 0 ? (
-                      <Box sx={{ p: 2, textAlign: "center", color: "#999" }}>
-                        لا توجد نتائج
-                      </Box>
-                    ) : (
+                    ) : patientResults.length === 0 ? null : (
                       <List>
                         {patientResults.map((patient) => (
                           <ListItem key={patient.patient_admission_id}>
@@ -485,11 +483,7 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, re
                     <Box sx={{ p: 2, textAlign: "center" }}>
                       <CircularProgress size="sm" />
                     </Box>
-                  ) : doctorResults.length === 0 ? (
-                    <Box sx={{ p: 2, textAlign: "center", color: "#999" }}>
-                      لا توجد نتائج
-                    </Box>
-                  ) : (
+                  ) : doctorResults.length === 0 ? null : (
                     <List>
                       {doctorResults.map((doctor) => {
                         console.log("Doctor object keys:", Object.keys(doctor));
@@ -605,11 +599,7 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, re
                     <Box sx={{ p: 2, textAlign: "center" }}>
                       <CircularProgress size="sm" />
                     </Box>
-                  ) : employeeResults.length === 0 ? (
-                    <Box sx={{ p: 2, textAlign: "center", color: "#999" }}>
-                      لا توجد نتائج
-                    </Box>
-                  ) : (
+                  ) : employeeResults.length === 0 ? null : (
                     <List>
                       {employeeResults.map((employee) => {
                         const name = employee.full_name || employee.name || employee.employee_name || `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || `Employee ${employee.employee_id}`;
@@ -638,114 +628,8 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, re
             </Box>
           </FormControl>
         </Grid>
-
-        {/* Department Search (Multi-Select) */}
-
-        {/* Target Departments (Multi Select) */}
-          <Grid xs={12} sm={6} md={6}>
-            <FormControl fullWidth>
-              <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-                🏥 Target Departments (Multiple)
-              </FormLabel>
-
-              <Select
-                multiple
-                value={formData.target_department_ids || []}
-                placeholder="Select target departments"
-                onChange={(event, values) =>
-                  onInputChange("target_department_ids", values)
-                }
-                renderValue={(selected) => (
-                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                    {selected.map((deptId) => {
-                      const dept = referenceData?.departments?.find(
-                        (d) => d.id === deptId
-                      );
-
-                      const displayName =
-                        dept?.name ||
-                        dept?.label ||
-                        dept?.department_name ||
-                        dept?.name_en ||
-                        dept?.name_ar ||
-                        `Department ${deptId}`;
-
-                      return (
-                        <Chip key={deptId} variant="soft" color="info">
-                          {displayName}
-                        </Chip>
-                      );
-                    })}
-                  </Box>
-                )}
-                slotProps={{
-                  listbox: {
-                    sx: {
-                      maxHeight: 300,
-                      overflowY: "auto",
-                    },
-                  },
-                }}
-              >
-                {(referenceData?.departments || []).map((dept) => {
-                  const displayName =
-                    dept.name ||
-                    dept.label ||
-                    dept.department_name ||
-                    dept.name_en ||
-                    dept.name_ar;
-
-                  return (
-                    <Option key={dept.id} value={dept.id}>
-                      {displayName}
-                    </Option>
-                  );
-                })}
-              </Select>
-            </FormControl>
-          </Grid>
-
         {/* Run NER Button */}
-        <Grid xs={12}>
-          <Button
-            variant="solid"
-            color="success"
-            size="lg"
-            startDecorator={<PlayArrowIcon />}
-            onClick={async () => {
-              const extractedNames = await onRunNER();
-              if (extractedNames) {
-                // Populate search boxes with extracted names
-                if (extractedNames.patient) {
-                  setPatientQuery(extractedNames.patient);
-                }
-                if (extractedNames.doctor) {
-                  setDoctorQuery(extractedNames.doctor);
-                }
-                if (extractedNames.employee) {
-                  setEmployeeQuery(extractedNames.employee);
-                }
-                if (extractedNames.department) {
-                  setDepartmentQuery(extractedNames.department);
-                }
-              }
-            }}
-            loading={loading}
-            disabled={!formData.complaint_text || formData.complaint_text.trim().length === 0}
-            sx={{
-              fontWeight: 600,
-              fontSize: "14px",
-              px: 3,
-              py: 1.5,
-              transition: "all 0.3s ease",
-              "&:hover": {
-                transform: "translateY(-2px)",
-              },
-            }}
-          >
-            {loading ? "Extracting Entities..." : "🤖 Run NER Extraction (Auto-fill Names)"}
-          </Button>
-        </Grid>
+        <Grid xs={12}></Grid>
       </Grid>
 
       <Typography
