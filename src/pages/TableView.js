@@ -10,7 +10,8 @@ import FilterPanel from "../components/TableView/FilterPanel";
 import DataTable from "../components/TableView/DataTable";
 import Pagination from "../components/TableView/Pagination";
 import CustomViewManager from "../components/TableView/CustomViewManager";
-import { fetchComplaints, fetchFilterOptions, exportComplaints } from "../api/complaints";
+import DeleteConfirmationDialog from "../components/TableView/DeleteConfirmationDialog";
+import { fetchComplaints, fetchFilterOptions, exportComplaints, deleteComplaint } from "../api/complaints";
 
 const TableView = () => {
   const navigate = useNavigate();
@@ -55,6 +56,11 @@ const TableView = () => {
 
   // Custom view
   const [selectedCustomView, setSelectedCustomView] = useState(null);
+
+  // Delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [complaintToDelete, setComplaintToDelete] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Export state
   const [exporting, setExporting] = useState(false);
@@ -160,6 +166,43 @@ const TableView = () => {
 
   const handleRowClick = (complaintId) => {
     navigate(`/complaints/${complaintId}`);
+  };
+
+  const handleEditRow = (complaintId) => {
+    console.log("✏️ Editing complaint:", complaintId);
+    navigate(`/edit-record/${complaintId}`);
+  };
+
+  const handleDeleteRow = (complaintId, complaint) => {
+    console.log("🗑️ Opening delete dialog for complaint:", complaintId);
+    setComplaintToDelete(complaint);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!complaintToDelete || !complaintToDelete.id) {
+      console.error("❌ No complaint selected for deletion");
+      return;
+    }
+
+    setDeleteLoading(true);
+    try {
+      console.log("🗑️ Deleting complaint:", complaintToDelete.id);
+      await deleteComplaint(complaintToDelete.id);
+      console.log("✅ Complaint deleted successfully");
+      
+      // Close dialog and refresh data
+      setDeleteDialogOpen(false);
+      setComplaintToDelete(null);
+      
+      // Reload complaints
+      await loadComplaints();
+    } catch (error) {
+      console.error("❌ Error deleting complaint:", error);
+      alert("Failed to delete complaint: " + error.message);
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const handleExport = async () => {
@@ -309,6 +352,8 @@ const TableView = () => {
               sortOrder={sortOrder}
               onSort={handleSort}
               onRowClick={handleRowClick}
+              onEdit={handleEditRow}
+              onDelete={handleDeleteRow}
               viewMode={viewMode}
               customView={selectedCustomView}
             />
@@ -345,6 +390,18 @@ const TableView = () => {
             )}
           </>
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <DeleteConfirmationDialog
+          open={deleteDialogOpen}
+          onClose={() => {
+            setDeleteDialogOpen(false);
+            setComplaintToDelete(null);
+          }}
+          onConfirm={handleConfirmDelete}
+          isLoading={deleteLoading}
+          complaint={complaintToDelete}
+        />
       </Box>
     </MainLayout>
   );

@@ -4,18 +4,16 @@ import { Box, Typography, Tabs, TabList, Tab, TabPanel, Alert } from "@mui/joy";
 import MainLayout from "../components/common/MainLayout";
 import DepartmentTable from "../components/settings/DepartmentTable";
 import AddDepartmentForm from "../components/settings/AddDepartmentForm";
-import DoctorTable from "../components/settings/DoctorTable";
-import AddDoctorForm from "../components/settings/AddDoctorForm";
 import DepartmentMappingToggle from "../components/settings/DepartmentMappingToggle";
 import SettingActions from "../components/settings/SettingActions";
 import VariableAttributes from "../components/settings/VariableAttributes";
 import PolicyConfiguration from "../components/settings/PolicyConfiguration";
+import Training from "../components/settings/Training";
 import api from "../services/api";
 
 const SettingPage = () => {
   // State Management
   const [departments, setDepartments] = useState([]);
-  const [doctors, setDoctors] = useState([]);
   const [viewMode, setViewMode] = useState("internal"); // "internal" or "external"
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -27,11 +25,6 @@ const SettingPage = () => {
     fetchDepartments();
   }, [viewMode]);
 
-  // Fetch doctors on mount
-  useEffect(() => {
-    fetchDoctors();
-  }, []);
-
   // Fetch departments from API
   const fetchDepartments = async () => {
     try {
@@ -42,21 +35,6 @@ const SettingPage = () => {
     } catch (err) {
       setError("Failed to fetch departments. Please try again.");
       console.error("Error fetching departments:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch doctors from API
-  const fetchDoctors = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await api.getDoctors();
-      setDoctors(response.data || []);
-    } catch (err) {
-      setError("Failed to fetch doctors. Please try again.");
-      console.error("Error fetching doctors:", err);
     } finally {
       setLoading(false);
     }
@@ -113,60 +91,11 @@ const SettingPage = () => {
     }
   };
 
-  // Add new doctor
-  const handleAddDoctor = async (newDoctor) => {
-    try {
-      setError(null);
-      const response = await api.addDoctor(newDoctor);
-      setDoctors([...doctors, response.data]);
-      setSuccess("Doctor added successfully!");
-      setTimeout(() => setSuccess(null), 3000);
-      return true;
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to add doctor");
-      console.error("Error adding doctor:", err);
-      return false;
-    }
-  };
-
-  // Edit doctor
-  const handleEditDoctor = async (id, updatedData) => {
-    try {
-      setError(null);
-      const response = await api.updateDoctor(id, updatedData);
-      setDoctors(doctors.map((doc) => (doc.id === id ? response.data : doc)));
-      setSuccess("Doctor updated successfully!");
-      setTimeout(() => setSuccess(null), 3000);
-      return true;
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to update doctor");
-      console.error("Error updating doctor:", err);
-      return false;
-    }
-  };
-
-  // Delete doctor
-  const handleDeleteDoctor = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this doctor?")) {
-      return;
-    }
-    try {
-      setError(null);
-      await api.deleteDoctor(id);
-      setDoctors(doctors.filter((doc) => doc.id !== id));
-      setSuccess("Doctor deleted successfully!");
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to delete doctor");
-      console.error("Error deleting doctor:", err);
-    }
-  };
-
   // Save configuration
   const handleSaveConfiguration = async () => {
     try {
       setError(null);
-      await api.saveConfiguration({ departments, doctors });
+      await api.saveConfiguration({ departments });
       setSuccess("Configuration saved successfully!");
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
@@ -178,12 +107,11 @@ const SettingPage = () => {
   // Refresh data
   const handleRefresh = () => {
     fetchDepartments();
-    fetchDoctors();
   };
 
   // Export configuration
   const handleExport = (format) => {
-    const data = { departments, doctors, viewMode };
+    const data = { departments, viewMode };
     if (format === "json") {
       const blob = new Blob([JSON.stringify(data, null, 2)], {
         type: "application/json",
@@ -230,7 +158,7 @@ const SettingPage = () => {
             ⚙️ Settings
           </Typography>
           <Typography level="body-md" sx={{ color: "#666" }}>
-            Manage departments, doctors, and system configuration
+            Manage departments and system configuration
           </Typography>
         </Box>
 
@@ -258,7 +186,6 @@ const SettingPage = () => {
       <Box sx={{ mb: 3 }}>
         <SettingActions
           departments={departments}
-          doctors={doctors}
           onSave={handleSaveConfiguration}
           onRefresh={handleRefresh}
           onExport={handleExport}
@@ -269,9 +196,9 @@ const SettingPage = () => {
       <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
         <TabList>
           <Tab>🏥 Departments</Tab>
-          <Tab>👨‍⚕️ Doctors</Tab>
           <Tab>⚙️ Variable Attributes</Tab>
           <Tab>📋 Policy Configuration</Tab>
+          <Tab>🚦 Training</Tab>
         </TabList>
 
         {/* Department Management Tab */}
@@ -294,34 +221,19 @@ const SettingPage = () => {
           </Box>
         </TabPanel>
 
-        {/* Doctor Management Tab */}
-        <TabPanel value={1} sx={{ p: 3 }}>
-          <Box sx={{ display: "grid", gap: 3 }}>
-            {/* Add Doctor Form */}
-            <AddDoctorForm
-              onAdd={handleAddDoctor}
-              departments={departments}
-            />
-
-            {/* Doctor Table */}
-            <DoctorTable
-              doctors={doctors}
-              departments={departments}
-              onEdit={handleEditDoctor}
-              onDelete={handleDeleteDoctor}
-              loading={loading}
-            />
-          </Box>
-        </TabPanel>
-
         {/* Variable Attributes Tab */}
-        <TabPanel value={2} sx={{ p: 3 }}>
+        <TabPanel value={1} sx={{ p: 3 }}>
           <VariableAttributes />
         </TabPanel>
 
         {/* Policy Configuration Tab */}
-        <TabPanel value={3} sx={{ p: 3 }}>
+        <TabPanel value={2} sx={{ p: 3 }}>
           <PolicyConfiguration />
+        </TabPanel>
+
+        {/* Training Tab */}
+        <TabPanel value={3} sx={{ p: 3 }}>
+          <Training />
         </TabPanel>
       </Tabs>
       </Box>

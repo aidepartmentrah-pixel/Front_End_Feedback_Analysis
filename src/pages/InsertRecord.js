@@ -672,6 +672,8 @@ const InsertRecord = () => {
                 if (classifications.severity_id) foundFields.push(`Severity: ${classifications.severity_id}`);
                 if (classifications.stage_id) foundFields.push(`Stage: ${classifications.stage_id}`);
                 if (classifications.harm_level_id) foundFields.push(`Harm: ${classifications.harm_level_id}`);
+                if (classifications.feedback_intent_type_id) foundFields.push(`Feedback: ${classifications.feedback_intent_type_id}`);
+                if (classifications.clinical_risk_type_id) foundFields.push(`Clinical Risk: ${classifications.clinical_risk_type_id}`);
                 
                 if (foundFields.length > 0) {
                   setSuccess(`Classifications: ${foundFields.join(', ')}`);
@@ -693,6 +695,8 @@ const InsertRecord = () => {
                     debug.push("Setting severity_id: " + Number(classifications.severity_id));
                     debug.push("Setting stage_id: " + Number(classifications.stage_id));
                     debug.push("Setting harm_id: " + Number(classifications.harm_level_id));
+                    debug.push("Setting feedback_intent_type_id: " + Number(classifications.feedback_intent_type_id));
+                    debug.push("Setting clinical_risk_type_id: " + Number(classifications.clinical_risk_type_id));
                     
                     // Flush domain and load categories
                     flushSync(() => {
@@ -720,6 +724,8 @@ const InsertRecord = () => {
                         severity_id: Number(classifications.severity_id),
                         stage_id: Number(classifications.stage_id),
                         harm_id: Number(classifications.harm_level_id),
+                        feedback_intent_type_id: Number(classifications.feedback_intent_type_id),
+                        clinical_risk_type_id: Number(classifications.clinical_risk_type_id),
                       }));
                     });
                     

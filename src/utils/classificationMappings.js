@@ -156,6 +156,8 @@ export const normalizeClassifications = (classificationResponse) => {
     severity_id: null,
     stage_id: null,
     harm_level_id: null,
+    feedback_intent_type_id: null,
+    clinical_risk_type_id: null,
   };
 
   // Use API IDs if available, otherwise map from text labels
@@ -197,6 +199,16 @@ export const normalizeClassifications = (classificationResponse) => {
     result.harm_level_id = Number(classificationResponse.harm_level_id);
   } else if (classificationResponse.harm_level) {
     result.harm_level_id = REVERSE_HARM_MAP[classificationResponse.harm_level];
+  }
+
+  // Map feedback_type to feedback_intent_type_id
+  if (classificationResponse.feedback_type_id) {
+    result.feedback_intent_type_id = Number(classificationResponse.feedback_type_id);
+  }
+
+  // Map improvement_opportunity_type to clinical_risk_type_id
+  if (classificationResponse.improvement_opportunity_type_id) {
+    result.clinical_risk_type_id = Number(classificationResponse.improvement_opportunity_type_id);
   }
 
   return result;

@@ -3,6 +3,8 @@ import React from "react";
 import { Box, Table, Chip, IconButton } from "@mui/joy";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 // Domain colors - Subtle backgrounds, functional not decorative
 const getDomainColor = (domain) => {
@@ -69,7 +71,7 @@ const getStatusColor = (status) => {
   return "neutral";
 };
 
-const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode, customView }) => {
+const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode, customView, onEdit, onDelete }) => {
   const renderSortIcon = (column) => {
     if (sortBy !== column) return null;
     return sortOrder === "asc" ? (
@@ -166,6 +168,9 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
   } else {
     columns = viewMode === "complete" ? completeViewColumns : simplifiedViewColumns;
   }
+  
+  // Add Actions column at the end
+  columns = [...columns, { key: "actions", label: "Actions", sortable: false }];
 
   return (
     <Box
@@ -229,11 +234,49 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
         </thead>
         <tbody>
           {complaints.map((complaint) => (
-            <tr key={complaint.id} onClick={() => onRowClick(complaint.id)}>
+            <tr key={complaint.id}>
               {columns.map((col) => (
                 <td key={col.key}>
-                  {col.key === "complaint_number" ? (
-                    <Box sx={{ fontWeight: 600, color: "#0f172a", fontSize: "0.9375rem" }}>
+                  {col.key === "actions" ? (
+                    <Box sx={{ display: "flex", gap: 1, justifyContent: "center" }}>
+                      <IconButton
+                        size="sm"
+                        variant="plain"
+                        color="primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onEdit) onEdit(complaint.id);
+                        }}
+                        sx={{ fontSize: 18 }}
+                        title="Edit complaint"
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        size="sm"
+                        variant="plain"
+                        color="danger"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onDelete) onDelete(complaint.id, complaint);
+                        }}
+                        sx={{ fontSize: 18 }}
+                        title="Delete complaint"
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
+                  ) : col.key === "complaint_number" ? (
+                    <Box 
+                      sx={{ 
+                        fontWeight: 600, 
+                        color: "#0f172a", 
+                        fontSize: "0.9375rem",
+                        cursor: "pointer",
+                        "&:hover": { textDecoration: "underline" }
+                      }}
+                      onClick={() => onRowClick(complaint.id)}
+                    >
                       {complaint[col.key]}
                     </Box>
                   ) : col.key === "domain_name" ? (
@@ -360,12 +403,14 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
                     >
                       {complaint[col.key] || "-"}
                     </Chip>
-                  ) : col.key === "received_date" ? (
+                  ) : col.key === "received_date" || col.key === "created_at" ? (
                     <Box sx={{ fontSize: "0.8125rem", color: "#6b7280" }}>
                       {new Date(complaint[col.key]).toLocaleDateString("en-US", {
                         year: "numeric",
                         month: "short",
                         day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
                       })}
                     </Box>
                   ) : (

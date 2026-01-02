@@ -5,7 +5,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import DownloadIcon from "@mui/icons-material/Download";
 
-const SettingActions = ({ departments, doctors, onSave, onRefresh, onExport }) => {
+const SettingActions = ({ departments, onSave, onRefresh, onExport }) => {
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -106,18 +106,6 @@ const SettingActions = ({ departments, doctors, onSave, onRefresh, onExport }) =
             {departments.length}
           </Box>
           <Box sx={{ fontSize: "11px", color: "#666" }}>Departments</Box>
-        </Box>
-        <Box sx={{ textAlign: "center" }}>
-          <Box
-            sx={{
-              fontSize: "20px",
-              fontWeight: 800,
-              color: "#667eea",
-            }}
-          >
-            {doctors.length}
-          </Box>
-          <Box sx={{ fontSize: "11px", color: "#666" }}>Doctors</Box>
         </Box>
       </Box>
     </Box>

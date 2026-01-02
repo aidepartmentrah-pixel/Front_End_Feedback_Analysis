@@ -243,3 +243,33 @@ export async function fetchTableViews() {
     throw error;
   }
 }
+
+/**
+ * Delete a complaint by ID
+ * @param {number} complaintId - The ID of the complaint to delete
+ * @returns {Promise<Object>} Success response
+ */
+export async function deleteComplaint(complaintId) {
+  console.log("🗑️ Deleting complaint:", complaintId);
+  const url = `${BASE_URL}/${complaintId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to delete complaint: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("✅ Complaint deleted successfully");
+    return data;
+  } catch (error) {
+    console.error("❌ Error deleting complaint:", error);
+    throw error;
+  }
+}
