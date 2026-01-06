@@ -188,17 +188,23 @@ const TableView = () => {
     setDeleteLoading(true);
     try {
       console.log("🗑️ Deleting complaint:", complaintToDelete.id);
-      await deleteComplaint(complaintToDelete.id);
-      console.log("✅ Complaint deleted successfully");
+      const result = await deleteComplaint(complaintToDelete.id);
+      console.log("✅ Complaint deleted successfully:", result);
       
       // Close dialog and refresh data
       setDeleteDialogOpen(false);
       setComplaintToDelete(null);
       
       // Reload complaints
+      console.log("🔄 Reloading complaints after deletion...");
       await loadComplaints();
+      console.log("✅ Complaints reloaded");
+      
+      // Show success message
+      alert("Record deleted successfully");
     } catch (error) {
       console.error("❌ Error deleting complaint:", error);
+      console.error("❌ Error stack:", error.stack);
       alert("Failed to delete complaint: " + error.message);
     } finally {
       setDeleteLoading(false);

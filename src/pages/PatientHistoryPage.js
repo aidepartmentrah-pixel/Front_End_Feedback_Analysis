@@ -5,8 +5,15 @@ import MainLayout from "../components/common/MainLayout";
 import SearchPatient from "../components/patientHistory/SearchPatient";
 import PatientInfoCard from "../components/patientHistory/PatientInfoCard";
 import PatientFeedbackTable from "../components/patientHistory/PatientFeedbackTable";
-// import PatientHistoryCharts from "../components/patientHistory/PatientHistoryCharts"; // Removed - charts not needed
 import PatientActions from "../components/patientHistory/PatientActions";
+
+// API imports
+import {
+  searchPatients,
+  getPatientFullHistory,
+  downloadCSV,
+  downloadJSON,
+} from "../api/patientHistory";
 
 // Mock data for initial display
 const mockPatient = {
@@ -106,48 +113,51 @@ const mockFeedbacks = [
 // const mockChartsData = { ... };
 
 const PatientHistoryPage = ({ embedded = false }) => {
-  const [selectedPatient, setSelectedPatient] = useState(mockPatient);
-  const [feedbackList, setFeedbackList] = useState(mockFeedbacks);
-  // const [chartsData, setChartsData] = useState(mockChartsData); // Removed - charts not needed
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [patientProfile, setPatientProfile] = useState(null);
+  const [feedbackList, setFeedbackList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  // Fetch patient data (simulate API call)
+  // Fetch patient full history (profile + incidents)
   const fetchPatientData = async (patientId) => {
     try {
       setLoading(true);
       setError(null);
 
-      // Simulate API calls
-      // const patient = await api.getPatient(patientId);
-      // const feedbacks = await api.getPatientFeedbacks(patientId);
-      // Note: Removed chart metrics API call - not needed
-
-      // Using mock data for now
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      setSelectedPatient(mockPatient);
-      setFeedbackList(mockFeedbacks);
-      // Removed: setChartsData(mockChartsData);
+      // Use full-history endpoint for efficiency
+      const data = await getPatientFullHistory(patientId);
+      
+      // Extract profile and incidents
+      const profile = data.profile || data;
+      const incidents = data.incidents?.incidents || data.incidents || [];
+      
+      setPatientProfile(profile);
+      setFeedbackList(incidents);
+      
+      console.log("Patient data loaded successfully");
     } catch (err) {
-      setError("Failed to load patient data. Please try again.");
+      setError(err.message || "Failed to load patient data. Please try again.");
       console.error("Error fetching patient data:", err);
+      setPatientProfile(null);
+      setFeedbackList([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle patient selection
+  // Handle patient selection from search
   const handleSelectPatient = (patient) => {
+    // Patient object from search contains: patient_id, mrn, full_name, etc.
     setSelectedPatient(patient);
-    fetchPatientData(patient.id);
+    fetchPatientData(patient.patient_id);
   };
 
   // Handle refresh
   const handleRefresh = () => {
     if (selectedPatient) {
-      fetchPatientData(selectedPatient.id);
+      fetchPatientData(selectedPatient.patient_id);
       setSuccess("Patient data refreshed successfully!");
       setTimeout(() => setSuccess(null), 3000);
     }
@@ -157,51 +167,23 @@ const PatientHistoryPage = ({ embedded = false }) => {
   const handleExport = (format) => {
     if (!selectedPatient) return;
 
-    if (format === "csv") {
-      const csv = [
-        ["Date", "Department", "Category", "Severity", "Doctor", "Status", "Description"],
-        ...feedbackList.map((fb) => [
-          fb.date,
-          fb.department,
-          fb.category,
-          fb.severity,
-          fb.doctorName,
-          fb.status,
-          fb.description,
-        ]),
-      ]
-        .map((row) => row.join(","))
-        .join("\n");
+    try {
+      if (format === "csv") {
+        downloadCSV(selectedPatient.patient_id, selectedPatient.full_name || "patient");
+      } else if (format === "json") {
+        downloadJSON(selectedPatient.patient_id, selectedPatient.full_name || "patient");
+      }
 
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `patient_${selectedPatient.id}_history.csv`;
-      link.click();
-    } else if (format === "json") {
-      const data = {
-        patient: selectedPatient,
-        feedbacks: feedbackList,
-        // Removed: charts: chartsData
-      };
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `patient_${selectedPatient.id}_history.json`;
-      link.click();
+      setSuccess(`Patient history exported as ${format.toUpperCase()}!`);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(`Failed to export as ${format.toUpperCase()}: ${err.message}`);
     }
-
-    setSuccess(`Patient history exported as ${format.toUpperCase()}!`);
-    setTimeout(() => setSuccess(null), 3000);
   };
 
-  // Load initial data on mount
+  // Load initial data on mount - no default patient
   useEffect(() => {
-    fetchPatientData(mockPatient.id);
+    // Don't load any data initially - wait for user to search
   }, []);
 
   const content = (
@@ -234,17 +216,17 @@ const PatientHistoryPage = ({ embedded = false }) => {
           >
             <CircularProgress size="lg" />
           </Box>
-        ) : selectedPatient ? (
+        ) : selectedPatient && patientProfile ? (
           <>
             {/* Patient Info Card */}
             <Box sx={{ mb: 3 }}>
-              <PatientInfoCard patient={selectedPatient} />
+              <PatientInfoCard patient={patientProfile} />
             </Box>
 
             {/* Actions Row */}
             <Box sx={{ mb: 3 }}>
               <PatientActions
-                patient={selectedPatient}
+                patient={patientProfile}
                 onRefresh={handleRefresh}
                 onExport={handleExport}
               />
@@ -254,11 +236,6 @@ const PatientHistoryPage = ({ embedded = false }) => {
             <Box sx={{ mb: 3 }}>
               <PatientFeedbackTable feedbacks={feedbackList} />
             </Box>
-
-            {/* Charts - Removed to focus on factual patient history only */}
-            {/* <Box sx={{ mb: 3 }}>
-              <PatientHistoryCharts data={chartsData} />
-            </Box> */}
           </>
         ) : (
           <Box

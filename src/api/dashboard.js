@@ -100,5 +100,15 @@ export async function fetchDashboardStats({
 
   const data = await res.json();
   console.log("📦 Parsed stats data:", data);
+  console.log("📦 Stats data structure:", JSON.stringify(data, null, 2));
+  
+  // Check actual structure
+  if (data && typeof data === 'object') {
+    console.log("🔍 Top-level keys:", Object.keys(data));
+    if (data.data) console.log("🔍 data.data keys:", Object.keys(data.data));
+    if (data.metrics) console.log("🔍 metrics keys:", Object.keys(data.metrics));
+    if (data.stats) console.log("🔍 stats keys:", Object.keys(data.stats));
+  }
+  
   return data;
 }

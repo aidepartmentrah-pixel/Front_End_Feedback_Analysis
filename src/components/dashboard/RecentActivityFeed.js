@@ -2,9 +2,34 @@ import React from "react";
 import { Card, Typography, Box, Table, Chip, Sheet } from "@mui/joy";
 import { AccessTime, Warning, CheckCircle, Error } from "@mui/icons-material";
 
-const RecentActivityFeed = ({ incidents = [] }) => {
+const RecentActivityFeed = ({ recentActivity = [], incidents = [] }) => {
+  // Support both new API structure (recentActivity) and old structure (incidents)
+  const activityList = recentActivity.length > 0 ? recentActivity : incidents;
+
+  // Map numeric severity (from API) to string
+  const mapSeverity = (severity) => {
+    if (typeof severity === 'string') return severity;
+    switch (severity) {
+      case 1: return "low";
+      case 2: return "medium";
+      case 3: return "high";
+      default: return "Unknown";
+    }
+  };
+
+  // Map numeric status (from API) to string
+  const mapStatus = (status) => {
+    if (typeof status === 'string') return status;
+    switch (status) {
+      case 1: return "open";
+      case 2: return "pending";
+      case 3: return "closed";
+      default: return "Unknown";
+    }
+  };
+
   const getSeverityColor = (severity) => {
-    const severityStr = typeof severity === 'string' ? severity.toLowerCase() : '';
+    const severityStr = mapSeverity(severity).toLowerCase();
     switch (severityStr) {
       case "high":
         return "#ff4757";
@@ -18,7 +43,7 @@ const RecentActivityFeed = ({ incidents = [] }) => {
   };
 
   const getStatusIcon = (status) => {
-    const statusStr = typeof status === 'string' ? status.toLowerCase() : '';
+    const statusStr = mapStatus(status).toLowerCase();
     switch (statusStr) {
       case "closed":
         return <CheckCircle sx={{ fontSize: 16 }} />;
@@ -32,7 +57,7 @@ const RecentActivityFeed = ({ incidents = [] }) => {
   };
 
   const getStatusColor = (status) => {
-    const statusStr = typeof status === 'string' ? status.toLowerCase() : '';
+    const statusStr = mapStatus(status).toLowerCase();
     switch (statusStr) {
       case "closed":
         return "#2ed573";
@@ -118,13 +143,13 @@ const RecentActivityFeed = ({ incidents = [] }) => {
           <thead>
             <tr>
               <th style={{ width: "15%" }}>Time</th>
-              <th style={{ width: "45%" }}>Description</th>
+              <th style={{ width: "45%" }}>Case ID / Description</th>
               <th style={{ width: "20%", textAlign: "center" }}>Severity</th>
               <th style={{ width: "20%", textAlign: "center" }}>Status</th>
             </tr>
           </thead>
           <tbody>
-            {incidents.length === 0 ? (
+            {activityList.length === 0 ? (
               <tr>
                 <td colSpan={4} style={{ textAlign: "center", padding: "40px" }}>
                   <Typography level="body-sm" sx={{ color: "#999" }}>
@@ -133,62 +158,71 @@ const RecentActivityFeed = ({ incidents = [] }) => {
                 </td>
               </tr>
             ) : (
-              incidents.map((incident, index) => (
-                <tr key={index}>
-                  <td>
-                    <Typography
-                      level="body-xs"
-                      sx={{ color: "#667eea", fontWeight: 600 }}
-                    >
-                      {formatTime(incident.timestamp)}
-                    </Typography>
-                  </td>
-                  <td>
-                    <Typography
-                      level="body-sm"
-                      sx={{
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        maxWidth: "350px",
-                      }}
-                    >
-                      {incident.description}
-                    </Typography>
-                  </td>
-                  <td style={{ textAlign: "center" }}>
-                    <Chip
-                      size="sm"
-                      variant="soft"
-                      sx={{
-                        bgcolor: `${getSeverityColor(incident.severity)}15`,
-                        color: getSeverityColor(incident.severity),
-                        fontWeight: 600,
-                        fontSize: "11px",
-                        border: `1px solid ${getSeverityColor(incident.severity)}30`,
-                      }}
-                    >
-                      {incident.severity || 'Unknown'}
-                    </Chip>
-                  </td>
-                  <td style={{ textAlign: "center" }}>
-                    <Chip
-                      size="sm"
-                      variant="soft"
-                      startDecorator={getStatusIcon(incident.status)}
-                      sx={{
-                        bgcolor: `${getStatusColor(incident.status)}15`,
-                        color: getStatusColor(incident.status),
-                        fontWeight: 600,
-                        fontSize: "11px",
-                        border: `1px solid ${getStatusColor(incident.status)}30`,
-                      }}
-                    >
-                      {incident.status || 'Unknown'}
-                    </Chip>
-                  </td>
-                </tr>
-              ))
+              activityList.map((activity, index) => {
+                // Handle both old structure (incident) and new structure (recentActivity)
+                const caseId = activity.caseID || activity.id || "N/A";
+                const timestamp = activity.date || activity.timestamp || new Date();
+                const status = mapStatus(activity.status || "Unknown");
+                const severity = mapSeverity(activity.severity || "Unknown");
+                const description = activity.description || `Case: ${caseId}`;
+
+                return (
+                  <tr key={index}>
+                    <td>
+                      <Typography
+                        level="body-xs"
+                        sx={{ color: "#667eea", fontWeight: 600 }}
+                      >
+                        {formatTime(timestamp)}
+                      </Typography>
+                    </td>
+                    <td>
+                      <Typography
+                        level="body-sm"
+                        sx={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          maxWidth: "350px",
+                        }}
+                      >
+                        {caseId !== "N/A" && caseId !== description ? `${caseId} - ${description}` : description}
+                      </Typography>
+                    </td>
+                    <td style={{ textAlign: "center" }}>
+                      <Chip
+                        size="sm"
+                        variant="soft"
+                        sx={{
+                          bgcolor: `${getSeverityColor(severity)}15`,
+                          color: getSeverityColor(severity),
+                          fontWeight: 600,
+                          fontSize: "11px",
+                          border: `1px solid ${getSeverityColor(severity)}30`,
+                        }}
+                      >
+                        {severity || 'Unknown'}
+                      </Chip>
+                    </td>
+                    <td style={{ textAlign: "center" }}>
+                      <Chip
+                        size="sm"
+                        variant="soft"
+                        startDecorator={getStatusIcon(status)}
+                        sx={{
+                          bgcolor: `${getStatusColor(status)}15`,
+                          color: getStatusColor(status),
+                          fontWeight: 600,
+                          fontSize: "11px",
+                          border: `1px solid ${getStatusColor(status)}30`,
+                        }}
+                      >
+                        {status || 'Unknown'}
+                      </Chip>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </Table>

@@ -44,11 +44,15 @@ const InsertRecord = () => {
     in_out: null, // IN or OUT
     building: null, // RAH or BIC
     worker_type: null, // Doctor, Clerk, Nurse, etc.
+    explanation_status_id: null, // NEW field
 
     // Step 3: NER Outputs
-    patient_admission_id: null, // Single patient ID
-    doctor_ids: [], // Multiple doctor IDs
-    employee_ids: [], // Multiple employee IDs
+    patient_name: "", // Patient name from NER
+    patient_admission_id: null, // Single patient ID (OPTIONAL)
+    doctor_ids: [], // Multiple doctor IDs (OPTIONAL)
+    doctor_names: [], // Doctor names for payload
+    employee_ids: [], // Multiple employee IDs (OPTIONAL)
+    employee_names: [], // Employee names for payload
 
     // Step 4: Classification (Domain first!)
     domain_id: null,
@@ -62,6 +66,10 @@ const InsertRecord = () => {
     harm_id: null,
     feedback_intent_type_id: null,
     clinical_risk_type_id: null,
+
+    // ⭐ NEW ML Training fields
+    classification_ar: null, // 0.0-10.0
+    classification_en: null, // >= 0
   });
 
   // State for reference data
@@ -105,6 +113,8 @@ const InsertRecord = () => {
       console.log("Sources count:", data?.sources?.length);
       console.log("Departments count:", data?.departments?.length);
       console.log("Worker types count:", data?.worker_types?.length);
+      console.log("❌ Feedback Intent Types:", data?.feedback_intent_types);
+      console.log("❌ Clinical Risk Types:", data?.clinical_risk_types);
       console.log("Worker types data:", data?.worker_types);
       setReferenceData(data);
       
@@ -311,114 +321,169 @@ const InsertRecord = () => {
       setError(null);
       setErrorField(null);
 
-      // Validate required fields
+      // Validate ALL 12 REQUIRED fields per new endpoint spec
       if (!formData.complaint_text || formData.complaint_text.trim().length === 0) {
-        setError("Complaint text is required");
+        setError("Complaint text is required (min 1 char)");
         setErrorField("complaint_text");
         setSubmitLoading(false);
         return;
       }
 
       if (!formData.feedback_received_date) {
-        setError("Feedback received date is required");
+        setError("Feedback received date is required (YYYY-MM-DD format)");
         setErrorField("feedback_received_date");
         setSubmitLoading(false);
         return;
       }
 
-      if (!formData.domain_id) {
-        setError("Domain is required");
+      if (!formData.issuing_department_id || formData.issuing_department_id <= 0) {
+        setError("Issuing department is required (must be > 0)");
+        setErrorField("issuing_department_id");
+        setSubmitLoading(false);
+        return;
+      }
+
+      if (!formData.domain_id || formData.domain_id <= 0) {
+        setError("Domain is required (must be > 0)");
         setErrorField("domain_id");
         setSubmitLoading(false);
         return;
       }
 
-      if (!formData.category_id) {
-        setError("Category is required");
+      if (!formData.category_id || formData.category_id <= 0) {
+        setError("Category is required (must be > 0)");
         setErrorField("category_id");
         setSubmitLoading(false);
         return;
       }
 
-      if (!formData.patient_admission_id) {
-        setError("Patient selection is required");
-        setErrorField("patient_admission_id");
+      if (!formData.subcategory_id || formData.subcategory_id <= 0) {
+        setError("Subcategory is required (must be > 0)");
+        setErrorField("subcategory_id");
         setSubmitLoading(false);
         return;
       }
 
-      if (!formData.doctor_ids || formData.doctor_ids.length === 0) {
-        setError("At least one doctor is required");
-        setErrorField("doctor_ids");
+      if (!formData.classification_id || formData.classification_id <= 0) {
+        setError("Classification is required (must be > 0)");
+        setErrorField("classification_id");
         setSubmitLoading(false);
         return;
       }
 
-      if (!formData.severity_id) {
-        setError("Severity is required");
+      if (!formData.severity_id || formData.severity_id <= 0) {
+        setError("Severity is required (must be > 0)");
         setErrorField("severity_id");
         setSubmitLoading(false);
         return;
       }
 
-      // Prepare payload with numeric IDs (only include non-null values)
+      if (!formData.stage_id || formData.stage_id <= 0) {
+        setError("Stage is required (must be > 0)");
+        setErrorField("stage_id");
+        setSubmitLoading(false);
+        return;
+      }
+
+      if (!formData.harm_id || formData.harm_id <= 0) {
+        setError("Harm is required (must be > 0)");
+        setErrorField("harm_id");
+        setSubmitLoading(false);
+        return;
+      }
+
+      if (!formData.clinical_risk_type_id || ![1, 2, 3].includes(Number(formData.clinical_risk_type_id))) {
+        setError("Clinical risk type is required (must be 1, 2, or 3)");
+        setErrorField("clinical_risk_type_id");
+        setSubmitLoading(false);
+        return;
+      }
+
+      if (!formData.feedback_intent_type_id || formData.feedback_intent_type_id <= 0) {
+        setError("Feedback intent type is required (must be > 0)");
+        setErrorField("feedback_intent_type_id");
+        setSubmitLoading(false);
+        return;
+      }
+
+      // ✅ BUILD PAYLOAD per new endpoint spec - ALL 12 REQUIRED FIELDS
       const payload = {
+        // REQUIRED FIELDS (all 12 must be present)
         complaint_text: formData.complaint_text,
         feedback_received_date: formData.feedback_received_date,
-        domain_id: formData.domain_id,
-        category_id: formData.category_id,
-        severity_id: formData.severity_id,
+        issuing_department_id: Number(formData.issuing_department_id),
+        domain_id: Number(formData.domain_id),
+        category_id: Number(formData.category_id),
+        subcategory_id: Number(formData.subcategory_id),
+        classification_id: Number(formData.classification_id),
+        severity_id: Number(formData.severity_id),
+        stage_id: Number(formData.stage_id),
+        harm_id: Number(formData.harm_id),
+        clinical_risk_type_id: Number(formData.clinical_risk_type_id),
+        feedback_intent_type_id: Number(formData.feedback_intent_type_id),
       };
 
-      // Add optional fields if they exist
+      // OPTIONAL FIELDS
+      // Text content
       if (formData.immediate_action) payload.immediate_action = formData.immediate_action;
       if (formData.taken_action) payload.taken_action = formData.taken_action;
-      if (formData.issuing_department_id) payload.issuing_department_id = formData.issuing_department_id;
-      if (formData.target_department_ids && formData.target_department_ids.length > 0) {
-        payload.target_department_ids = formData.target_department_ids;
-      }
-      if (formData.source_id) payload.source_id = formData.source_id;
+
+      // Patient/Entity information
+      if (formData.patient_name) payload.patient_name = formData.patient_name;
       
-      // Convert in_out to is_inpatient (IN = true, OUT = false)
-      if (formData.in_out) {
+      // Map doctors - keep as array of objects with doctor_id and doctor_name
+      if (formData.doctor_ids && formData.doctor_ids.length > 0) {
+        payload.doctors = formData.doctor_ids.map((doctorId, index) => ({
+          doctor_id: Number(doctorId),
+          doctor_name: formData.doctor_names?.[index] || "",
+        }));
+      }
+      
+      // Map employees - keep as array of objects with employee_id and employee_name
+      if (formData.employee_ids && formData.employee_ids.length > 0) {
+        payload.employees = formData.employee_ids.map((employeeId, index) => ({
+          employee_id: Number(employeeId),
+          employee_name: formData.employee_names?.[index] || "",
+        }));
+      }
+
+      // OPTIONAL: Department targets & metadata
+      if (formData.target_department_ids && formData.target_department_ids.length > 0) {
+        payload.target_department_ids = formData.target_department_ids.map(id => Number(id));
+      }
+      if (formData.source_id && formData.source_id > 0) payload.source_id = Number(formData.source_id);
+      
+      // Map building to building_id (OPTIONAL)
+      if (formData.building) {
+        const buildingIdMap = { "RAH": 1, "BIC": 2 };
+        payload.building_id = buildingIdMap[formData.building] || 1;
+      }
+      
+      // Convert in_out to is_inpatient (OPTIONAL, default: true)
+      if (formData.in_out !== null && formData.in_out !== undefined) {
         payload.is_inpatient = formData.in_out === "IN";
       }
       
-      // Map building to buildingId and buildingCode
-      if (formData.building) {
-        payload.buildingCode = formData.building; // Store the code (RAH/BIC)
-        // Map building codes to IDs (you may need to adjust this mapping)
-        const buildingIdMap = {
-          "RAH": 1,
-          "BIC": 2
-        };
-        payload.buildingId = buildingIdMap[formData.building] || 1;
+      // OPTIONAL: Additional metadata
+      if (formData.explanation_status_id && formData.explanation_status_id > 0) {
+        payload.explanation_status_id = Number(formData.explanation_status_id);
+      }
+
+      // ⭐ ML Training fields (OPTIONAL)
+      if (formData.classification_ar !== null && formData.classification_ar !== undefined) {
+        payload.classification_ar = parseFloat(formData.classification_ar);
+      }
+      if (formData.classification_en !== null && formData.classification_en !== undefined) {
+        payload.classification_en = Number(formData.classification_en);
       }
       
-      if (formData.worker_type) payload.worker_type = formData.worker_type;
-      
-      // Map patient info
-      if (formData.patient_name) payload.patientName = formData.patient_name;
-      
-      // Map doctors array - REQUIRED (at least one doctor)
-      if (formData.doctor_ids && formData.doctor_ids.length > 0) {
-        payload.doctors = formData.doctor_ids.map(id => ({ id }));
-      } else {
-        payload.doctors = [];
+      // OPTIONAL: Feedback type and improvement type fields if provided
+      if (formData.feedback_type && formData.feedback_type > 0) {
+        payload.feedback_type = Number(formData.feedback_type);
       }
-      
-      // Map employees array - format as objects if needed
-      if (formData.employee_ids && formData.employee_ids.length > 0) {
-        payload.employees = formData.employee_ids.map(id => ({ id }));
-      } else {
-        payload.employees = [];
+      if (formData.improvement_opportunity_type && formData.improvement_opportunity_type > 0) {
+        payload.improvement_opportunity_type = Number(formData.improvement_opportunity_type);
       }
-      if (formData.subcategory_id) payload.subcategory_id = formData.subcategory_id;
-      if (formData.classification_id) payload.classification_id = formData.classification_id;
-      if (formData.stage_id) payload.stage_id = formData.stage_id;
-      if (formData.harm_id) payload.harm_id = formData.harm_id;
-      if (formData.feedback_intent_type_id) payload.feedback_intent_type_id = formData.feedback_intent_type_id;
-      if (formData.clinical_risk_type_id) payload.clinical_risk_type_id = formData.clinical_risk_type_id;
 
       // Submit to backend
       const response = await submitRecord(payload);
@@ -445,8 +510,13 @@ const InsertRecord = () => {
           in_out: null,
           building: null,
           worker_type: null,
+          explanation_status_id: null,
           patient_name: "",
-          doctor_name: "",
+          patient_admission_id: null,
+          doctor_ids: [],
+          doctor_names: [],
+          employee_ids: [],
+          employee_names: [],
           domain_id: null,
           category_id: null,
           subcategory_id: null,
@@ -456,6 +526,8 @@ const InsertRecord = () => {
           harm_id: null,
           feedback_intent_type_id: null,
           clinical_risk_type_id: null,
+          classification_ar: null,
+          classification_en: null,
         });
         setSuccess(null);
         // Reset cascading dropdowns
@@ -652,26 +724,30 @@ const InsertRecord = () => {
               // Classification
               console.log("Calling classifyText with text:", formData.complaint_text);
               const classResp = await classifyText(formData.complaint_text);
-              console.log("Classification Response:", classResp);
+              console.log("Classification Response (RAW):", JSON.stringify(classResp, null, 2));
               
               if (classResp) {
                 console.log("Updating classification fields...");
                 
                 // Extract classifications from nested structure AND normalize text values to IDs
                 const classificationsRaw = classResp.classifications || classResp;
+                console.log("Classifications RAW - feedback_type_id:", classificationsRaw.feedback_type_id);
+                console.log("Classifications RAW - improvement_opportunity_type_id:", classificationsRaw.improvement_opportunity_type_id);
+                console.log("All response keys:", Object.keys(classificationsRaw || {}));
                 const classifications = normalizeClassifications(classificationsRaw);
                 
-                console.log("Normalized classifications:", classifications);
+                console.log("🔴 After normalization - feedback_intent_type_id:", classifications.feedback_intent_type_id);
+                console.log("🔴 After normalization - clinical_risk_type_id:", classifications.clinical_risk_type_id);
                 
                 // Show what fields were found
                 const foundFields = [];
                 if (classifications.domain_id) foundFields.push(`Domain: ${classifications.domain_id}`);
                 if (classifications.category_id) foundFields.push(`Category: ${classifications.category_id}`);
-                if (classifications.sub_category_id) foundFields.push(`Sub: ${classifications.sub_category_id}`);
+                if (classifications.subcategory_id) foundFields.push(`Sub: ${classifications.subcategory_id}`);
                 if (classifications.classification_id) foundFields.push(`Class: ${classifications.classification_id}`);
                 if (classifications.severity_id) foundFields.push(`Severity: ${classifications.severity_id}`);
                 if (classifications.stage_id) foundFields.push(`Stage: ${classifications.stage_id}`);
-                if (classifications.harm_level_id) foundFields.push(`Harm: ${classifications.harm_level_id}`);
+                if (classifications.harm_id) foundFields.push(`Harm: ${classifications.harm_id}`);
                 if (classifications.feedback_intent_type_id) foundFields.push(`Feedback: ${classifications.feedback_intent_type_id}`);
                 if (classifications.clinical_risk_type_id) foundFields.push(`Clinical Risk: ${classifications.clinical_risk_type_id}`);
                 
@@ -687,18 +763,18 @@ const InsertRecord = () => {
                   const debug = [];
                   
                   try {
-                    // Set ALL values at once, immediately
                     debug.push("Setting domain_id: " + Number(classifications.domain_id));
                     debug.push("Setting category_id: " + Number(classifications.category_id));
-                    debug.push("Setting subcategory_id: " + Number(classifications.sub_category_id));
+                    debug.push("Setting subcategory_id: " + Number(classifications.subcategory_id));
                     debug.push("Setting classification_id: " + Number(classifications.classification_id));
                     debug.push("Setting severity_id: " + Number(classifications.severity_id));
                     debug.push("Setting stage_id: " + Number(classifications.stage_id));
-                    debug.push("Setting harm_id: " + Number(classifications.harm_level_id));
+                    debug.push("Setting harm_id: " + Number(classifications.harm_id));
                     debug.push("Setting feedback_intent_type_id: " + Number(classifications.feedback_intent_type_id));
                     debug.push("Setting clinical_risk_type_id: " + Number(classifications.clinical_risk_type_id));
                     
-                    // Flush domain and load categories
+                    // STEP 1: Set domain and fetch categories
+                    debug.push("STEP 1: Setting domain_id");
                     flushSync(() => {
                       setFormData((prev) => ({
                         ...prev,
@@ -706,7 +782,6 @@ const InsertRecord = () => {
                       }));
                     });
                     
-                    // Immediately load categories
                     const catsData = await fetchCategories(classifications.domain_id);
                     const normalizedCats = catsData.map(c => ({ ...c, id: Number(c.id) }));
                     
@@ -714,22 +789,33 @@ const InsertRecord = () => {
                       setCategories(normalizedCats);
                     });
                     
-                    // Wait just a tiny bit, then set category
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                    // Wait for categories to render
+                    debug.push("Waiting 150ms for categories to render...");
+                    await new Promise(resolve => setTimeout(resolve, 150));
                     
+                    // STEP 2: Set category, severity, stage, harm, and feedback/clinical types
+                    debug.push("STEP 2: Setting category_id and other basic fields");
+                    console.log("🔍 About to set feedback_intent_type_id:", classifications.feedback_intent_type_id, "Type:", typeof classifications.feedback_intent_type_id);
+                    console.log("🔍 About to set clinical_risk_type_id:", classifications.clinical_risk_type_id, "Type:", typeof classifications.clinical_risk_type_id);
                     flushSync(() => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        category_id: Number(classifications.category_id),
-                        severity_id: Number(classifications.severity_id),
-                        stage_id: Number(classifications.stage_id),
-                        harm_id: Number(classifications.harm_level_id),
-                        feedback_intent_type_id: Number(classifications.feedback_intent_type_id),
-                        clinical_risk_type_id: Number(classifications.clinical_risk_type_id),
-                      }));
+                      setFormData((prev) => {
+                        const updated = {
+                          ...prev,
+                          category_id: Number(classifications.category_id),
+                          severity_id: Number(classifications.severity_id),
+                          stage_id: Number(classifications.stage_id),
+                          harm_id: Number(classifications.harm_id),
+                          feedback_intent_type_id: Number(classifications.feedback_intent_type_id),
+                          clinical_risk_type_id: Number(classifications.clinical_risk_type_id),
+                        };
+                        console.log("✅ After update - feedback_intent_type_id:", updated.feedback_intent_type_id);
+                        console.log("✅ After update - clinical_risk_type_id:", updated.clinical_risk_type_id);
+                        return updated;
+                      });
                     });
+                    console.log("✅ After setting - check formData state");
                     
-                    // Load subcategories
+                    // STEP 3: Fetch subcategories based on category
                     const subCatsData = await fetchSubcategories(classifications.category_id);
                     const normalizedSubCats = subCatsData.map(s => ({ ...s, id: Number(s.id) }));
                     
@@ -737,27 +823,33 @@ const InsertRecord = () => {
                       setSubcategories(normalizedSubCats);
                     });
                     
-                    // Wait tiny bit, set subcategory
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                    // Wait for subcategories to render
+                    debug.push("Waiting 150ms for subcategories to render...");
+                    await new Promise(resolve => setTimeout(resolve, 150));
                     
+                    // STEP 4: Set subcategory
+                    debug.push("STEP 4: Setting subcategory_id");
                     flushSync(() => {
                       setFormData((prev) => ({
                         ...prev,
-                        subcategory_id: Number(classifications.sub_category_id),
+                        subcategory_id: Number(classifications.subcategory_id),
                       }));
                     });
                     
-                    // Load classifications
-                    const classData = await fetchClassifications(classifications.sub_category_id);
+                    // STEP 5: Fetch classifications based on subcategory
+                    const classData = await fetchClassifications(classifications.subcategory_id);
                     const normalizedClass = classData.map(c => ({ ...c, id: Number(c.id) }));
                     
                     flushSync(() => {
                       setClassifications(normalizedClass);
                     });
                     
-                    // Wait tiny bit, set classification
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                    // Wait for classifications to render
+                    debug.push("Waiting 150ms for classifications to render...");
+                    await new Promise(resolve => setTimeout(resolve, 150));
                     
+                    // STEP 6: Set classification (final cascade)
+                    debug.push("STEP 6: Setting classification_id");
                     flushSync(() => {
                       setFormData((prev) => ({
                         ...prev,
@@ -765,7 +857,7 @@ const InsertRecord = () => {
                       }));
                     });
                     
-                    debug.push("All values flushed to DOM");
+                    debug.push("All cascading dropdowns populated successfully");
                     setExtractionDebug(debug);
                     
                   } finally {

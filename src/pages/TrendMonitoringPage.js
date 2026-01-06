@@ -1,54 +1,47 @@
 // src/pages/TrendMonitoringPage.js
 import React, { useState, useEffect } from "react";
-import { Box, Typography, Divider, Button, Card, CircularProgress } from "@mui/joy";
+import { Box, Typography, Divider, Button, Card, CircularProgress, Select, Option } from "@mui/joy";
 import { useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import MainLayout from "../components/common/MainLayout";
+import DomainTrendChart from "../components/trendMonitoring/DomainTrendChart";
 import DomainTrendTable from "../components/trendMonitoring/DomainTrendTable";
-import CombinedDomainChart from "../components/trendMonitoring/CombinedDomainChart";
+import CategoryTrendChart from "../components/trendMonitoring/CategoryTrendChart";
 import CategoryTrendTable from "../components/trendMonitoring/CategoryTrendTable";
-import CombinedCategoryChart from "../components/trendMonitoring/CombinedCategoryChart";
-import { fetchDomainTrends } from "../api/trends";
+import ClassificationTrendChart from "../components/trendMonitoring/ClassificationTrendChart";
+import ClassificationTrendTable from "../components/trendMonitoring/ClassificationTrendTable";
+import { fetchTrendsByScope } from "../api/trends";
 
 const TrendMonitoringPage = () => {
   const navigate = useNavigate();
   
-  // State for domain trends data
-  const [domainData, setDomainData] = useState(null);
-  const [loadingDomains, setLoadingDomains] = useState(true);
-  const [domainError, setDomainError] = useState(null);
+  // Scope selection
+  const [scope, setScope] = useState("hospital");
   
-  // Date range filters (optional - can be added later)
-  const [dateRange, setDateRange] = useState({
-    start_date: null, // Will default to 12 months ago on backend
-    end_date: null,   // Will default to current month on backend
-  });
+  // Trends data
+  const [trendsData, setTrendsData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // ============================
-  // FETCH DOMAIN TRENDS
+  // FETCH TRENDS BY SCOPE
   // ============================
   useEffect(() => {
-    console.log("🔄 Fetching domain trends...");
-    setLoadingDomains(true);
-    setDomainError(null);
+    console.log("🔄 Fetching trends for scope:", scope);
+    setLoading(true);
+    setError(null);
 
-    fetchDomainTrends({
-      start_date: dateRange.start_date,
-      end_date: dateRange.end_date,
-      include_zero_months: true,
-      include_inactive_domains: false,
-      calculate_trends: true,
-    })
+    fetchTrendsByScope({ scope })
       .then((data) => {
-        console.log("✅ Domain trends loaded successfully:", data);
-        setDomainData(data);
+        console.log("✅ Trends loaded successfully:", data);
+        setTrendsData(data);
       })
-      .catch((error) => {
-        console.error("❌ Failed to load domain trends:", error);
-        setDomainError(error.message);
+      .catch((err) => {
+        console.error("❌ Failed to load trends:", err);
+        setError(err.message);
       })
-      .finally(() => setLoadingDomains(false));
-  }, [dateRange]);
+      .finally(() => setLoading(false));
+  }, [scope]);
 
   return (
     <MainLayout>
@@ -83,18 +76,33 @@ const TrendMonitoringPage = () => {
           <Typography level="body-md" sx={{ color: "#666" }}>
             تتبع الاتجاهات الشهرية للحوادث لاكتشاف التدهور والتحسين المبكر
           </Typography>
-          
-          {/* Display time range if data is loaded */}
-          {domainData?.time_range && (
-            <Typography level="body-sm" sx={{ color: "#999", mt: 1 }}>
-              📅 {domainData.time_range.start_label} - {domainData.time_range.end_label} 
-              ({domainData.time_range.total_months} months)
-            </Typography>
-          )}
         </Box>
 
+        {/* Scope Selector */}
+        <Box sx={{ mb: 3, p: 2, bgcolor: "#f5f5f5", borderRadius: "8px", display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
+          <Typography level="body-sm" sx={{ fontWeight: 600 }}>Scope:</Typography>
+          <Select 
+            size="sm" 
+            value={scope} 
+            onChange={(e, value) => setScope(value)}
+            sx={{ minWidth: 150 }}
+          >
+            <Option value="hospital">🏥 Hospital</Option>
+            <Option value="administration">📋 Administration</Option>
+            <Option value="department">🏢 Department</Option>
+            <Option value="section">📌 Section</Option>
+          </Select>
+        </Box>
+
+        {/* Display time range if data is loaded */}
+        {trendsData?.time_range && (
+          <Typography level="body-sm" sx={{ color: "#999", mb: 3 }}>
+            📅 {trendsData.time_range.start} to {trendsData.time_range.end}
+          </Typography>
+        )}
+
         {/* Loading State */}
-        {loadingDomains && (
+        {loading && (
           <Card sx={{ p: 4, textAlign: "center", mb: 3 }}>
             <CircularProgress size="lg" />
             <Typography level="body-md" sx={{ mt: 2 }}>
@@ -104,38 +112,50 @@ const TrendMonitoringPage = () => {
         )}
 
         {/* Error State */}
-        {domainError && (
+        {error && (
           <Card sx={{ p: 3, mb: 3, bgcolor: "danger.softBg" }}>
             <Typography color="danger">
-              ❌ Error loading trends: {domainError}
+              ❌ Error loading trends: {error}
             </Typography>
           </Card>
         )}
 
-        {/* Domain Analysis Section */}
-        {!loadingDomains && !domainError && domainData && (
+        {/* Domain Trends Section */}
+        {!loading && !error && trendsData?.domain && (
           <Box sx={{ mb: 5 }}>
-            {/* Domain Chart - Above Table */}
-            <CombinedDomainChart data={domainData} />
-
-            {/* Domain Table - Collapsible */}
-            <DomainTrendTable data={domainData} />
+            <Typography level="h4" sx={{ mb: 2, color: "#667eea", fontWeight: 700 }}>
+              🔬 Domain Trends (Clinical, Management, Relational)
+            </Typography>
+            <DomainTrendChart data={trendsData.domain} />
+            <DomainTrendTable data={trendsData.domain} />
           </Box>
         )}
 
-        <Divider sx={{ my: 5 }} />
+        <Divider sx={{ my: 4 }} />
 
-        {/* Category Analysis Section */}
-        <Box sx={{ mb: 3 }}>
-          <Typography level="h4" sx={{ mb: 2, color: "#667eea", fontWeight: 700 }}>
-            Category Trends (Coming Soon)
-          </Typography>
-          {/* Category Chart - Above Table */}
-          {/* <CombinedCategoryChart /> */}
+        {/* Category Trends Section */}
+        {!loading && !error && trendsData?.category && (
+          <Box sx={{ mb: 5 }}>
+            <Typography level="h4" sx={{ mb: 2, color: "#667eea", fontWeight: 700 }}>
+              📑 Category Trends
+            </Typography>
+            <CategoryTrendChart data={trendsData.category} />
+            <CategoryTrendTable data={trendsData.category} />
+          </Box>
+        )}
 
-          {/* Category Table - Collapsible */}
-          {/* <CategoryTrendTable /> */}
-        </Box>
+        <Divider sx={{ my: 4 }} />
+
+        {/* Classification Trends Section */}
+        {!loading && !error && trendsData?.classification && (
+          <Box sx={{ mb: 5 }}>
+            <Typography level="h4" sx={{ mb: 2, color: "#667eea", fontWeight: 700 }}>
+              🏷️ Classification Trends
+            </Typography>
+            <ClassificationTrendChart data={trendsData.classification} />
+            <ClassificationTrendTable data={trendsData.classification} />
+          </Box>
+        )}
       </Box>
     </MainLayout>
   );

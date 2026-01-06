@@ -10,68 +10,48 @@ import {
   ListItem,
   ListItemButton,
   Sheet,
+  CircularProgress,
 } from "@mui/joy";
 import SearchIcon from "@mui/icons-material/Search";
 import PersonIcon from "@mui/icons-material/Person";
-
-// Mock patient database
-const mockPatients = [
-  {
-    id: "P12345",
-    name: "Ahmed Mohammed Ali",
-    age: 45,
-    gender: "Male",
-    phone: "+966 50 123 4567",
-    totalIncidents: 8,
-  },
-  {
-    id: "P12346",
-    name: "Fatima Hassan",
-    age: 32,
-    gender: "Female",
-    phone: "+966 50 234 5678",
-    totalIncidents: 3,
-  },
-  {
-    id: "P12347",
-    name: "Mohammed Abdullah",
-    age: 58,
-    gender: "Male",
-    phone: "+966 50 345 6789",
-    totalIncidents: 12,
-  },
-  {
-    id: "P12348",
-    name: "Sarah Ali",
-    age: 27,
-    gender: "Female",
-    phone: "+966 50 456 7890",
-    totalIncidents: 5,
-  },
-];
+import { searchPatients } from "../../api/patientHistory";
 
 const SearchPatient = ({ onSelectPatient }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Handle search
-  const handleSearch = () => {
+  // Handle search with API
+  const handleSearch = async () => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
+      setError(null);
       return;
     }
 
-    // Simulate API search
-    // const results = await api.searchPatients(searchQuery);
-
-    const results = mockPatients.filter(
-      (patient) =>
-        patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        patient.id.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    setSearchResults(results);
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Call API with query
+      const data = await searchPatients(searchQuery, { limit: 50 });
+      
+      // Handle response format
+      const patients = data.patients || data || [];
+      setSearchResults(Array.isArray(patients) ? patients : []);
+      
+      if (patients.length === 0) {
+        setError("No patients found matching your search");
+      }
+    } catch (err) {
+      console.error("Search error:", err);
+      setError(err.message || "Failed to search patients");
+      setSearchResults([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Handle patient selection
@@ -80,6 +60,7 @@ const SearchPatient = ({ onSelectPatient }) => {
     onSelectPatient(patient);
     setSearchResults([]);
     setSearchQuery("");
+    setError(null);
   };
 
   return (
@@ -96,15 +77,18 @@ const SearchPatient = ({ onSelectPatient }) => {
 
       <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
         <Input
-          placeholder="Enter patient name or ID..."
+          placeholder="Enter patient name, MRN, or phone..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyPress={(e) => e.key === "Enter" && handleSearch()}
           startDecorator={<SearchIcon />}
           sx={{ flex: 1 }}
+          disabled={loading}
         />
         <Button
           onClick={handleSearch}
+          loading={loading}
+          disabled={loading || !searchQuery.trim()}
           sx={{
             background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
             fontWeight: 700,
@@ -114,42 +98,58 @@ const SearchPatient = ({ onSelectPatient }) => {
         </Button>
       </Box>
 
+      {/* Error Message */}
+      {error && (
+        <Box
+          sx={{
+            p: 2,
+            mb: 2,
+            borderRadius: "8px",
+            background: "#ffebee",
+            border: "1px solid #ef5350",
+            color: "#c62828",
+            fontSize: "14px",
+          }}
+        >
+          {error}
+        </Box>
+      )}
+
+      {/* Loading Indicator */}
+      {loading && (
+        <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
+          <CircularProgress size="sm" />
+        </Box>
+      )}
+
       {/* Search Results */}
-      {searchResults.length > 0 && (
+      {searchResults.length > 0 && !loading && (
         <Sheet
           sx={{
             borderRadius: "8px",
             border: "1px solid rgba(102, 126, 234, 0.2)",
-            maxHeight: "200px",
+            maxHeight: "300px",
             overflowY: "auto",
           }}
         >
           <List>
             {searchResults.map((patient) => (
-              <ListItem key={patient.id}>
+              <ListItem key={patient.patient_id || patient.id}>
                 <ListItemButton onClick={() => handleSelect(patient)}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 2, width: "100%" }}>
                     <PersonIcon sx={{ color: "#667eea" }} />
                     <Box sx={{ flex: 1 }}>
                       <Typography level="body-md" sx={{ fontWeight: 600 }}>
-                        {patient.name}
+                        {patient.full_name || patient.name}
                       </Typography>
                       <Typography level="body-xs" sx={{ color: "#666" }}>
-                        ID: {patient.id} • {patient.age} years • {patient.gender}
+                        MRN: {patient.mrn || "N/A"} • Age: {patient.age} • {patient.gender}
                       </Typography>
-                    </Box>
-                    <Box
-                      sx={{
-                        px: 2,
-                        py: 0.5,
-                        borderRadius: "4px",
-                        background: "#667eea",
-                        color: "white",
-                        fontSize: "12px",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {patient.totalIncidents} incidents
+                      {patient.phone && (
+                        <Typography level="body-xs" sx={{ color: "#999" }}>
+                          {patient.phone}
+                        </Typography>
+                      )}
                     </Box>
                   </Box>
                 </ListItemButton>
@@ -160,7 +160,7 @@ const SearchPatient = ({ onSelectPatient }) => {
       )}
 
       {/* Selected Patient */}
-      {selectedPatient && (
+      {selectedPatient && !loading && (
         <Box
           sx={{
             mt: 2,
@@ -171,7 +171,8 @@ const SearchPatient = ({ onSelectPatient }) => {
           }}
         >
           <Typography level="body-sm" sx={{ color: "#2d5016", fontWeight: 600 }}>
-            ✓ Selected: {selectedPatient.name} (ID: {selectedPatient.id})
+            ✓ Selected: {selectedPatient.full_name || selectedPatient.name} 
+            {selectedPatient.mrn && ` (MRN: ${selectedPatient.mrn})`}
           </Typography>
         </Box>
       )}

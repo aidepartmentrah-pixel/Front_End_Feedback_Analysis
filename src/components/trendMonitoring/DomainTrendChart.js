@@ -1,4 +1,4 @@
-// src/components/trendMonitoring/CombinedDomainChart.js
+// src/components/trendMonitoring/DomainTrendChart.js
 import React from "react";
 import { Card, Typography, Box } from "@mui/joy";
 import {
@@ -12,8 +12,8 @@ import {
   Legend,
 } from "recharts";
 
-const CombinedDomainChart = ({ data }) => {
-  if (!data || !data.domains || data.domains.length === 0) {
+const DomainTrendChart = ({ data }) => {
+  if (!data || !data.chart_data || !data.chart_labels) {
     return (
       <Card sx={{ p: 3, mb: 3, textAlign: "center" }}>
         <Typography level="body-md" sx={{ color: "#999" }}>
@@ -23,33 +23,17 @@ const CombinedDomainChart = ({ data }) => {
     );
   }
 
-  // Get all unique months from the first domain
-  const monthsData = data.domains[0]?.monthly_data || [];
-  
-  // Prepare chart data - combine all domains by month
-  const chartData = monthsData.map((monthData) => {
-    const dataPoint = {
-      period: monthData.period,
-      label: monthData.period_label,
-      labelAr: monthData.period_label_ar,
-      month: monthData.month,
-      year: monthData.year,
-    };
-    
-    // Add each domain's count for this month
-    data.domains.forEach((domain) => {
-      const domainMonth = domain.monthly_data.find(m => m.period === monthData.period);
-      dataPoint[domain.domain_code] = domainMonth?.incident_count || 0;
-      dataPoint[`${domain.domain_code}_name`] = domain.domain_name;
-      dataPoint[`${domain.domain_code}_nameAr`] = domain.domain_name_ar;
-      dataPoint[`${domain.domain_code}_color`] = domain.domain_color;
+  // Transform data for recharts
+  const chartData = data.chart_labels.map((label, index) => {
+    const point = { month: label };
+    data.chart_data.forEach(series => {
+      point[series.name] = series.data[index] || 0;
     });
-    
-    return dataPoint;
+    return point;
   });
 
   // Custom tooltip
-  const CustomTooltip = ({ active, payload, label }) => {
+  const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       return (
         <Box
@@ -62,7 +46,7 @@ const CombinedDomainChart = ({ data }) => {
           }}
         >
           <Typography level="body-sm" sx={{ fontWeight: 700, mb: 1 }}>
-            {label}
+            {payload[0]?.payload?.month}
           </Typography>
           {payload.map((entry, index) => (
             <Box key={index} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
@@ -87,16 +71,12 @@ const CombinedDomainChart = ({ data }) => {
 
   return (
     <Card sx={{ p: 3, mb: 3 }}>
-      <Typography level="h5" sx={{ mb: 3, fontWeight: 700, color: "#667eea" }}>
-        📈 اتجاه المجالات (Domain Trends)
-      </Typography>
-      
       <Box sx={{ width: "100%", height: 400 }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
             <XAxis
-              dataKey="label"
+              dataKey="month"
               stroke="#666"
               style={{ fontSize: "11px", fontWeight: 600 }}
               angle={-45}
@@ -111,36 +91,23 @@ const CombinedDomainChart = ({ data }) => {
             <Legend wrapperStyle={{ fontSize: "13px", fontWeight: 600 }} />
             
             {/* Render a line for each domain */}
-            {data.domains.map((domain, index) => (
+            {data.chart_data.map((series) => (
               <Line
-                key={domain.domain_id}
+                key={series.name}
                 type="monotone"
-                dataKey={domain.domain_code}
-                stroke={domain.domain_color || `hsl(${index * 60}, 70%, 50%)`}
+                dataKey={series.name}
+                stroke={series.color}
                 strokeWidth={3}
-                dot={{ fill: domain.domain_color, r: 5 }}
+                dot={{ fill: series.color, r: 5 }}
                 activeDot={{ r: 7 }}
-                name={`${domain.domain_name_ar || domain.domain_name} (${domain.domain_code})`}
+                name={series.name}
               />
             ))}
           </LineChart>
         </ResponsiveContainer>
       </Box>
-
-      <Box
-        sx={{
-          mt: 2,
-          p: 2,
-          background: "rgba(102, 126, 234, 0.05)",
-          borderRadius: "8px",
-        }}
-      >
-        <Typography level="body-xs" sx={{ color: "#666" }}>
-          💡 الخطوط الرأسية: فواصل الفصول (كل 4 أشهر) | الخطوط الأفقية المنقطة: الحدود القصوى لكل مجال
-        </Typography>
-      </Box>
     </Card>
   );
 };
 
-export default CombinedDomainChart;
+export default DomainTrendChart;

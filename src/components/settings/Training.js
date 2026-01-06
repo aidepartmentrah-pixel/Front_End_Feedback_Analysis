@@ -35,13 +35,14 @@ const Training = () => {
   const fetchModelStatus = async () => {
     try {
       setStatusLoading(true);
-      const response = await fetch("/api/settings/training/status");
+      const response = await fetch("http://0.0.0.0:8000/api/settings/training/status");
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
+      console.log("Model status response:", data);
       setModelStatus(data);
     } catch (err) {
       console.error("Error fetching model status:", err);
-      setError("Failed to load model status");
+      setError("Failed to load model status: " + err.message);
     } finally {
       setStatusLoading(false);
     }
@@ -51,13 +52,14 @@ const Training = () => {
   const fetchTrainingHistory = async () => {
     try {
       setHistoryLoading(true);
-      const response = await fetch("/api/settings/training/history");
+      const response = await fetch("http://0.0.0.0:8000/api/settings/training/history");
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      setTrainingHistory(data.history || []);
+      console.log("Training history response:", data);
+      setTrainingHistory(data.history || data || []);
     } catch (err) {
       console.error("Error fetching training history:", err);
-      setError("Failed to load training history");
+      setError("Failed to load training history: " + err.message);
     } finally {
       setHistoryLoading(false);
     }
@@ -67,13 +69,14 @@ const Training = () => {
   const fetchDbGrowth = async () => {
     try {
       setDbLoading(true);
-      const response = await fetch("/api/settings/training/db-size");
+      const response = await fetch("http://0.0.0.0:8000/api/settings/training/db-size");
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      setDbGrowth(data.points || []);
+      console.log("DB growth response:", data);
+      setDbGrowth(data.points || data || []);
     } catch (err) {
       console.error("Error fetching DB growth:", err);
-      setError("Failed to load database growth data");
+      setError("Failed to load database growth data: " + err.message);
     } finally {
       setDbLoading(false);
     }
@@ -86,14 +89,18 @@ const Training = () => {
       setError(null);
       setSuccess(null);
       
-      const response = await fetch("/api/settings/training/run", {
+      const response = await fetch("http://0.0.0.0:8000/api/settings/training/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" }
       });
       
-      if (!response.ok) throw new Error(`Training failed: HTTP ${response.status}`);
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || `Training failed: HTTP ${response.status}`);
+      }
       
       const data = await response.json();
+      console.log("Training started response:", data);
       setSuccess(`Training started successfully! Run ID: ${data.run_id}`);
       
       // Refresh data after training starts
@@ -104,7 +111,7 @@ const Training = () => {
       
     } catch (err) {
       console.error("Error starting training:", err);
-      setError(err.message || "Failed to start training");
+      setError(err.message || "Failed to start training. Please check the console.");
     } finally {
       setIsTraining(false);
     }

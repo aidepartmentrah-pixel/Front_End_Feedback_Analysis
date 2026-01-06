@@ -1,4 +1,4 @@
-// src/components/trendMonitoring/DomainTrendTable.js
+// src/components/trendMonitoring/ClassificationTrendTable.js
 import React, { useState } from "react";
 import { Card, Typography, Table, Sheet, Box, Button } from "@mui/joy";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -6,14 +6,14 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 
-const DomainTrendTable = ({ data }) => {
+const ClassificationTrendTable = ({ data }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   if (!data || !data.table) {
     return (
       <Card sx={{ p: 3, mb: 3, textAlign: "center" }}>
         <Typography level="body-md" sx={{ color: "#999" }}>
-          No domain data available
+          No classification data available
         </Typography>
       </Card>
     );
@@ -34,8 +34,8 @@ const DomainTrendTable = ({ data }) => {
   return (
     <Card sx={{ p: 3, mb: 3 }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-        <Typography level="h5" sx={{ fontWeight: 700, color: "#667eea" }}>
-          Domain Summary Table
+        <Typography level="h5" sx={{ fontWeight: 700, color: "#764ba2" }}>
+          Classification Summary Table
         </Typography>
         <Button
           variant="outlined"
@@ -52,7 +52,7 @@ const DomainTrendTable = ({ data }) => {
         <Sheet
           sx={{
             borderRadius: "8px",
-            border: "2px solid rgba(102, 126, 234, 0.2)",
+            border: "2px solid rgba(118, 75, 162, 0.2)",
             overflow: "hidden",
           }}
         >
@@ -65,8 +65,8 @@ const DomainTrendTable = ({ data }) => {
               }}
             >
               <thead>
-                <tr style={{ background: "rgba(102, 126, 234, 0.1)" }}>
-                  <th style={{ width: "150px", fontWeight: 700 }}>Domain</th>
+                <tr style={{ background: "rgba(118, 75, 162, 0.1)" }}>
+                  <th style={{ width: "200px", fontWeight: 700 }}>Classification</th>
                   <th style={{ textAlign: "center", width: "100px", fontWeight: 700 }}>Total</th>
                   <th style={{ textAlign: "center", width: "100px", fontWeight: 700 }}>Trend</th>
                   <th style={{ textAlign: "center", width: "100px", fontWeight: 700 }}>% Change</th>
@@ -115,4 +115,4 @@ const DomainTrendTable = ({ data }) => {
   );
 };
 
-export default DomainTrendTable;
+export default ClassificationTrendTable;

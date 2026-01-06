@@ -37,29 +37,28 @@ const DashboardPage = () => {
     end_date: null,   // Will default to today on backend
   });
 
-  // ============================
-  // FETCH HIERARCHY
-  // ============================
-  useEffect(() => {
-    console.log("🔄 Fetching hierarchy from API...");
-    fetchDashboardHierarchy()
-      .then((data) => {
-        console.log("✅ Hierarchy loaded successfully:", data);
-        console.log("✅ Hierarchy structure:", {
-          hasAdministration: !!data?.Administration,
-          hasDepartment: !!data?.Department,
-          hasSection: !!data?.Section,
-          administrations: data?.Administration || [],
-          fullData: JSON.stringify(data, null, 2)
-        });
-        setHierarchy(data);
-      })
-      .catch((error) => {
-        console.error("❌ Failed to load hierarchy:", error);
-        alert(`Failed to load department hierarchy: ${error.message}`);
-      })
-      .finally(() => setLoadingHierarchy(false));
-  }, []);
+  // Chart mode selections
+  const [chartModes, setChartModes] = useState({
+    classification_mode: "top5", // top5, bottom5, all, byDomain
+    stage_mode: "histogram",     // histogram, bySeverity, byDomain, byStatus
+    department_mode: "issuing"   // issuing, responsible, patient, caseManager
+  });
+
+  // Chart visualization types
+  const [chartTypes, setChartTypes] = useState({
+    classification: "bar",  // bar, pie, donut, line
+    stage: "bar",           // bar, pie, donut, line
+    department: "bar"       // bar, pie, donut, line
+  });
+
+
+useEffect(() => {
+  fetch("/api/dashboard/hierarchy")
+    .catch((error) => {
+      alert(`Failed to load department hierarchy: ${error.message}`);
+    })
+    .finally(() => setLoadingHierarchy(false));
+}, []);
 
   // ============================
   // FETCH DASHBOARD STATS
@@ -70,6 +69,10 @@ const DashboardPage = () => {
       scope,
       start_date: dateRange.start_date,
       end_date: dateRange.end_date,
+      // Add chart modes
+      classification_mode: chartModes.classification_mode,
+      stage_mode: chartModes.stage_mode,
+      department_mode: chartModes.department_mode,
     };
 
     // Add IDs based on scope
@@ -125,7 +128,7 @@ const DashboardPage = () => {
         setStatsError(error.message);
       })
       .finally(() => setLoadingStats(false));
-  }, [scope, selectedAdministration, selectedDepartment, selectedSection, dateRange]);
+  }, [scope, selectedAdministration, selectedDepartment, selectedSection, dateRange, chartModes]);
 
   // ============================
   // VIEW FLAGS
@@ -180,7 +183,7 @@ const DashboardPage = () => {
         />
 
         {/* Conditional Dashboard Views */}
-        {isGlobalView && <GlobalDashboardStats stats={dashboardStats} loading={loadingStats} />}
+        {isGlobalView && <GlobalDashboardStats stats={dashboardStats} loading={loadingStats} chartModes={chartModes} setChartModes={setChartModes} chartTypes={chartTypes} setChartTypes={setChartTypes} />}
         {isIdaraView && <IdaraDashboardStats idara={selectedAdministration} stats={dashboardStats} loading={loadingStats} />}
         {isDayraView && <DayraDashboardStats dayra={selectedDepartment} stats={dashboardStats} loading={loadingStats} />}
         {isQismView && <QismDashboardStats qism={selectedSection} stats={dashboardStats} loading={loadingStats} />}

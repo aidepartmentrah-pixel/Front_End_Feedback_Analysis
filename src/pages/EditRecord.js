@@ -1,19 +1,17 @@
 // src/pages/EditRecord.js
 import React, { useState, useEffect } from "react";
-import { Box, Container, Typography, Divider } from "@mui/joy";
+import { Box, Container, Typography, Divider, CircularProgress, Card } from "@mui/joy";
 import { useNavigate, useParams } from "react-router-dom";
 
 // Components
 import MainLayout from "../components/common/MainLayout";
-import SearchRecord from "../components/edit/SearchRecord";
 import TextBlocksWithButtons from "../components/insert/TextBlocksWithButtons";
 import RecordMetadata from "../components/insert/RecordMetadata";
-import NEROutputs from "../components/insert/NEROutputs";
 import ClassificationFields from "../components/insert/ClassificationFields";
 import EditActionButtons from "../components/edit/EditActionButtons";
 
-// Mock data for demonstration
-import { mockIncidents } from "../data/mockData";
+// API
+import { getRecordById, updateRecord } from "../api/complaints";
 
 const EditRecord = () => {
   const navigate = useNavigate();
@@ -23,27 +21,28 @@ const EditRecord = () => {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [originalRecord, setOriginalRecord] = useState(null);
 
-  // State for all form fields
+  // State for all form fields (matching insert endpoint structure)
   const [formData, setFormData] = useState({
-    recordId: "",
-    complaintText: "",
-    immediateAction: "",
-    takenAction: "",
-    feedbackReceivedDate: new Date().toISOString().split("T")[0],
-    issuingDepartment: "ER",
-    targetDepartment: "Ward 1",
-    source: "Phone",
-    status: "In Progress",
-    patientName: "",
-    doctorName: "",
-    otherEntities: "",
-    category: "",
-    subCategory: "",
-    newClassification: "",
-    severity: "Low",
-    stage: "Admission",
-    harm: "No Harm",
-    improvementType: "No",
+    complaint_text: "",
+    feedback_received_date: new Date().toISOString().split("T")[0],
+    issuing_department_id: null,
+    domain_id: null,
+    category_id: null,
+    subcategory_id: null,
+    classification_id: null,
+    severity_id: null,
+    stage_id: null,
+    harm_id: null,
+    clinical_risk_type_id: null,
+    feedback_intent_type_id: null,
+    immediate_action: "",
+    taken_action: "",
+    patient_name: "",
+    target_department_ids: [],
+    source_id: null,
+    building_id: null,
+    is_inpatient: false,
+    doctors: [],
   });
 
   // State for UI
@@ -55,47 +54,48 @@ const EditRecord = () => {
   // Auto-load record from URL parameter
   useEffect(() => {
     if (id) {
-      const record = mockIncidents.find((r) => r.record_id === id);
-      if (record) {
-        handleSelectRecord(record);
-      } else {
-        setError(`Record with ID "${id}" not found.`);
-      }
+      setLoading(true);
+      setError(null);
+      console.log("🔄 Loading record:", id);
+      getRecordById(id)
+        .then((record) => {
+          console.log("📖 Record loaded:", record);
+          setSelectedRecord(record);
+          setOriginalRecord(JSON.parse(JSON.stringify(record)));
+
+          // Pre-fill form with record data
+          setFormData({
+            complaint_text: record.complaint_text || "",
+            feedback_received_date: record.received_date || new Date().toISOString().split("T")[0],
+            issuing_department_id: record.issuing_org_unit_id || null,
+            domain_id: record.domain_id || null,
+            category_id: record.category_id || null,
+            subcategory_id: record.subcategory_id || null,
+            classification_id: record.classification_id || null,
+            severity_id: record.severity_id || null,
+            stage_id: record.stage_id || null,
+            harm_id: record.harm_level_id || null,  // Maps harm_level_id from GET to harm_id for PUT
+            clinical_risk_type_id: record.clinical_risk_type_id || null,
+            feedback_intent_type_id: record.feedback_intent_type_id || null,
+            immediate_action: record.immediate_action || "",
+            taken_action: record.taken_action || "",
+            patient_name: record.patient_name || "",
+            target_department_ids: [],
+            source_id: null,
+            building_id: record.building_id || null,
+            is_inpatient: record.in_out === 1,
+            doctors: record.doctor_name ? [{ doctor_id: record.doctor_id, doctor_name: record.doctor_name }] : [],
+          });
+
+          setHasChanges(false);
+        })
+        .catch((err) => {
+          console.error("❌ Error loading record:", err);
+          setError(`Failed to load record: ${err.message}`);
+        })
+        .finally(() => setLoading(false));
     }
   }, [id]);
-
-  // Handle record selection from search
-  const handleSelectRecord = (record) => {
-    setSelectedRecord(record);
-    setOriginalRecord(JSON.parse(JSON.stringify(record)));
-
-    // Pre-fill form with record data
-    setFormData({
-      recordId: record.record_id || "",
-      complaintText: record.complaint_text || "",
-      immediateAction: record.immediate_action || "",
-      takenAction: record.taken_action || "",
-      feedbackReceivedDate: record.feedback_received_date || new Date().toISOString().split("T")[0],
-      issuingDepartment: record.issuing_department || "ER",
-      targetDepartment: record.target_department || "Ward 1",
-      source: record.source_1 || "Phone",
-      status: record.status || "In Progress",
-      patientName: record.patient_full_name || "",
-      doctorName: record.doctor_name || "",
-      otherEntities: record.other_entities || "",
-      category: record.category || "",
-      subCategory: record.sub_category || "",
-      newClassification: record.classification_ar || "",
-      severity: record.severity_level || "Low",
-      stage: record.stage || "Admission",
-      harm: record.harm_level || "No Harm",
-      improvementType: record.improvement_opportunity_type || "No",
-    });
-
-    setHasChanges(false);
-    setError(null);
-    setSuccess(null);
-  };
 
   // Update form data
   const handleInputChange = (field, value) => {
@@ -108,9 +108,17 @@ const EditRecord = () => {
 
   // Handle text block changes
   const handleTextBlockChange = (field, value) => {
+    // Convert field names from camelCase to snake_case
+    const fieldMap = {
+      "complaintText": "complaint_text",
+      "additionalNotes": "immediate_action",
+      "optionalThirdText": "taken_action",
+    };
+    const snakeField = fieldMap[field] || field;
+    
     setFormData((prev) => ({
       ...prev,
-      [field]: value,
+      [snakeField]: value,
     }));
     setHasChanges(true);
   };
@@ -122,22 +130,63 @@ const EditRecord = () => {
       setError(null);
 
       // Validate required fields
-      if (!formData.complaintText.trim()) {
+      if (!formData.complaint_text.trim()) {
         setError("Complaint text is required");
         setLoading(false);
         return;
       }
 
-      if (!formData.feedbackReceivedDate) {
+      if (!formData.feedback_received_date) {
         setError("Feedback received date is required");
         setLoading(false);
         return;
       }
 
-      // Placeholder for API call
-      // In production: await axios.put(`/api/records/${formData.recordId}`, formData);
+      if (!formData.issuing_department_id) {
+        setError("Issuing department is required");
+        setLoading(false);
+        return;
+      }
 
-      console.log("Record updated:", formData);
+      if (!formData.domain_id) {
+        setError("Domain is required");
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.category_id) {
+        setError("Category is required");
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.classification_id) {
+        setError("Classification is required");
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.severity_id) {
+        setError("Severity is required");
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.stage_id) {
+        setError("Stage is required");
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.harm_id) {
+        setError("Harm level is required");
+        setLoading(false);
+        return;
+      }
+
+      // Call API to update record
+      const result = await updateRecord(id, formData);
+      console.log("✅ Record updated:", result);
 
       setSuccess("Record updated successfully! Redirecting...");
       setHasChanges(false);
@@ -147,8 +196,8 @@ const EditRecord = () => {
         navigate("/table-view");
       }, 2000);
     } catch (err) {
-      setError("Error updating record. Please try again.");
-      console.error(err);
+      console.error("❌ Error updating record:", err);
+      setError(`Error updating record: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -166,25 +215,26 @@ const EditRecord = () => {
   const handleReset = () => {
     if (originalRecord) {
       setFormData({
-        recordId: originalRecord.record_id || "",
-        complaintText: originalRecord.complaint_text || "",
-        immediateAction: originalRecord.immediate_action || "",
-        takenAction: originalRecord.taken_action || "",
-        feedbackReceivedDate: originalRecord.feedback_received_date || new Date().toISOString().split("T")[0],
-        issuingDepartment: originalRecord.issuing_department || "ER",
-        targetDepartment: originalRecord.target_department || "Ward 1",
-        source: originalRecord.source_1 || "Phone",
-        status: originalRecord.status || "In Progress",
-        patientName: originalRecord.patient_full_name || "",
-        doctorName: originalRecord.doctor_name || "",
-        otherEntities: originalRecord.other_entities || "",
-        category: originalRecord.category || "",
-        subCategory: originalRecord.sub_category || "",
-        newClassification: originalRecord.classification_ar || "",
-        severity: originalRecord.severity_level || "Low",
-        stage: originalRecord.stage || "Admission",
-        harm: originalRecord.harm_level || "No Harm",
-        improvementType: originalRecord.improvement_opportunity_type || "No",
+        complaint_text: originalRecord.complaint_text || "",
+        feedback_received_date: originalRecord.received_date || new Date().toISOString().split("T")[0],
+        issuing_department_id: originalRecord.issuing_org_unit_id || null,
+        domain_id: originalRecord.domain_id || null,
+        category_id: originalRecord.category_id || null,
+        subcategory_id: originalRecord.subcategory_id || null,
+        classification_id: originalRecord.classification_id || null,
+        severity_id: originalRecord.severity_id || null,
+        stage_id: originalRecord.stage_id || null,
+        harm_id: originalRecord.harm_id || null,
+        clinical_risk_type_id: originalRecord.clinical_risk_type_id || null,
+        feedback_intent_type_id: originalRecord.feedback_intent_type_id || null,
+        immediate_action: originalRecord.immediate_action || "",
+        taken_action: originalRecord.taken_action || "",
+        patient_name: originalRecord.patient_name || "",
+        target_department_ids: [],
+        source_id: null,
+        building_id: originalRecord.building_id || null,
+        is_inpatient: originalRecord.in_out === 1,
+        doctors: originalRecord.doctor_name ? [{ doctor_id: originalRecord.doctor_id, doctor_name: originalRecord.doctor_name }] : [],
       });
       setHasChanges(false);
       setSuccess(null);
@@ -195,71 +245,61 @@ const EditRecord = () => {
     <MainLayout>
       <Container maxWidth="lg" sx={{ py: 3 }}>
         <Box sx={{ mb: 3 }}>
-          <h1 style={{ color: "#1a1e3f", marginBottom: "8px" }}>Edit Record</h1>
+          <h1 style={{ color: "#1a1e3f", marginBottom: "8px" }}>📝 Edit Record</h1>
           <p style={{ color: "#667eea", margin: 0 }}>
-            Search, select, and update a feedback/incident record
+            Update feedback/incident record #{id}
           </p>
         </Box>
 
-        {/* Error and Success Messages */}
+        {/* Loading State */}
+        {loading && !selectedRecord && (
+          <Card sx={{ 
+            p: 4, 
+            textAlign: "center",
+            background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
+            border: "1px solid rgba(102, 126, 234, 0.1)",
+          }}>
+            <CircularProgress size="lg" sx={{ "--CircularProgress-color": "#667eea" }} />
+            <Typography level="body-md" sx={{ mt: 2, color: "#667eea", fontWeight: 600 }}>
+              Loading record...
+            </Typography>
+          </Card>
+        )}
+
+        {/* Error Messages */}
         {error && (
-          <Box
-            sx={{
-              mb: 2,
-              p: 2,
-              borderRadius: "8px",
-              background: "#ff4757",
-              color: "white",
-              fontWeight: 600,
-            }}
-          >
-            ❌ {error}
-          </Box>
+          <Card sx={{ mb: 2, p: 2, bgcolor: "danger.softBg" }}>
+            <Typography color="danger">❌ {error}</Typography>
+          </Card>
         )}
+
+        {/* Success Messages */}
         {success && (
-          <Box
-            sx={{
-              mb: 2,
-              p: 2,
-              borderRadius: "8px",
-              background: "#2ed573",
-              color: "white",
-              fontWeight: 600,
-            }}
-          >
-            ✅ {success}
-          </Box>
+          <Card sx={{ mb: 2, p: 2, bgcolor: "success.softBg" }}>
+            <Typography color="success">✅ {success}</Typography>
+          </Card>
         )}
 
-        {/* Search Record */}
-        <SearchRecord
-          records={mockIncidents}
-          onSelectRecord={handleSelectRecord}
-          selectedRecordId={selectedRecord?.record_id}
-        />
-
-        {selectedRecord ? (
+        {/* Form (show only when record is loaded) */}
+        {selectedRecord && !loading && (
           <>
             <Divider sx={{ my: 3 }} />
 
             {/* Row 1: Text Inputs + Buttons */}
             <TextBlocksWithButtons
-              complaintText={formData.complaintText}
-              additionalNotes={formData.immediateAction}
-              optionalThirdText={formData.takenAction}
+              complaintText={formData.complaint_text}
+              additionalNotes={formData.immediate_action}
+              optionalThirdText={formData.taken_action}
               onTextChange={handleTextBlockChange}
             />
 
             {/* Row 2: Metadata Inputs */}
             <RecordMetadata formData={formData} onInputChange={handleInputChange} />
 
-            {/* Row 3: NER Outputs */}
-            <NEROutputs formData={formData} onInputChange={handleInputChange} />
-
-            {/* Row 4: Classification Fields */}
+            {/* Row 3: Classification Fields */}
             <ClassificationFields formData={formData} onInputChange={handleInputChange} />
 
-            {/* Row 5: Action Buttons */}
+            {/* Row 4: Action Buttons */}
             <EditActionButtons
               onUpdate={handleUpdateRecord}
               onCancel={handleCancel}
@@ -268,7 +308,10 @@ const EditRecord = () => {
               hasChanges={hasChanges}
             />
           </>
-        ) : (
+        )}
+
+        {/* Empty/Loading State */}
+        {!loading && !selectedRecord && (
           <Box
             sx={{
               p: 4,
@@ -279,16 +322,16 @@ const EditRecord = () => {
             }}
           >
             <Typography level="h3" sx={{ color: "#667eea", mb: 1 }}>
-              🔍 No Record Selected
+              🔍 No Data
             </Typography>
             <Typography level="body-sm" sx={{ color: "#999" }}>
-              Use the search box above to find and select a record to edit
+              {error ? "Failed to load record details" : "No record data available"}
             </Typography>
           </Box>
         )}
+
       </Container>
     </MainLayout>
   );
 };
-
 export default EditRecord;

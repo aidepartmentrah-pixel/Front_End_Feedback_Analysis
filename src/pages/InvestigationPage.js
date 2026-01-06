@@ -299,26 +299,6 @@ const InvestigationPage = () => {
           </FormControl>
         </Card>
 
-        {/* Debug Info Panel - Shows API Request Details */}
-        {process.env.NODE_ENV === 'development' && (
-          <Card variant="soft" sx={{ p: 2, mb: 3, bgcolor: "#f0f9ff", fontSize: "0.75rem" }}>
-            <Typography level="body-xs" sx={{ fontWeight: 700, mb: 1 }}>
-              🔍 Debug Info (Development Only)
-            </Typography>
-            <Box sx={{ fontFamily: "monospace", fontSize: "0.7rem" }}>
-              <div>Season ID: {selectedSeason || "null"}</div>
-              <div>Season Label: {availableSeasons.find(s => s.season_id === selectedSeason)?.season_label || "Not selected"}</div>
-              <div>Tree Type: {selectedTreeType}</div>
-              <div>Administration ID: {selectedAdmin || "null"}</div>
-              <div>Department ID: {selectedDept || "null"}</div>
-              <div>Section ID: {selectedSection || "null"}</div>
-              <div style={{ marginTop: "8px", color: "#0369a1" }}>
-                Check browser console for detailed API logs
-              </div>
-            </Box>
-          </Card>
-        )}
-
         {/* Investigation Tree */}
         {loadingTree && (
           <Card sx={{ p: 4, textAlign: "center", mb: 3 }}>

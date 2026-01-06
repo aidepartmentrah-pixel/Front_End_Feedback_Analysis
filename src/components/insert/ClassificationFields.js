@@ -273,7 +273,7 @@ const ClassificationFields = ({
         <Grid xs={12} sm={6} md={3}>
           <FormControl fullWidth>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              💬 Feedback Intent Type
+              💬 Feedback Intent Type *
             </FormLabel>
             <Select
               value={formData.feedback_intent_type_id || ""}
@@ -286,12 +286,15 @@ const ClassificationFields = ({
                   sx: { maxHeight: 250, overflowY: 'auto' }
                 }
               }}
+              sx={{
+                borderColor: errorField === "feedback_intent_type_id" ? "#ff4757" : undefined,
+              }}
             >
               {Array.isArray(referenceData?.feedback_intent_types) && referenceData.feedback_intent_types.map((type) => {
-                const displayName = type.name || type.label || type.intent_type_name || type.name_en || type.name_ar;
+                const displayName = type.name || type.name_en || type.name_ar || `Type ${type.id}`;
                 return (
                   <Option key={type.id} value={type.id}>
-                    {displayName || `Type ${type.id}`}
+                    {displayName}
                   </Option>
                 );
               })}
@@ -303,7 +306,7 @@ const ClassificationFields = ({
         <Grid xs={12} sm={6} md={3}>
           <FormControl fullWidth>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              ⚕️ Clinical Risk Type
+              ⚕️ Clinical Risk Type *
             </FormLabel>
             <Select
               value={formData.clinical_risk_type_id || ""}
@@ -316,12 +319,15 @@ const ClassificationFields = ({
                   sx: { maxHeight: 250, overflowY: 'auto' }
                 }
               }}
+              sx={{
+                borderColor: errorField === "clinical_risk_type_id" ? "#ff4757" : undefined,
+              }}
             >
               {Array.isArray(referenceData?.clinical_risk_types) && referenceData.clinical_risk_types.map((type) => {
-                const displayName = type.name || type.label || type.risk_type_name || type.name_en || type.name_ar;
+                const displayName = type.name || type.name_ar || `Type ${type.id}`;
                 return (
                   <Option key={type.id} value={type.id}>
-                    {displayName || `Type ${type.id}`}
+                    {displayName}
                   </Option>
                 );
               })}

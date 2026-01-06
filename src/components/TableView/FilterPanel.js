@@ -3,6 +3,7 @@ import React from "react";
 import { Box, Card, Typography, Select, Option, Button, CircularProgress, Input } from "@mui/joy";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import ClearIcon from "@mui/icons-material/Clear";
+import YearPicker from "./YearPicker";
 
 const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => {
   const handleFilterChange = (field, value) => {
@@ -29,6 +30,8 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
         mb: 3,
         background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
         border: "1px solid rgba(102, 126, 234, 0.1)",
+        position: "relative",
+        zIndex: 10,
       }}
     >
       {/* Header */}
@@ -74,7 +77,7 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
             <Option value={null}>All departments</Option>
             {filterOptions?.issuing_org_units?.map((item) => (
               <Option key={item.id} value={item.id}>
-                {item.name} ({item.count})
+                {item.name}{item.count ? ` (${item.count})` : ""}
               </Option>
             ))}
           </Select>
@@ -90,11 +93,16 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
             value={filters.domain_id}
             onChange={(_, value) => handleFilterChange("domain_id", value)}
             size="sm"
+            slotProps={{
+              listbox: {
+                sx: { zIndex: 1300 }
+              }
+            }}
           >
             <Option value={null}>All domains</Option>
             {filterOptions?.domains?.map((item) => (
               <Option key={item.id} value={item.id}>
-                {item.name} ({item.count})
+                {item.name}{item.count ? ` (${item.count})` : ""}
               </Option>
             ))}
           </Select>
@@ -110,11 +118,41 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
             value={filters.category_id}
             onChange={(_, value) => handleFilterChange("category_id", value)}
             size="sm"
+            slotProps={{
+              listbox: {
+                sx: { zIndex: 1300 }
+              }
+            }}
           >
             <Option value={null}>All categories</Option>
             {filterOptions?.categories?.map((item) => (
               <Option key={item.id} value={item.id}>
-                {item.name} ({item.count})
+                {item.name}{item.count ? ` (${item.count})` : ""}
+              </Option>
+            ))}
+          </Select>
+        </Box>
+
+        {/* Classification English */}
+        <Box>
+          <Typography level="body-sm" sx={{ mb: 0.5, fontWeight: 600 }}>
+            Classification (English)
+          </Typography>
+          <Select
+            placeholder="All classifications"
+            value={filters.classification_en_id}
+            onChange={(_, value) => handleFilterChange("classification_en_id", value)}
+            size="sm"
+            slotProps={{
+              listbox: {
+                sx: { zIndex: 1300 }
+              }
+            }}
+          >
+            <Option value={null}>All classifications</Option>
+            {filterOptions?.classifications_en?.map((item) => (
+              <Option key={item.id} value={item.id}>
+                {item.name}{item.count ? ` (${item.count})` : ""}
               </Option>
             ))}
           </Select>
@@ -130,11 +168,16 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
             value={filters.severity_id}
             onChange={(_, value) => handleFilterChange("severity_id", value)}
             size="sm"
+            slotProps={{
+              listbox: {
+                sx: { zIndex: 1300 }
+              }
+            }}
           >
             <Option value={null}>All severities</Option>
             {filterOptions?.severities?.map((item) => (
               <Option key={item.id} value={item.id}>
-                {item.name} ({item.count})
+                {item.name}{item.count ? ` (${item.count})` : ""}
               </Option>
             ))}
           </Select>
@@ -150,11 +193,16 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
             value={filters.stage_id}
             onChange={(_, value) => handleFilterChange("stage_id", value)}
             size="sm"
+            slotProps={{
+              listbox: {
+                sx: { zIndex: 1300 }
+              }
+            }}
           >
             <Option value={null}>All stages</Option>
             {filterOptions?.stages?.map((item) => (
               <Option key={item.id} value={item.id}>
-                {item.name} ({item.count})
+                {item.name}{item.count ? ` (${item.count})` : ""}
               </Option>
             ))}
           </Select>
@@ -170,11 +218,16 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
             value={filters.harm_level_id}
             onChange={(_, value) => handleFilterChange("harm_level_id", value)}
             size="sm"
+            slotProps={{
+              listbox: {
+                sx: { zIndex: 1300 }
+              }
+            }}
           >
             <Option value={null}>All harm levels</Option>
             {filterOptions?.harm_levels?.map((item) => (
               <Option key={item.id} value={item.id}>
-                {item.name} ({item.count})
+                {item.name}{item.count ? ` (${item.count})` : ""}
               </Option>
             ))}
           </Select>
@@ -190,11 +243,16 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
             value={filters.case_status_id}
             onChange={(_, value) => handleFilterChange("case_status_id", value)}
             size="sm"
+            slotProps={{
+              listbox: {
+                sx: { zIndex: 1300 }
+              }
+            }}
           >
             <Option value={null}>All statuses</Option>
             {filterOptions?.statuses?.map((item) => (
               <Option key={item.id} value={item.id}>
-                {item.name} ({item.count})
+                {item.name}{item.count ? ` (${item.count})` : ""}
               </Option>
             ))}
           </Select>
@@ -205,18 +263,10 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
           <Typography level="body-sm" sx={{ mb: 0.5, fontWeight: 600 }}>
             Year
           </Typography>
-          <Input
-            type="number"
-            placeholder="YYYY"
-            value={filters.year || ""}
-            onChange={(e) => handleFilterChange("year", e.target.value ? parseInt(e.target.value) : null)}
-            size="sm"
-            slotProps={{
-              input: {
-                min: 2000,
-                max: 2100,
-              },
-            }}
+          <YearPicker
+            value={filters.year}
+            onChange={(year) => handleFilterChange("year", year)}
+            availableYears={filterOptions?.years || []}
           />
         </Box>
 
@@ -230,6 +280,11 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
             value={filters.month}
             onChange={(_, value) => handleFilterChange("month", value)}
             size="sm"
+            slotProps={{
+              listbox: {
+                sx: { zIndex: 1300 }
+              }
+            }}
           >
             <Option value={null}>All months</Option>
             {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (

@@ -15,7 +15,7 @@ const DeleteConfirmationDialog = ({
   const complaintId = complaint?.complaint_number || complaint?.id;
 
   return (
-    <Modal aria-labelledby="delete-dialog-title" open={open} onClose={onClose}>
+    <Modal aria-labelledby="delete-dialog-title" open={open} onClose={onClose} sx={{ zIndex: 2000 }}>
       <ModalDialog
         aria-labelledby="delete-dialog-title"
         variant="outlined"
@@ -23,6 +23,7 @@ const DeleteConfirmationDialog = ({
         sx={{
           maxWidth: "500px",
           boxShadow: "lg",
+          zIndex: 2000,
         }}
       >
         <DialogTitle id="delete-dialog-title" sx={{ display: "flex", gap: 1, alignItems: "center" }}>

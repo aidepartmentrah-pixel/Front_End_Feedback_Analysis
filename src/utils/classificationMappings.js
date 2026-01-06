@@ -143,6 +143,36 @@ export const REVERSE_HARM_MAP = {
   "No Harm": 6,
 };
 
+// Feedback Intent Type Mappings (these come as text from AI, need to convert to IDs)
+export const FEEDBACK_INTENT_TYPE_MAP = {
+  "Improvement Opportunity": 1,
+  "Notice": 2,
+  "Critique / Suggestion": 3,
+  "Critique/Suggestion": 3,
+  "Other": 4,
+};
+
+export const REVERSE_FEEDBACK_INTENT_MAP = {
+  1: "Improvement Opportunity",
+  2: "Notice",
+  3: "Critique / Suggestion",
+  4: "Other",
+};
+
+// Clinical Risk Type Mappings (these come as text from AI, need to convert to IDs)
+export const CLINICAL_RISK_TYPE_MAP = {
+  "Ordinary": 1,
+  "Ordinary Complaint": 1,
+  "Red Flag": 2,
+  "Never Event": 3,
+};
+
+export const REVERSE_CLINICAL_RISK_MAP = {
+  1: "Ordinary",
+  2: "Red Flag",
+  3: "Never Event",
+};
+
 /**
  * Convert classification text values to database IDs
  * Handles both text labels (from model) and already-IDs (from API)
@@ -151,16 +181,16 @@ export const normalizeClassifications = (classificationResponse) => {
   const result = {
     domain_id: null,
     category_id: null,
-    sub_category_id: null,
+    subcategory_id: null,
     classification_id: null,
     severity_id: null,
     stage_id: null,
-    harm_level_id: null,
+    harm_id: null,
     feedback_intent_type_id: null,
     clinical_risk_type_id: null,
   };
 
-  // Use API IDs if available, otherwise map from text labels
+  // Map directly from API response using correct field names
   if (classificationResponse.domain_id) {
     result.domain_id = Number(classificationResponse.domain_id);
   } else if (classificationResponse.domain) {
@@ -173,17 +203,23 @@ export const normalizeClassifications = (classificationResponse) => {
     result.category_id = REVERSE_CATEGORY_MAP[classificationResponse.category];
   }
 
-  if (classificationResponse.sub_category_id) {
-    result.sub_category_id = Number(classificationResponse.sub_category_id);
+  // Handle both subcategory_id and sub_category_id (API returns both formats)
+  if (classificationResponse.subcategory_id) {
+    result.subcategory_id = Number(classificationResponse.subcategory_id);
+  } else if (classificationResponse.sub_category_id) {
+    result.subcategory_id = Number(classificationResponse.sub_category_id);
   } else if (classificationResponse.sub_category) {
-    result.sub_category_id = REVERSE_SUBCATEGORY_MAP[classificationResponse.sub_category];
+    result.subcategory_id = REVERSE_SUBCATEGORY_MAP[classificationResponse.sub_category];
   }
 
   if (classificationResponse.classification_id) {
     result.classification_id = Number(classificationResponse.classification_id);
   }
 
-  if (classificationResponse.severity_id) {
+  // Map severity_level_id to severity_id (form field name)
+  if (classificationResponse.severity_level_id) {
+    result.severity_id = Number(classificationResponse.severity_level_id);
+  } else if (classificationResponse.severity_id) {
     result.severity_id = Number(classificationResponse.severity_id);
   } else if (classificationResponse.severity_level) {
     result.severity_id = REVERSE_SEVERITY_MAP[classificationResponse.severity_level];
@@ -195,21 +231,35 @@ export const normalizeClassifications = (classificationResponse) => {
     result.stage_id = REVERSE_STAGE_MAP[classificationResponse.stage];
   }
 
+  // Map harm_level_id to harm_id (form field name)
   if (classificationResponse.harm_level_id) {
-    result.harm_level_id = Number(classificationResponse.harm_level_id);
+    result.harm_id = Number(classificationResponse.harm_level_id);
+  } else if (classificationResponse.harm_id) {
+    result.harm_id = Number(classificationResponse.harm_id);
   } else if (classificationResponse.harm_level) {
-    result.harm_level_id = REVERSE_HARM_MAP[classificationResponse.harm_level];
+    result.harm_id = REVERSE_HARM_MAP[classificationResponse.harm_level];
   }
 
-  // Map feedback_type to feedback_intent_type_id
+  // Map feedback_type_id to feedback_intent_type_id (form field name)
   if (classificationResponse.feedback_type_id) {
-    result.feedback_intent_type_id = Number(classificationResponse.feedback_type_id);
+    const val = classificationResponse.feedback_type_id;
+    // If it's already a number, use it; if it's text, map it
+    result.feedback_intent_type_id = typeof val === 'number' ? val : FEEDBACK_INTENT_TYPE_MAP[val];
+    console.log("✅ Mapped feedback_type_id:", val, "→ feedback_intent_type_id:", result.feedback_intent_type_id);
+  } else {
+    console.warn("⚠️ feedback_type_id not found in response:", classificationResponse);
   }
 
-  // Map improvement_opportunity_type to clinical_risk_type_id
+  // Map improvement_opportunity_type_id to clinical_risk_type_id (form field name)
   if (classificationResponse.improvement_opportunity_type_id) {
-    result.clinical_risk_type_id = Number(classificationResponse.improvement_opportunity_type_id);
+    const val = classificationResponse.improvement_opportunity_type_id;
+    // If it's already a number, use it; if it's text, map it
+    result.clinical_risk_type_id = typeof val === 'number' ? val : CLINICAL_RISK_TYPE_MAP[val];
+    console.log("✅ Mapped improvement_opportunity_type_id:", val, "→ clinical_risk_type_id:", result.clinical_risk_type_id);
+  } else {
+    console.warn("⚠️ improvement_opportunity_type_id not found in response:", classificationResponse);
   }
 
+  console.log("📊 Final normalized result:", result);
   return result;
 };

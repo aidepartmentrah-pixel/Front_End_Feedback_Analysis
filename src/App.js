@@ -27,6 +27,7 @@ function App() {
         <Route path="/table-view" element={<TableView />} />
         <Route path="/insert" element={<InsertRecord />} />
         <Route path="/edit/:id" element={<EditRecord />} />
+        <Route path="/edit-record/:id" element={<EditRecord />} />
         <Route path="/reporting" element={<ReportingPage />} />
         <Route path="/settings" element={<SettingPage />} />
         <Route path="/history" element={<HistoryPage />} />

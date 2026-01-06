@@ -250,8 +250,9 @@ export async function fetchTableViews() {
  * @returns {Promise<Object>} Success response
  */
 export async function deleteComplaint(complaintId) {
-  console.log("🗑️ Deleting complaint:", complaintId);
-  const url = `${BASE_URL}/${complaintId}`;
+  console.log("🗑️ Hard deleting complaint:", complaintId);
+  const url = `${BASE_URL}/${complaintId}/hard-delete`;
+  console.log("🔗 DELETE URL:", url);
 
   try {
     const response = await fetch(url, {
@@ -261,15 +262,106 @@ export async function deleteComplaint(complaintId) {
       },
     });
 
+    console.log("📊 Response status:", response.status);
+    console.log("📊 Response OK:", response.ok);
+
+    let data;
+    try {
+      data = await response.json();
+      console.log("📊 Response data:", data);
+    } catch (e) {
+      console.log("⚠️ Could not parse response as JSON");
+      data = { success: response.ok };
+    }
+
+    // Check if response indicates success (200-299 status)
     if (!response.ok) {
-      throw new Error(`Failed to delete complaint: ${response.status}`);
+      throw new Error(data?.detail?.message || data?.message || `Failed to delete: ${response.status}`);
+    }
+
+    console.log("✅ Complaint permanently deleted:", data);
+    return data;
+  } catch (error) {
+    console.error("❌ Error deleting complaint:", error.message);
+    throw error;
+  }
+}
+
+/**
+ * Fetch a single record by ID for editing
+ * @param {number} recordId - The record ID
+ * @returns {Promise<Object>} Record data with all fields for editing
+ */
+export async function getRecordById(recordId) {
+  console.log("📖 Fetching record details:", recordId);
+  const url = `http://127.0.0.1:8000/api/records/${recordId}`;
+  console.log("🔗 GET URL:", url);
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+      },
+    });
+
+    console.log("📊 Response status:", response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("❌ Record fetch error:", errorText);
+      throw new Error(`Failed to fetch record: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log("✅ Complaint deleted successfully");
+    console.log("✅ Record loaded:", data.record);
+    return data.record;
+  } catch (error) {
+    console.error("❌ Error fetching record:", error.message);
+    throw error;
+  }
+}
+
+/**
+ * Update an existing record
+ * @param {number} recordId - The record ID
+ * @param {Object} payload - Updated record data (same structure as insert)
+ * @returns {Promise<Object>} Updated record confirmation
+ */
+export async function updateRecord(recordId, payload) {
+  console.log("✏️ Updating record:", recordId);
+  const url = `http://127.0.0.1:8000/api/records/${recordId}`;
+  console.log("🔗 PUT URL:", url);
+  console.log("📦 Payload:", JSON.stringify(payload, null, 2));
+
+  try {
+    const response = await fetch(url, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    console.log("📊 Response status:", response.status);
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        errorData = { detail: { message: `HTTP ${response.status}` } };
+      }
+      const errorMessage = errorData?.detail?.message || errorData?.message || `Update failed: ${response.status}`;
+      console.error("❌ Update error:", errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    console.log("✅ Record updated successfully:", data);
     return data;
   } catch (error) {
-    console.error("❌ Error deleting complaint:", error);
+    console.error("❌ Error updating record:", error.message);
     throw error;
   }
 }
