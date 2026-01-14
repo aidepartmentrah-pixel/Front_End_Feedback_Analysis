@@ -12,7 +12,12 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
 
   const hasActiveFilters = Object.values(filters).some(v => v !== null && v !== undefined && v !== "");
 
-  if (loading) {
+  // Debug logging
+  React.useEffect(() => {
+    console.log("🔍 FilterPanel received filterOptions:", filterOptions);
+  }, [filterOptions]);
+
+  if (loading || !filterOptions) {
     return (
       <Card sx={{ p: 2, mb: 3 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -73,11 +78,27 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
             value={filters.issuing_org_unit_id}
             onChange={(_, value) => handleFilterChange("issuing_org_unit_id", value)}
             size="sm"
+            slotProps={{
+              listbox: {
+                onMouseLeave: (e) => {
+                  const popup = e.currentTarget.closest('[role="presentation"]');
+                  if (popup) {
+                    popup.style.display = 'none';
+                    setTimeout(() => popup.remove(), 0);
+                  }
+                },
+                sx: { 
+                  zIndex: 1300,
+                  backgroundColor: "#fff",
+                  color: "#000",
+                }
+              }
+            }}
           >
-            <Option value={null}>All departments</Option>
-            {filterOptions?.issuing_org_units?.map((item) => (
-              <Option key={item.id} value={item.id}>
-                {item.name}{item.count ? ` (${item.count})` : ""}
+            <Option value={null} sx={{ color: "#000" }}>All departments</Option>
+            {filterOptions?.issuing_org_units && Array.isArray(filterOptions.issuing_org_units) && filterOptions.issuing_org_units.map((item) => (
+              <Option key={item.id} value={item.id} sx={{ color: "#000" }}>
+                {item.name || item.name_en || item.name_ar || `Dept ${item.id}`}{item.count ? ` (${item.count})` : ""}
               </Option>
             ))}
           </Select>
@@ -94,15 +115,19 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
             onChange={(_, value) => handleFilterChange("domain_id", value)}
             size="sm"
             slotProps={{
-              listbox: {
-                sx: { zIndex: 1300 }
+              listbox: {                onMouseLeave: (e) => e.currentTarget.closest('[role="listbox"]')?.parentElement?.parentElement?.click(),                onMouseLeave: (e) => e.currentTarget.closest('[role="listbox"]')?.parentElement?.parentElement?.click(),
+                sx: { 
+                  zIndex: 1300,
+                  backgroundColor: "#fff",
+                  color: "#000",
+                }
               }
             }}
           >
-            <Option value={null}>All domains</Option>
-            {filterOptions?.domains?.map((item) => (
-              <Option key={item.id} value={item.id}>
-                {item.name}{item.count ? ` (${item.count})` : ""}
+            <Option value={null} sx={{ color: "#000" }}>All domains</Option>
+            {filterOptions?.domains && Array.isArray(filterOptions.domains) && filterOptions.domains.map((item) => (
+              <Option key={item.id} value={item.id} sx={{ color: "#000" }}>
+                {item.name || item.name_en || item.name_ar || `Domain ${item.id}`}{item.count ? ` (${item.count})` : ""}
               </Option>
             ))}
           </Select>
@@ -120,14 +145,25 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
             size="sm"
             slotProps={{
               listbox: {
-                sx: { zIndex: 1300 }
+                onMouseLeave: (e) => {
+                  const popup = e.currentTarget.closest('[role="presentation"]');
+                  if (popup) {
+                    popup.style.display = 'none';
+                    setTimeout(() => popup.remove(), 0);
+                  }
+                },
+                sx: {
+                  zIndex: 1300,
+                  backgroundColor: "#fff",
+                  color: "#000",
+                }
               }
             }}
           >
-            <Option value={null}>All categories</Option>
-            {filterOptions?.categories?.map((item) => (
-              <Option key={item.id} value={item.id}>
-                {item.name}{item.count ? ` (${item.count})` : ""}
+            <Option value={null} sx={{ color: "#000" }}>All categories</Option>
+            {filterOptions?.categories && Array.isArray(filterOptions.categories) && filterOptions.categories.map((item) => (
+              <Option key={item.id} value={item.id} sx={{ color: "#000" }}>
+                {item.name || item.name_en || item.name_ar || `Category ${item.id}`}{item.count ? ` (${item.count})` : ""}
               </Option>
             ))}
           </Select>
@@ -145,14 +181,25 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
             size="sm"
             slotProps={{
               listbox: {
-                sx: { zIndex: 1300 }
+                onMouseLeave: (e) => {
+                  const popup = e.currentTarget.closest('[role="presentation"]');
+                  if (popup) {
+                    popup.style.display = 'none';
+                    setTimeout(() => popup.remove(), 0);
+                  }
+                },
+                sx: { 
+                  zIndex: 1300,
+                  backgroundColor: "#fff",
+                  color: "#000"
+                }
               }
             }}
           >
-            <Option value={null}>All classifications</Option>
-            {filterOptions?.classifications_en?.map((item) => (
-              <Option key={item.id} value={item.id}>
-                {item.name}{item.count ? ` (${item.count})` : ""}
+            <Option value={null} sx={{ color: "#000" }}>All classifications</Option>
+            {filterOptions?.classifications_en && Array.isArray(filterOptions.classifications_en) && filterOptions.classifications_en.map((item) => (
+              <Option key={item.ClassificationID || item.id} value={item.ClassificationID || item.id} sx={{ color: "#000" }}>
+                {item.Classification_EN || item.name || item.name_en || `Classification ${item.ClassificationID || item.id}`}{item.count ? ` (${item.count})` : ""}
               </Option>
             ))}
           </Select>
@@ -170,14 +217,25 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
             size="sm"
             slotProps={{
               listbox: {
-                sx: { zIndex: 1300 }
+                onMouseLeave: (e) => {
+                  const popup = e.currentTarget.closest('[role="presentation"]');
+                  if (popup) {
+                    popup.style.display = 'none';
+                    setTimeout(() => popup.remove(), 0);
+                  }
+                },
+                sx: { 
+                  zIndex: 1300,
+                  backgroundColor: "#fff",
+                  color: "#000",
+                }
               }
             }}
           >
-            <Option value={null}>All severities</Option>
-            {filterOptions?.severities?.map((item) => (
-              <Option key={item.id} value={item.id}>
-                {item.name}{item.count ? ` (${item.count})` : ""}
+            <Option value={null} sx={{ color: "#000" }}>All severities</Option>
+            {filterOptions?.severities && Array.isArray(filterOptions.severities) && filterOptions.severities.map((item) => (
+              <Option key={item.id} value={item.id} sx={{ color: "#000" }}>
+                {item.name || item.name_en || item.name_ar || `Severity ${item.id}`}{item.count ? ` (${item.count})` : ""}
               </Option>
             ))}
           </Select>
@@ -199,10 +257,10 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
               }
             }}
           >
-            <Option value={null}>All stages</Option>
-            {filterOptions?.stages?.map((item) => (
-              <Option key={item.id} value={item.id}>
-                {item.name}{item.count ? ` (${item.count})` : ""}
+            <Option value={null} sx={{ color: "#000" }}>All stages</Option>
+            {filterOptions?.stages && Array.isArray(filterOptions.stages) && filterOptions.stages.map((item) => (
+              <Option key={item.id} value={item.id} sx={{ color: "#000" }}>
+                {item.name || item.name_en || item.name_ar || `Stage ${item.id}`}{item.count ? ` (${item.count})` : ""}
               </Option>
             ))}
           </Select>
@@ -220,14 +278,19 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
             size="sm"
             slotProps={{
               listbox: {
-                sx: { zIndex: 1300 }
+                onMouseLeave: (e) => e.currentTarget.closest('[role="listbox"]')?.parentElement?.parentElement?.click(),
+                sx: { 
+                  zIndex: 1300,
+                  backgroundColor: "#fff",
+                  color: "#000",
+                }
               }
             }}
           >
-            <Option value={null}>All harm levels</Option>
-            {filterOptions?.harm_levels?.map((item) => (
-              <Option key={item.id} value={item.id}>
-                {item.name}{item.count ? ` (${item.count})` : ""}
+            <Option value={null} sx={{ color: "#000" }}>All harm levels</Option>
+            {filterOptions?.harm_levels && Array.isArray(filterOptions.harm_levels) && filterOptions.harm_levels.map((item) => (
+              <Option key={item.id} value={item.id} sx={{ color: "#000" }}>
+                {item.name || item.name_en || item.name_ar || `Harm ${item.id}`}{item.count ? ` (${item.count})` : ""}
               </Option>
             ))}
           </Select>
@@ -245,14 +308,25 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
             size="sm"
             slotProps={{
               listbox: {
-                sx: { zIndex: 1300 }
+                onMouseLeave: (e) => {
+                  const popup = e.currentTarget.closest('[role="presentation"]');
+                  if (popup) {
+                    popup.style.display = 'none';
+                    setTimeout(() => popup.remove(), 0);
+                  }
+                },
+                sx: { 
+                  zIndex: 1300,
+                  backgroundColor: "#fff",
+                  color: "#000"
+                }
               }
             }}
           >
-            <Option value={null}>All statuses</Option>
-            {filterOptions?.statuses?.map((item) => (
-              <Option key={item.id} value={item.id}>
-                {item.name}{item.count ? ` (${item.count})` : ""}
+            <Option value={null} sx={{ color: "#000" }}>All statuses</Option>
+            {filterOptions?.statuses && Array.isArray(filterOptions.statuses) && filterOptions.statuses.map((item) => (
+              <Option key={item.id || item.status_id || item.StatusID} value={item.id || item.status_id || item.StatusID} sx={{ color: "#000" }}>
+                {item.name || item.status_name || item.Status_EN || item.name_en || item.name_ar || `Status ${item.id || item.status_id || item.StatusID}`}{item.count ? ` (${item.count})` : ""}
               </Option>
             ))}
           </Select>
@@ -282,14 +356,25 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
             size="sm"
             slotProps={{
               listbox: {
-                sx: { zIndex: 1300 }
+                onMouseLeave: (e) => {
+                  const popup = e.currentTarget.closest('[role="presentation"]');
+                  if (popup) {
+                    popup.style.display = 'none';
+                    setTimeout(() => popup.remove(), 0);
+                  }
+                },
+                sx: { 
+                  zIndex: 1300,
+                  backgroundColor: "#fff",
+                  color: "#000"
+                }
               }
             }}
           >
-            <Option value={null}>All months</Option>
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
-              <Option key={month} value={month}>
-                {new Date(2000, month - 1).toLocaleDateString("en-US", { month: "long" })}
+            <Option value={null} sx={{ color: "#000" }}>All months</Option>
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((month) => (
+              <Option key={month} value={month} sx={{ color: "#000" }}>
+                {new Date(2024, month - 1).toLocaleString('en-US', { month: 'long' })}
               </Option>
             ))}
           </Select>

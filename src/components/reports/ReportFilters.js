@@ -1,22 +1,169 @@
 // src/components/reports/ReportFilters.js
-import React from "react";
-import { Box, Card, Typography, FormControl, FormLabel, Input, Select, Option, Grid, Radio, RadioGroup } from "@mui/joy";
+import React, { useMemo, useEffect } from "react";
+import { Box, Card, Typography, FormControl, FormLabel, Input, Select, Option, Grid, Radio, RadioGroup, Chip, Alert } from "@mui/joy";
+import WarningIcon from "@mui/icons-material/Warning";
 
-const ReportFilters = ({ filters, setFilters, reportType, hierarchy, loadingHierarchy }) => {
+const ReportFilters = ({ filters, setFilters, reportType, hierarchy, loadingHierarchy, reportScope, setReportScope, onValidationChange }) => {
+  // Generate dynamic year list (current year + last 10 years)
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 11 }, (_, i) => currentYear - i);
+
+  // Auto-fix invalid date mode combinations when reportType changes
+  useEffect(() => {
+    if (reportType === "monthly") {
+      // Force month or range mode for monthly reports
+      if (filters.dateMode === "trimester") {
+        setFilters(f => ({ ...f, dateMode: "month", trimester: "" }));
+      }
+    } else if (reportType === "seasonal") {
+      // Force trimester mode for seasonal reports
+      if (filters.dateMode !== "trimester") {
+        setFilters(f => ({ ...f, dateMode: "trimester", month: "", fromDate: "", toDate: "" }));
+      }
+    }
+  }, [reportType, filters.dateMode, setFilters]);
+
+  // Date range validation - check if fromDate > toDate
+  const isDateRangeInvalid = useMemo(() => {
+    if (reportType === "monthly" && filters.dateMode === "range" && filters.fromDate && filters.toDate) {
+      const fromDate = new Date(filters.fromDate);
+      const toDate = new Date(filters.toDate);
+      return fromDate > toDate;
+    }
+    return false;
+  }, [reportType, filters.dateMode, filters.fromDate, filters.toDate]);
+
+  // Notify parent component about validation state changes
+  React.useEffect(() => {
+    if (onValidationChange) {
+      onValidationChange(isDateRangeInvalid);
+    }
+  }, [isDateRangeInvalid, onValidationChange]);
+
+  // Auto-clear invalid date range and alert user
+  useEffect(() => {
+    if (filters.dateMode === "range" && filters.fromDate && filters.toDate) {
+      const fromDate = new Date(filters.fromDate);
+      const toDate = new Date(filters.toDate);
+      
+      if (fromDate > toDate) {
+        alert(
+          "⚠️ خطأ في نطاق التاريخ (Invalid Date Range)\n\n" +
+          "تاريخ البداية يجب أن يكون قبل تاريخ النهاية\n" +
+          "From date must be before To date\n\n" +
+          "سيتم مسح تاريخ النهاية تلقائياً\n" +
+          "To date will be cleared automatically"
+        );
+        
+        setFilters(f => ({
+          ...f,
+          toDate: ""
+        }));
+      }
+    }
+  }, [filters.fromDate, filters.toDate, filters.dateMode, setFilters]);
+
   const handleChange = (field, value) => {
     setFilters({ ...filters, [field]: value });
   };
 
-  // Get available departments based on selected administration
-  const getAvailableDepartments = () => {
-    if (!filters.idara || !hierarchy) return [];
-    return hierarchy.Department?.[filters.idara] || [];
+  // Handle scope level change - clears all IDs
+  const handleScopeLevelChange = (newLevel) => {
+    setReportScope({
+      level: newLevel,
+      administrationIds: [],
+      departmentIds: [],
+      sectionIds: []
+    });
   };
 
-  // Get available sections based on selected department
-  const getAvailableSections = () => {
-    if (!filters.dayra || !hierarchy) return [];
-    return hierarchy.Section?.[filters.dayra] || [];
+  // Handle administration selection - clears downstream
+  const handleAdministrationChange = (e, newValue) => {
+    // Extract IDs if newValue contains objects (MUI Joy Select with multiple can return objects)
+    const ids = Array.isArray(newValue) 
+      ? newValue.map(val => typeof val === 'object' ? val.value : val)
+      : [];
+    setReportScope({
+      ...reportScope,
+      administrationIds: ids,
+      departmentIds: [],  // Clear downstream
+      sectionIds: []      // Clear downstream
+    });
+  };
+
+  // Handle department selection - clears downstream
+  const handleDepartmentChange = (e, newValue) => {
+    // Extract IDs if newValue contains objects
+    const ids = Array.isArray(newValue)
+      ? newValue.map(val => typeof val === 'object' ? val.value : val)
+      : [];
+    setReportScope({
+      ...reportScope,
+      departmentIds: ids,
+      sectionIds: []  // Clear downstream
+    });
+  };
+
+  // Handle section selection
+  const handleSectionChange = (e, newValue) => {
+    // Extract IDs if newValue contains objects
+    const ids = Array.isArray(newValue)
+      ? newValue.map(val => typeof val === 'object' ? val.value : val)
+      : [];
+    setReportScope({
+      ...reportScope,
+      sectionIds: ids
+    });
+  };
+
+  // Get available administrations
+  const getAdministrations = () => {
+    if (!hierarchy) return [];
+    return hierarchy.Administration || [];
+  };
+
+  // Get available departments based on selected administrations
+  const getDepartments = () => {
+    if (!hierarchy || !hierarchy.Department) return [];
+    
+    // If no administrations selected, return all departments
+    if (reportScope.administrationIds.length === 0) {
+      const allDepts = [];
+      Object.values(hierarchy.Department).forEach(depts => {
+        allDepts.push(...depts);
+      });
+      return allDepts;
+    }
+    
+    // Return departments filtered by selected administrations
+    const filtered = [];
+    reportScope.administrationIds.forEach(adminId => {
+      const depts = hierarchy.Department[adminId] || [];
+      filtered.push(...depts);
+    });
+    return filtered;
+  };
+
+  // Get available sections based on selected departments
+  const getSections = () => {
+    if (!hierarchy || !hierarchy.Section) return [];
+    
+    // If no departments selected, return all sections
+    if (reportScope.departmentIds.length === 0) {
+      const allSections = [];
+      Object.values(hierarchy.Section).forEach(sections => {
+        allSections.push(...sections);
+      });
+      return allSections;
+    }
+    
+    // Return sections filtered by selected departments
+    const filtered = [];
+    reportScope.departmentIds.forEach(deptId => {
+      const sections = hierarchy.Section[deptId] || [];
+      filtered.push(...sections);
+    });
+    return filtered;
   };
 
   // Handle date mode toggle
@@ -43,6 +190,173 @@ const ReportFilters = ({ filters, setFilters, reportType, hierarchy, loadingHier
         فلاتر التقرير (Report Filters)
       </Typography>
 
+      {/* Report Scope Level Selector */}
+      <Box sx={{ mb: 3, p: 2, background: "rgba(102, 126, 234, 0.05)", borderRadius: "8px" }}>
+        <Typography level="body-sm" sx={{ mb: 2, fontWeight: 700 }}>
+          📊 مستوى نطاق التقرير (Report Scope Level):
+        </Typography>
+        <RadioGroup
+          value={reportScope.level}
+          onChange={(e) => handleScopeLevelChange(e.target.value)}
+          orientation="horizontal"
+          sx={{ gap: 3, flexWrap: "wrap" }}
+        >
+          <Radio value="hospital" label="🏥 المستشفى (Hospital)" />
+          <Radio value="administration" label="🏢 إدارة (Administration)" />
+          <Radio value="department" label="🏬 دائرة (Department)" />
+          <Radio value="section" label="🧩 قسم (Section)" />
+        </RadioGroup>
+
+        {/* Cascaded Hierarchy Navigation */}
+        {reportScope.level !== "hospital" && (
+          <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+            
+            {/* Administration Selector - Shows for all levels except hospital */}
+            <FormControl sx={{ width: "100%" }}>
+              <FormLabel sx={{ fontWeight: 600, mb: 1 }}>
+                🏢 الإدارات (Administrations)
+                {reportScope.administrationIds.length === 0 && " - الكل (All)"}
+              </FormLabel>
+              <Select
+                multiple
+                value={reportScope.administrationIds}
+                onChange={handleAdministrationChange}
+                disabled={loadingHierarchy}
+                placeholder="اختر الإدارات أو اتركه فارغاً للكل"
+                renderValue={(selected) => (
+                  <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+                    {selected.length === 0 ? (
+                      <Typography level="body-sm" sx={{ color: "#667eea", fontWeight: 600 }}>
+                        الكل (All)
+                      </Typography>
+                    ) : (
+                      selected.map((selectedItem) => {
+                        // Handle both object and primitive values
+                        const selectedId = typeof selectedItem === 'object' ? selectedItem.value : selectedItem;
+                        const item = getAdministrations().find(i => i.id === selectedId);
+                        return (
+                          <Chip key={selectedId} variant="soft" color="primary">
+                            {item?.nameAr || item?.nameEn || selectedId}
+                          </Chip>
+                        );
+                      })
+                    )}
+                  </Box>
+                )}
+                slotProps={{
+                  listbox: {
+                    sx: { maxHeight: 300, overflowY: "auto" }
+                  }
+                }}
+              >
+                {getAdministrations().map((item) => (
+                  <Option key={item.id} value={item.id}>
+                    {item.nameAr} ({item.nameEn})
+                  </Option>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Department Selector - Shows for department and section levels */}
+            {(reportScope.level === "department" || reportScope.level === "section") && (
+              <FormControl sx={{ width: "100%" }}>
+                <FormLabel sx={{ fontWeight: 600, mb: 1 }}>
+                  🏬 الدوائر (Departments)
+                  {reportScope.departmentIds.length === 0 && " - الكل (All)"}
+                </FormLabel>
+                <Select
+                  multiple
+                  value={reportScope.departmentIds}
+                  onChange={handleDepartmentChange}
+                  disabled={loadingHierarchy}
+                  placeholder="اختر الدوائر أو اتركه فارغاً للكل"
+                  renderValue={(selected) => (
+                    <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+                      {selected.length === 0 ? (
+                        <Typography level="body-sm" sx={{ color: "#667eea", fontWeight: 600 }}>
+                          الكل (All)
+                        </Typography>
+                      ) : (
+                        selected.map((selectedItem) => {
+                          // Handle both object and primitive values
+                          const selectedId = typeof selectedItem === 'object' ? selectedItem.value : selectedItem;
+                          const item = getDepartments().find(i => i.id === selectedId);
+                          return (
+                            <Chip key={selectedId} variant="soft" color="primary">
+                              {item?.nameAr || item?.nameEn || selectedId}
+                            </Chip>
+                          );
+                        })
+                      )}
+                    </Box>
+                  )}
+                  slotProps={{
+                    listbox: {
+                      sx: { maxHeight: 300, overflowY: "auto" }
+                    }
+                  }}
+                >
+                  {getDepartments().map((item) => (
+                    <Option key={item.id} value={item.id}>
+                      {item.nameAr} ({item.nameEn})
+                    </Option>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {/* Section Selector - Shows only for section level */}
+            {reportScope.level === "section" && (
+              <FormControl sx={{ width: "100%" }}>
+                <FormLabel sx={{ fontWeight: 600, mb: 1 }}>
+                  🧩 الأقسام (Sections)
+                  {reportScope.sectionIds.length === 0 && " - الكل (All)"}
+                </FormLabel>
+                <Select
+                  multiple
+                  value={reportScope.sectionIds}
+                  onChange={handleSectionChange}
+                  disabled={loadingHierarchy}
+                  placeholder="اختر الأقسام أو اتركه فارغاً للكل"
+                  renderValue={(selected) => (
+                    <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+                      {selected.length === 0 ? (
+                        <Typography level="body-sm" sx={{ color: "#667eea", fontWeight: 600 }}>
+                          الكل (All)
+                        </Typography>
+                      ) : (
+                        selected.map((selectedItem) => {
+                          // Handle both object and primitive values
+                          const selectedId = typeof selectedItem === 'object' ? selectedItem.value : selectedItem;
+                          const item = getSections().find(i => i.id === selectedId);
+                          return (
+                            <Chip key={selectedId} variant="soft" color="primary">
+                              {item?.nameAr || item?.nameEn || selectedId}
+                            </Chip>
+                          );
+                        })
+                      )}
+                    </Box>
+                  )}
+                  slotProps={{
+                    listbox: {
+                      sx: { maxHeight: 300, overflowY: "auto" }
+                    }
+                  }}
+                >
+                  {getSections().map((item) => (
+                    <Option key={item.id} value={item.id}>
+                      {item.nameAr} ({item.nameEn})
+                    </Option>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+          </Box>
+        )}
+      </Box>
+
       {/* Date Mode Selection */}
       <Box sx={{ mb: 3, p: 2, background: "rgba(102, 126, 234, 0.05)", borderRadius: "8px" }}>
         <Typography level="body-sm" sx={{ mb: 2, fontWeight: 700 }}>
@@ -64,6 +378,24 @@ const ReportFilters = ({ filters, setFilters, reportType, hierarchy, loadingHier
             <Radio value="trimester" label="فصل/سنة (Trimester/Year)" />
           )}
         </RadioGroup>
+        
+        {/* Auto-sync info message */}
+        <Typography 
+          level="body-xs" 
+          sx={{ 
+            mt: 1.5, 
+            color: "#667eea", 
+            fontStyle: "italic",
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5
+          }}
+        >
+          ℹ️ {reportType === "seasonal" 
+            ? "يتم تحديد الفصل تلقائياً للتقارير الفصلية • Trimester mode is auto-selected for seasonal reports"
+            : "الخيارات المتاحة للتقارير الشهرية فقط • Options available for monthly reports only"
+          }
+        </Typography>
       </Box>
 
       <Grid container spacing={2}>
@@ -71,26 +403,52 @@ const ReportFilters = ({ filters, setFilters, reportType, hierarchy, loadingHier
         {filters.dateMode === "range" && (
           <>
             <Grid xs={12} sm={6} md={3}>
-              <FormControl>
+              <FormControl error={isDateRangeInvalid}>
                 <FormLabel sx={{ fontWeight: 600, mb: 1 }}>من تاريخ (From Date)</FormLabel>
                 <Input
                   type="date"
                   value={filters.fromDate}
                   onChange={(e) => handleChange("fromDate", e.target.value)}
+                  color={isDateRangeInvalid ? "danger" : "neutral"}
                 />
               </FormControl>
             </Grid>
 
             <Grid xs={12} sm={6} md={3}>
-              <FormControl>
+              <FormControl error={isDateRangeInvalid}>
                 <FormLabel sx={{ fontWeight: 600, mb: 1 }}>إلى تاريخ (To Date)</FormLabel>
                 <Input
                   type="date"
                   value={filters.toDate}
                   onChange={(e) => handleChange("toDate", e.target.value)}
+                  color={isDateRangeInvalid ? "danger" : "neutral"}
                 />
               </FormControl>
             </Grid>
+
+            {/* Date Range Validation Error Message */}
+            {isDateRangeInvalid && (
+              <Grid xs={12}>
+                <Alert
+                  color="danger"
+                  variant="soft"
+                  startDecorator={<WarningIcon />}
+                  sx={{
+                    fontWeight: 600,
+                    fontSize: "0.95rem"
+                  }}
+                >
+                  <Box>
+                    <Typography level="title-sm" sx={{ color: "danger.700", fontWeight: 700 }}>
+                      ⚠️ خطأ في نطاق التاريخ (Invalid Date Range)
+                    </Typography>
+                    <Typography level="body-sm" sx={{ color: "danger.600" }}>
+                      تاريخ البداية يجب أن يكون قبل تاريخ النهاية • From Date must be before To Date
+                    </Typography>
+                  </Box>
+                </Alert>
+              </Grid>
+            )}
           </>
         )}
 
@@ -103,6 +461,7 @@ const ReportFilters = ({ filters, setFilters, reportType, hierarchy, loadingHier
                 <Select
                   value={filters.month}
                   onChange={(e, value) => handleChange("month", value)}
+                  disabled={reportType === "seasonal"}
                 >
                   <Option value="">-- اختر شهر --</Option>
                   <Option value="1">يناير (January)</Option>
@@ -129,9 +488,11 @@ const ReportFilters = ({ filters, setFilters, reportType, hierarchy, loadingHier
                   onChange={(e, value) => handleChange("year", value)}
                 >
                   <Option value="">-- اختر سنة --</Option>
-                  <Option value="2025">2025</Option>
-                  <Option value="2024">2024</Option>
-                  <Option value="2023">2023</Option>
+                  {years.map((year) => (
+                    <Option key={year} value={year.toString()}>
+                      {year}
+                    </Option>
+                  ))}
                 </Select>
               </FormControl>
             </Grid>
@@ -147,6 +508,7 @@ const ReportFilters = ({ filters, setFilters, reportType, hierarchy, loadingHier
                 <Select
                   value={filters.trimester}
                   onChange={(e, value) => handleChange("trimester", value)}
+                  disabled={reportType === "monthly"}
                 >
                   <Option value="">-- اختر فصل --</Option>
                   <Option value="Trim1">الفصل 1 (Jan-Mar)</Option>
@@ -165,94 +527,16 @@ const ReportFilters = ({ filters, setFilters, reportType, hierarchy, loadingHier
                   onChange={(e, value) => handleChange("year", value)}
                 >
                   <Option value="">-- اختر سنة --</Option>
-                  <Option value="2025">2025</Option>
-                  <Option value="2024">2024</Option>
-                  <Option value="2023">2023</Option>
+                  {years.map((year) => (
+                    <Option key={year} value={year.toString()}>
+                      {year}
+                    </Option>
+                  ))}
                 </Select>
               </FormControl>
             </Grid>
           </>
         )}
-
-        {/* Building */}
-        <Grid xs={12} sm={6} md={3}>
-          <FormControl>
-            <FormLabel sx={{ fontWeight: 600, mb: 1 }}>المبنى (Building)</FormLabel>
-            <Select
-              value={filters.building}
-              onChange={(e, value) => handleChange("building", value)}
-            >
-              <Option value="">الكل (All)</Option>
-              <Option value="Building A">Building A</Option>
-              <Option value="Building B">Building B</Option>
-            </Select>
-          </FormControl>
-        </Grid>
-
-        {/* إدارة */}
-        <Grid xs={12} sm={6} md={3}>
-          <FormControl>
-            <FormLabel sx={{ fontWeight: 600, mb: 1 }}>إدارة (Administration)</FormLabel>
-            <Select
-              value={filters.idara}
-              onChange={(e, value) => {
-                handleChange("idara", value);
-                // Reset dependent fields
-                setFilters({ ...filters, idara: value, dayra: "", qism: "" });
-              }}
-              disabled={loadingHierarchy}
-            >
-              <Option value="">الكل (All)</Option>
-              {(hierarchy?.Administration || []).map((idara) => (
-                <Option key={idara.id} value={idara.id}>
-                  {idara.nameAr} ({idara.nameEn})
-                </Option>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-
-        {/* دائرة */}
-        <Grid xs={12} sm={6} md={3}>
-          <FormControl>
-            <FormLabel sx={{ fontWeight: 600, mb: 1 }}>دائرة (Department)</FormLabel>
-            <Select
-              value={filters.dayra}
-              onChange={(e, value) => {
-                handleChange("dayra", value);
-                // Reset dependent field
-                setFilters({ ...filters, dayra: value, qism: "" });
-              }}
-              disabled={loadingHierarchy || !filters.idara}
-            >
-              <Option value="">الكل (All)</Option>
-              {getAvailableDepartments().map((dayra) => (
-                <Option key={dayra.id} value={dayra.id}>
-                  {dayra.nameAr} ({dayra.nameEn})
-                </Option>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-
-        {/* قسم */}
-        <Grid xs={12} sm={6} md={3}>
-          <FormControl>
-            <FormLabel sx={{ fontWeight: 600, mb: 1 }}>قسم (Section)</FormLabel>
-            <Select
-              value={filters.qism}
-              onChange={(e, value) => handleChange("qism", value)}
-              disabled={loadingHierarchy || !filters.dayra}
-            >
-              <Option value="">الكل (All)</Option>
-              {getAvailableSections().map((qism) => (
-                <Option key={qism.id} value={qism.id}>
-                  {qism.nameAr} ({qism.nameEn})
-                </Option>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
 
         {/* Report Mode - Only for Monthly Reports */}
         {reportType === "monthly" && (

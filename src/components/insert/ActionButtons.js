@@ -4,7 +4,7 @@ import { Box, Button, Typography, LinearProgress } from "@mui/joy";
 import SendIcon from "@mui/icons-material/Send";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 
-const ActionButtons = ({ onExtract, onAddRecord, loading, hasComplaintText }) => {
+const ActionButtons = ({ onExtract, onAddRecord, loading, hasComplaintText, isFormValid = true }) => {
   return (
     <Box
       sx={{
@@ -46,7 +46,7 @@ const ActionButtons = ({ onExtract, onAddRecord, loading, hasComplaintText }) =>
         color="success"
         startDecorator={<SendIcon />}
         onClick={onAddRecord}
-        disabled={!hasComplaintText || loading}
+        disabled={!hasComplaintText || loading || !isFormValid}
         loading={loading}
         sx={{
           flex: 1,
@@ -56,6 +56,7 @@ const ActionButtons = ({ onExtract, onAddRecord, loading, hasComplaintText }) =>
             opacity: 0.6,
           },
         }}
+        title={!isFormValid ? "Please fill all required fields (*)" : ""}
       >
         {loading ? "Saving..." : "➕ Add Record"}
       </Button>

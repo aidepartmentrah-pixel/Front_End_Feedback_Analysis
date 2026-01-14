@@ -8,7 +8,7 @@ import { searchPatients, searchDoctors, searchEmployees } from "../../api/insert
 
 // ...existing code...
 
-const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, referenceData, resetTrigger }) => {
+const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, validationErrors = {}, referenceData, resetTrigger }) => {
 // ...existing code...
   // Search states
   const [patientQuery, setPatientQuery] = useState("");
@@ -295,7 +295,7 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, re
       <Grid container spacing={2}>
         {/* Patient Search (Single Select) */}
         <Grid xs={12} sm={6}>
-          <FormControl fullWidth>
+          <FormControl fullWidth error={!!validationErrors.patient_name}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
               👤 Patient Name (Required) *
             </FormLabel>
@@ -347,7 +347,7 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, re
                     },
                   }}
                   sx={{
-                    borderColor: errorField === "patient_admission_id" ? "#ff4757" : undefined,
+                    borderColor: (validationErrors.patient_name || errorField === "patient_admission_id") ? "#ff4757" : undefined,
                   }}
                 />
                 
@@ -395,6 +395,11 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, re
                   </Box>
                 )}
               </Box>
+            )}
+            {validationErrors.patient_name && (
+              <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
+                {validationErrors.patient_name}
+              </Typography>
             )}
           </FormControl>
         </Grid>

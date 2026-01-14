@@ -79,25 +79,113 @@ export async function fetchComplaints(params = {}) {
  */
 export async function fetchFilterOptions() {
   console.log("🔍 Fetching filter options...");
-  const url = `${BASE_URL}/filter-options`;
+  // Use the reference/all endpoint which provides all filter data
+  const url = "http://127.0.0.1:8000/api/reference/all";
+  console.log("🔗 Filter options URL:", url);
 
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
     const response = await fetch(url, {
       method: "GET",
       headers: {
         "Accept": "application/json",
       },
+      signal: controller.signal,
     });
 
+    clearTimeout(timeout);
+
+    console.log("📊 Response status:", response.status);
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch filter options: ${response.status}`);
+      const errorText = await response.text();
+      console.error("❌ Filter options error response:", errorText);
+      throw new Error(`Failed to fetch filter options: ${response.status} ${errorText}`);
     }
 
     const data = await response.json();
-    console.log("✅ Filter options loaded");
+    console.log("✅ Filter options loaded:", data);
+    
+    // Fetch case statuses from dedicated endpoint
+    try {
+      const statusResponse = await fetch("http://127.0.0.1:8000/api/reference/case-statuses", {
+        method: "GET",
+        headers: { "Accept": "application/json" },
+      });
+      
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json();
+        console.log("✅ Case statuses loaded:", statusData);
+        data.statuses = statusData.case_statuses || [];
+      }
+    } catch (statusError) {
+      console.warn("⚠️ Could not fetch case statuses:", statusError);
+    }
+    
+    // Also fetch classifications from the dashboard debug endpoint
+    try {
+      const classResponse = await fetch("http://127.0.0.1:8000/api/dashboard/debug/classifications", {
+        method: "GET",
+        headers: { "Accept": "application/json" },
+      });
+      
+      if (classResponse.ok) {
+        const classData = await classResponse.json();
+        console.log("✅ Classifications loaded from debug endpoint:", classData);
+        // Merge classifications into data
+        data.classifications_en = classData.classifications || [];
+      }
+    } catch (classError) {
+      console.warn("⚠️ Could not fetch classifications from debug endpoint:", classError);
+    }
+    
+    // Fetch all subcategories by iterating through all categories
+    try {
+      console.log("🔍 Fetching all subcategories...");
+      const allSubcategories = [];
+      
+      if (data.categories && Array.isArray(data.categories)) {
+        console.log(`📊 Found ${data.categories.length} categories, fetching their subcategories...`);
+        
+        // Fetch subcategories for each category
+        for (const category of data.categories) {
+          try {
+            const subcatResponse = await fetch(`http://127.0.0.1:8000/api/reference/subcategories?category_id=${category.id}`, {
+              method: "GET",
+              headers: { "Accept": "application/json" },
+            });
+            
+            if (subcatResponse.ok) {
+              const subcatData = await subcatResponse.json();
+              const subcats = Array.isArray(subcatData) ? subcatData : (subcatData.subcategories || []);
+              
+              if (subcats.length > 0) {
+                console.log(`✅ Loaded ${subcats.length} subcategories for category ${category.id} (${category.name})`);
+                allSubcategories.push(...subcats);
+              }
+            }
+          } catch (e) {
+            console.warn(`⚠️ Could not fetch subcategories for category ${category.id}:`, e);
+          }
+        }
+        
+        data.subcategories = allSubcategories;
+        console.log(`✅ Total subcategories loaded: ${allSubcategories.length}`);
+        console.log("📋 Sample subcategories:", allSubcategories.slice(0, 3));
+      } else {
+        console.warn("⚠️ No categories available to fetch subcategories");
+        data.subcategories = [];
+      }
+    } catch (subcatError) {
+      console.error("❌ Error fetching subcategories:", subcatError);
+      data.subcategories = [];
+    }
+    
     return data;
   } catch (error) {
-    console.error("❌ Error fetching filter options:", error);
+    console.error("❌ Error fetching filter options:", error.message);
     throw error;
   }
 }
@@ -170,26 +258,37 @@ export async function fetchComplaintsCount(filters = {}) {
 
 /**
  * Export complaints data
- * @param {Object} params - Export parameters (filters)
+ * @param {Object} params - Export parameters (filters, search, sort, view)
  * @returns {Promise<Blob>} File blob
  */
 export async function exportComplaints(params = {}) {
-  console.log("📤 Exporting complaints with filters:", params);
+  console.log("📤 Exporting complaints with params:", params);
   
-  // Build query string with _id suffix for backend compatibility
+  // Build query string - params already have _id suffix from TableView
   const queryParams = new URLSearchParams();
+  
+  // Search
   if (params.search) queryParams.append("search", params.search);
-  if (params.issuing_org_unit) queryParams.append("issuing_org_unit_id", params.issuing_org_unit);
-  if (params.domain) queryParams.append("domain_id", params.domain);
-  if (params.category) queryParams.append("category_id", params.category);
-  if (params.severity) queryParams.append("severity_id", params.severity);
-  if (params.stage) queryParams.append("stage_id", params.stage);
-  if (params.harm_level) queryParams.append("harm_level_id", params.harm_level);
-  if (params.case_status) queryParams.append("case_status_id", params.case_status);
+  
+  // Filters (already have _id suffix)
+  if (params.issuing_org_unit_id) queryParams.append("issuing_org_unit_id", params.issuing_org_unit_id);
+  if (params.domain_id) queryParams.append("domain_id", params.domain_id);
+  if (params.category_id) queryParams.append("category_id", params.category_id);
+  if (params.severity_id) queryParams.append("severity_id", params.severity_id);
+  if (params.stage_id) queryParams.append("stage_id", params.stage_id);
+  if (params.harm_level_id) queryParams.append("harm_level_id", params.harm_level_id);
+  if (params.case_status_id) queryParams.append("case_status_id", params.case_status_id);
   if (params.year) queryParams.append("year", params.year);
   if (params.month) queryParams.append("month", params.month);
   if (params.start_date) queryParams.append("start_date", params.start_date);
   if (params.end_date) queryParams.append("end_date", params.end_date);
+  
+  // Sorting
+  if (params.sort_by) queryParams.append("sort_by", params.sort_by);
+  if (params.sort_order) queryParams.append("sort_order", params.sort_order);
+  
+  // View mode
+  if (params.view) queryParams.append("view", params.view);
 
   const url = `${BASE_URL}/export?${queryParams.toString()}`;
   console.log("📤 Export URL:", url);
@@ -211,6 +310,40 @@ export async function exportComplaints(params = {}) {
     return blob;
   } catch (error) {
     console.error("❌ Error exporting:", error);
+    throw error;
+  }
+}
+
+/**
+ * Import complaints from Excel file
+ * @param {File} file - Excel file to upload
+ * @returns {Promise<Object>} Import result with success/error details
+ */
+export async function importExcel(file) {
+  console.log("📥 Importing Excel file:", file.name);
+  
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const url = `${BASE_URL}/import-excel`;
+  console.log("📥 Import URL:", url);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: "Failed to import" }));
+      throw new Error(errorData.message || `Failed to import: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log("✅ Import complete:", result);
+    return result;
+  } catch (error) {
+    console.error("❌ Error importing:", error);
     throw error;
   }
 }
@@ -314,8 +447,8 @@ export async function getRecordById(recordId) {
     }
 
     const data = await response.json();
-    console.log("✅ Record loaded:", data.record);
-    return data.record;
+    console.log("✅ Record loaded:", data);
+    return data;
   } catch (error) {
     console.error("❌ Error fetching record:", error.message);
     throw error;

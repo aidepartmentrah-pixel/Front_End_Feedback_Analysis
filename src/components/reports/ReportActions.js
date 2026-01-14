@@ -1,12 +1,20 @@
 // src/components/reports/ReportActions.js
 import React from "react";
-import { Box, Button } from "@mui/joy";
-import FileDownloadIcon from "@mui/icons-material/FileDownload";
-import GetAppIcon from "@mui/icons-material/GetApp";
-import RefreshIcon from "@mui/icons-material/Refresh";
-import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import { Box, Button, CircularProgress } from "@mui/joy";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import TableChartIcon from "@mui/icons-material/TableChart";
+import DescriptionIcon from "@mui/icons-material/Description";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 
-const ReportActions = ({ onRefresh, onResetFilters, onExportPDF, onExportCSV }) => {
+const ReportActions = ({ 
+  onGenerate, 
+  onExportPDF, 
+  onExportCSV, 
+  onExportWord, 
+  disableGenerate = false,
+  disableExport = false,
+  loading = false 
+}) => {
   return (
     <Box
       sx={{
@@ -20,54 +28,75 @@ const ReportActions = ({ onRefresh, onResetFilters, onExportPDF, onExportCSV }) 
         border: "1px solid #e0e0e0",
       }}
     >
-      <Button
-        startDecorator={<RestartAltIcon />}
-        onClick={onResetFilters}
-        variant="outlined"
-        sx={{
-          borderColor: "#667eea",
-          color: "#667eea",
-          fontWeight: 600,
-        }}
-      >
-        إعادة تعيين (Reset)
-      </Button>
+      {/* Generate Report Button */}
+      {onGenerate && (
+        <Button
+          startDecorator={loading ? <CircularProgress size="sm" /> : <PlayArrowIcon />}
+          onClick={onGenerate}
+          disabled={disableGenerate || loading}
+          sx={{
+            background: (disableGenerate || loading)
+              ? "#cccccc"
+              : "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+            color: "white",
+            fontWeight: 700,
+            opacity: (disableGenerate || loading) ? 0.6 : 1,
+            cursor: (disableGenerate || loading) ? "not-allowed" : "pointer",
+          }}
+        >
+          {loading ? "جارِ التوليد..." : "توليد التقرير (Generate)"}
+        </Button>
+      )}
 
       <Button
-        startDecorator={<RefreshIcon />}
-        onClick={onRefresh}
-        variant="outlined"
+        startDecorator={<TableChartIcon />}
+        onClick={onExportCSV}
+        disabled={disableExport}
         sx={{
-          borderColor: "#2ed573",
-          color: "#2ed573",
-          fontWeight: 600,
-        }}
-      >
-        تحديث (Refresh)
-      </Button>
-
-      <Button
-        startDecorator={<FileDownloadIcon />}
-        onClick={onExportPDF}
-        sx={{
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          background: disableExport 
+            ? "#cccccc" 
+            : "linear-gradient(135deg, #2ed573 0%, #00b894 100%)",
           color: "white",
           fontWeight: 700,
+          opacity: disableExport ? 0.6 : 1,
+          cursor: disableExport ? "not-allowed" : "pointer",
+        }}
+      >
+        تصدير Excel
+      </Button>
+
+      <Button
+        startDecorator={<PictureAsPdfIcon />}
+        onClick={onExportPDF}
+        disabled={disableExport}
+        sx={{
+          background: disableExport 
+            ? "#cccccc" 
+            : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          color: "white",
+          fontWeight: 700,
+          opacity: disableExport ? 0.6 : 1,
+          cursor: disableExport ? "not-allowed" : "pointer",
         }}
       >
         تصدير PDF
       </Button>
 
       <Button
-        startDecorator={<GetAppIcon />}
-        onClick={onExportCSV}
+        startDecorator={<DescriptionIcon />}
+        onClick={onExportWord}
+        disabled={disableExport}
         sx={{
-          background: "linear-gradient(135deg, #2ed573 0%, #00b894 100%)",
+          background: disableExport 
+            ? "#cccccc" 
+            : "linear-gradient(135deg, #3498db 0%, #2980b9 100%)",
           color: "white",
           fontWeight: 700,
+          opacity: disableExport ? 0.6 : 1,
+          cursor: disableExport ? "not-allowed" : "pointer",
         }}
       >
-        تصدير CSV
+        تصدير Word
       </Button>
     </Box>
   );

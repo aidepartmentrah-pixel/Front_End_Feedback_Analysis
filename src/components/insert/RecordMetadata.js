@@ -19,7 +19,7 @@ import {
 } from "@mui/joy";
 import CloseIcon from "@mui/icons-material/Close";
 
-const RecordMetadata = ({ formData, onInputChange, referenceData, errorField }) => {
+const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, validationErrors = {} }) => {
   // Add department
   const handleAddTargetDepartment = (deptId) => {
     if (!formData.target_department_ids.includes(deptId)) {
@@ -59,7 +59,7 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField }) 
       <Grid container spacing={2}>
         {/* Feedback Date */}
         <Grid xs={12} sm={6} md={3}>
-          <FormControl fullWidth>
+          <FormControl fullWidth error={!!validationErrors.feedback_received_date}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
               📅 Feedback Received Date *
             </FormLabel>
@@ -71,19 +71,24 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField }) 
               }
               sx={{
                 borderColor:
-                  errorField === "feedback_received_date"
+                  validationErrors.feedback_received_date || errorField === "feedback_received_date"
                     ? "#ff4757"
                     : undefined,
               }}
             />
+            {validationErrors.feedback_received_date && (
+              <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
+                {validationErrors.feedback_received_date}
+              </Typography>
+            )}
           </FormControl>
         </Grid>
 
         {/* Source */}
         <Grid xs={12} sm={6} md={3}>
-          <FormControl fullWidth>
+          <FormControl fullWidth error={!!validationErrors.source_id}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              📱 Source
+              📱 Source *
             </FormLabel>
 
             <Select
@@ -92,6 +97,12 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField }) 
               placeholder="Select Source"
               slotProps={{
                 listbox: { sx: { maxHeight: 250, overflowY: "auto" } },
+              }}
+              sx={{
+                borderColor:
+                  validationErrors.source_id || errorField === "source_id"
+                    ? "#ff4757"
+                    : undefined,
               }}
             >
               {(referenceData?.sources || []).map((opt) => {
@@ -111,25 +122,35 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField }) 
                 );
               })}
             </Select>
+            {validationErrors.source_id && (
+              <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
+                {validationErrors.source_id}
+              </Typography>
+            )}
           </FormControl>
         </Grid>
 
-        {/* IN / OUT */}
+        {/* Inpatient / Outpatient */}
         <Grid xs={12} sm={6} md={3}>
-          <FormControl fullWidth>
+          <FormControl fullWidth error={!!validationErrors.is_inpatient}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              🚪 In / Out
+              🚪 Patient Type *
             </FormLabel>
 
             <RadioGroup
-              value={formData.in_out || ""}
-              onChange={(e) => onInputChange("in_out", e.target.value)}
+              value={formData.is_inpatient === true ? "inpatient" : formData.is_inpatient === false ? "outpatient" : ""}
+              onChange={(e) => onInputChange("is_inpatient", e.target.value === "inpatient" ? true : false)}
               orientation="horizontal"
               sx={{ gap: 2, mt: 0.5 }}
             >
-              <Radio value="IN" label="IN" size="sm" />
-              <Radio value="OUT" label="OUT" size="sm" />
+              <Radio value="inpatient" label="Inpatient" size="sm" />
+              <Radio value="outpatient" label="Outpatient" size="sm" />
             </RadioGroup>
+            {validationErrors.is_inpatient && (
+              <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
+                {validationErrors.is_inpatient}
+              </Typography>
+            )}
           </FormControl>
         </Grid>
 
@@ -149,16 +170,16 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField }) 
               }}
             >
               <Option value="RAH">RAH</Option>
-              <Option value="BIC">BIC</Option>
+              <Option value="BCI">BCI</Option>
             </Select>
           </FormControl>
         </Grid>
 
         {/* Issuing Department (Single Select) */}
         <Grid xs={12} sm={6} md={4}>
-          <FormControl fullWidth>
+          <FormControl fullWidth error={!!validationErrors.issuing_org_unit_id}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              🏢 Issuing Department
+              🏢 Issuing Department *
             </FormLabel>
 
             <Select
@@ -171,6 +192,12 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField }) 
                 listbox: {
                   sx: { maxHeight: 250, overflowY: "auto" },
                 },
+              }}
+              sx={{
+                borderColor:
+                  validationErrors.issuing_org_unit_id || errorField === "issuing_department_id"
+                    ? "#ff4757"
+                    : undefined,
               }}
             >
               {(referenceData?.departments || []).map((dept) => {
@@ -188,6 +215,11 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField }) 
                 );
               })}
             </Select>
+            {validationErrors.issuing_org_unit_id && (
+              <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
+                {validationErrors.issuing_org_unit_id}
+              </Typography>
+            )}
           </FormControl>
         </Grid>
 

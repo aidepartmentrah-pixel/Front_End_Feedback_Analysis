@@ -2,12 +2,11 @@
 import React, { useEffect, useState } from "react";
 import { fetchDashboardHierarchy, fetchDashboardStats } from "../api/dashboard";
 
-import { Box, Card, Typography } from "@mui/joy";
+import { Box, Card, Typography, Select, Option, FormControl, FormLabel } from "@mui/joy";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 
 // Components
 import MainLayout from "../components/common/MainLayout";
-import DepartmentSelector from "../components/dashboard/DepartmentSelector";
 import DashboardTitle from "../components/dashboard/DashboardTitle";
 import GlobalDashboardStats from "../components/dashboard/GlobalDashboardStats";
 import IdaraDashboardStats from "../components/dashboard/IdaraDashboardStats";
@@ -20,9 +19,9 @@ const DashboardPage = () => {
   // STATE
   // ============================
   const [scope, setScope] = useState("hospital");
-  const [selectedAdministration, setSelectedAdministration] = useState(null);
-  const [selectedDepartment, setSelectedDepartment] = useState(null);
-  const [selectedSection, setSelectedSection] = useState(null);
+  const [selectedAdmin, setSelectedAdmin] = useState("");
+  const [selectedDept, setSelectedDept] = useState("");
+  const [selectedSection, setSelectedSection] = useState("");
 
   const [hierarchy, setHierarchy] = useState(null);
   const [loadingHierarchy, setLoadingHierarchy] = useState(true);
@@ -52,13 +51,13 @@ const DashboardPage = () => {
   });
 
 
-useEffect(() => {
-  fetch("/api/dashboard/hierarchy")
-    .catch((error) => {
-      alert(`Failed to load department hierarchy: ${error.message}`);
-    })
-    .finally(() => setLoadingHierarchy(false));
-}, []);
+// Fetch hierarchy on mount - copied from InvestigationPage
+  useEffect(() => {
+    fetchDashboardHierarchy()
+      .then((data) => setHierarchy(data))
+      .catch((error) => console.error("Failed to load hierarchy:", error))
+      .finally(() => setLoadingHierarchy(false));
+  }, []);
 
   // ============================
   // FETCH DASHBOARD STATS
@@ -75,35 +74,29 @@ useEffect(() => {
       department_mode: chartModes.department_mode,
     };
 
-    // Add IDs based on scope
+    // Add IDs based on scope - using IDs directly like InvestigationPage
     if (scope === "administration" || scope === "department" || scope === "section") {
-      if (selectedAdministration) {
-        // Ensure we're sending the ID as a number if it's numeric
-        const adminId = selectedAdministration.id;
-        params.administration_id = isNaN(adminId) ? adminId : Number(adminId);
-        console.log("📍 Selected Administration:", selectedAdministration, "ID:", params.administration_id);
+      if (selectedAdmin && selectedAdmin !== "") {
+        params.administration_id = selectedAdmin;
+        console.log("📍 Selected Administration ID:", params.administration_id);
       } else {
         return; // Wait for administration selection
       }
     }
 
     if (scope === "department" || scope === "section") {
-      if (selectedDepartment) {
-        // Ensure we're sending the ID as a number if it's numeric
-        const deptId = selectedDepartment.id;
-        params.department_id = isNaN(deptId) ? deptId : Number(deptId);
-        console.log("📍 Selected Department:", selectedDepartment, "ID:", params.department_id);
+      if (selectedDept && selectedDept !== "") {
+        params.department_id = selectedDept;
+        console.log("📍 Selected Department ID:", params.department_id);
       } else {
         return; // Wait for department selection
       }
     }
 
     if (scope === "section") {
-      if (selectedSection) {
-        // Ensure we're sending the ID as a number if it's numeric
-        const sectionId = selectedSection.id;
-        params.section_id = isNaN(sectionId) ? sectionId : Number(sectionId);
-        console.log("📍 Selected Section:", selectedSection, "ID:", params.section_id);
+      if (selectedSection && selectedSection !== "") {
+        params.section_id = selectedSection;
+        console.log("📍 Selected Section ID:", params.section_id);
       } else {
         return; // Wait for section selection
       }
@@ -121,21 +114,51 @@ useEffect(() => {
       .catch((error) => {
         console.error("❌ Failed to load dashboard stats:", error);
         console.error("❌ Error details - Scope:", scope, "Selected:", {
-          administration: selectedAdministration,
-          department: selectedDepartment,
+          administration: selectedAdmin,
+          department: selectedDept,
           section: selectedSection
         });
         setStatsError(error.message);
       })
       .finally(() => setLoadingStats(false));
-  }, [scope, selectedAdministration, selectedDepartment, selectedSection, dateRange, chartModes]);
+  }, [scope, selectedAdmin, selectedDept, selectedSection, dateRange, chartModes]);
+
+  // ============================
+  // HELPER FUNCTIONS - copied from InvestigationPage
+  // ============================
+  // Department options (filtered by selected administration)
+  const getDepartments = () => {
+    if (!selectedAdmin || !hierarchy) {
+      return [];
+    }
+    return hierarchy.Department?.[selectedAdmin] || [];
+  };
+
+  // Section options (filtered by selected department)
+  const getSections = () => {
+    if (!selectedDept || !hierarchy) {
+      return [];
+    }
+    return hierarchy.Section?.[selectedDept] || [];
+  };
+
+  const handleAdminChange = (event, newValue) => {
+    setSelectedAdmin(newValue);
+    setSelectedDept("");
+    setSelectedSection("");
+  };
+
+  const handleDeptChange = (event, newValue) => {
+    setSelectedDept(newValue);
+    setSelectedSection("");
+  };
 
   // ============================
   // VIEW FLAGS
   // ============================
   const isGlobalView = scope === "hospital";
-  const isIdaraView = scope === "administration" && selectedAdministration;
-  const isDayraView = scope === "department" && selectedDepartment;
+  const isIdaraView = scope === "administration" && selectedAdmin;
+  const isDayraView = scope === "department" && selectedDept;
   const isQismView = scope === "section" && selectedSection;
 
   return (
@@ -160,33 +183,114 @@ useEffect(() => {
           </Card>
         )}
 
-        {/* Simplified Cascading Selector */}
-        <DepartmentSelector
-          scope={scope}
-          setScope={setScope}
-          selectedAdministration={selectedAdministration}
-          setSelectedAdministration={setSelectedAdministration}
-          selectedDepartment={selectedDepartment}
-          setSelectedDepartment={setSelectedDepartment}
-          selectedSection={selectedSection}
-          setSelectedSection={setSelectedSection}
-          hierarchy={hierarchy} // 👈 Pass real hierarchy data
-        />
+        {/* Hierarchy Selection - copied from InvestigationPage */}
+        <Card variant="soft" sx={{ p: 3, mb: 4 }}>
+          <Typography level="title-lg" sx={{ mb: 2, fontWeight: 700 }}>
+            🎯 Dashboard Scope
+          </Typography>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr 1fr" },
+              gap: 3,
+            }}
+          >
+            {/* Scope Selector */}
+            <FormControl>
+              <FormLabel sx={{ fontWeight: 600 }}>Dashboard Level</FormLabel>
+              <Select
+                value={scope}
+                onChange={(e, newValue) => {
+                  setScope(newValue);
+                  setSelectedAdmin("");
+                  setSelectedDept("");
+                  setSelectedSection("");
+                }}
+                size="lg"
+              >
+                <Option value="hospital">🏥 Hospital</Option>
+                <Option value="administration">📋 Administration</Option>
+                <Option value="department">🏢 Department</Option>
+                <Option value="section">📌 Section</Option>
+              </Select>
+            </FormControl>
 
-        {/* Simplified Dashboard Title */}
+            {/* Administration Selector */}
+            <FormControl>
+              <FormLabel sx={{ fontWeight: 600 }}>
+                📋 Administration
+              </FormLabel>
+              <Select
+                value={selectedAdmin}
+                onChange={handleAdminChange}
+                size="lg"
+                disabled={loadingHierarchy || scope === "hospital"}
+              >
+                <Option value="">All Administrations</Option>
+                {(hierarchy?.Administration || []).map((admin) => (
+                  <Option key={admin.id} value={admin.id}>
+                    {admin.nameAr} ({admin.nameEn})
+                  </Option>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Department Selector */}
+            <FormControl>
+              <FormLabel sx={{ fontWeight: 600 }}>
+                🏢 Department
+              </FormLabel>
+              <Select
+                value={selectedDept}
+                onChange={handleDeptChange}
+                size="lg"
+                disabled={!selectedAdmin || loadingHierarchy}
+              >
+                <Option value="">All Departments</Option>
+                {getDepartments().map((dept) => (
+                  <Option key={dept.id} value={dept.id}>
+                    {dept.nameAr} ({dept.nameEn})
+                  </Option>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Section Selector */}
+            <FormControl>
+              <FormLabel sx={{ fontWeight: 600 }}>
+                📌 Section
+              </FormLabel>
+              <Select
+                value={selectedSection}
+                onChange={(e, newValue) => setSelectedSection(newValue)}
+                size="lg"
+                disabled={!selectedDept || loadingHierarchy}
+              >
+                <Option value="">All Sections</Option>
+                {getSections().map((section) => (
+                  <Option key={section.id} value={section.id}>
+                    {section.nameAr} ({section.nameEn})
+                  </Option>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </Card>
+
+        {/* Dashboard Title */}
         <DashboardTitle
           scope={scope}
-          selectedAdministration={selectedAdministration}
-          selectedDepartment={selectedDepartment}
-          selectedSection={selectedSection}
-          hierarchy={hierarchy} // 👈 Pass real hierarchy data
+          selectedAdministration={selectedAdmin ? hierarchy?.Administration?.find(a => a.id === selectedAdmin) : null}
+          selectedDepartment={selectedDept ? getDepartments().find(d => d.id === selectedDept) : null}
+          selectedSection={selectedSection ? getSections().find(s => s.id === selectedSection) : null}
+          hierarchy={hierarchy}
         />
 
         {/* Conditional Dashboard Views */}
         {isGlobalView && <GlobalDashboardStats stats={dashboardStats} loading={loadingStats} chartModes={chartModes} setChartModes={setChartModes} chartTypes={chartTypes} setChartTypes={setChartTypes} />}
-        {isIdaraView && <IdaraDashboardStats idara={selectedAdministration} stats={dashboardStats} loading={loadingStats} />}
-        {isDayraView && <DayraDashboardStats dayra={selectedDepartment} stats={dashboardStats} loading={loadingStats} />}
-        {isQismView && <QismDashboardStats qism={selectedSection} stats={dashboardStats} loading={loadingStats} />}
+        {isIdaraView && <IdaraDashboardStats idara={hierarchy?.Administration?.find(a => a.id === selectedAdmin)} stats={dashboardStats} loading={loadingStats} />}
+        {isDayraView && <DayraDashboardStats dayra={getDepartments().find(d => d.id === selectedDept)} stats={dashboardStats} loading={loadingStats} />}
+        {isQismView && <QismDashboardStats qism={getSections().find(s => s.id === selectedSection)} stats={dashboardStats} loading={loadingStats} />}
 
         {/* Dashboard Actions */}
         <Box sx={{ mt: 3 }}>

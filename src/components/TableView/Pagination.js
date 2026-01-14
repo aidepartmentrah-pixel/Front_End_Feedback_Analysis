@@ -62,6 +62,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
         {/* First page */}
         <Button
+          type="button"
           variant="outlined"
           color="neutral"
           size="sm"
@@ -73,6 +74,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
 
         {/* Previous */}
         <Button
+          type="button"
           variant="outlined"
           color="neutral"
           size="sm"
@@ -90,6 +92,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
             </Typography>
           ) : (
             <Button
+              type="button"
               key={page}
               variant={page === currentPage ? "solid" : "outlined"}
               color={page === currentPage ? "primary" : "neutral"}
@@ -103,6 +106,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
 
         {/* Next */}
         <Button
+          type="button"
           variant="outlined"
           color="neutral"
           size="sm"
@@ -114,6 +118,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
 
         {/* Last page */}
         <Button
+          type="button"
           variant="outlined"
           color="neutral"
           size="sm"

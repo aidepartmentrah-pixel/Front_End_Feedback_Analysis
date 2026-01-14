@@ -71,9 +71,61 @@ const getStatusColor = (status) => {
   return "neutral";
 };
 
-const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode, customView, onEdit, onDelete }) => {
+const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode, customView, onEdit, onDelete, filterOptions }) => {
+  
+  // Log filterOptions once for debugging
+  React.useEffect(() => {
+    if (filterOptions?.subcategories) {
+      console.log("🔍 Available subcategories:", filterOptions.subcategories);
+      console.log("🔍 First subcategory structure:", filterOptions.subcategories[0]);
+    }
+  }, [filterOptions]);
+  
+  // Helper function to get subcategory name from ID
+  const getSubcategoryName = (subcategoryId) => {
+    if (!subcategoryId) return "—";
+    if (!filterOptions?.subcategories || filterOptions.subcategories.length === 0) {
+      console.error("❌ No subcategories available in filterOptions");
+      return `Subcat ${subcategoryId}`;
+    }
+    
+    // Find subcategory by ID with multiple field name variations
+    const subcategory = filterOptions.subcategories.find(s => {
+      const idMatch = s.id == subcategoryId || 
+                      s.SubCategoryID == subcategoryId || 
+                      s.subcategory_id == subcategoryId;
+      return idMatch;
+    });
+    
+    if (!subcategory) {
+      console.error(`❌ Subcategory ID ${subcategoryId} not found. Available IDs:`, 
+        filterOptions.subcategories.map(s => s.id || s.SubCategoryID || s.subcategory_id).slice(0, 10)
+      );
+      return `Subcat ${subcategoryId}`;
+    }
+    
+    // Try all possible name fields
+    const name = subcategory.name || 
+                 subcategory.SubCategory_EN || 
+                 subcategory.subcategory_name || 
+                 subcategory.SubCategory_AR ||
+                 subcategory.label ||
+                 `Subcat ${subcategoryId}`;
+    
+    return name;
+  };
+  
+  // Helper function to get classification name from ID
+  const getClassificationName = (classificationId) => {
+    if (!classificationId || !filterOptions?.classifications_en) return "—";
+    const classification = filterOptions.classifications_en.find(c => c.id === classificationId || c.ClassificationID === classificationId);
+    return classification?.Classification_EN || classification?.name || classification?.classification_name || `Class ${classificationId}`;
+  };
+  
   const renderSortIcon = (column) => {
-    if (sortBy !== column) return null;
+    // Handle complaint_number column which maps to 'id' in backend
+    const isActive = sortBy === column || (column === "complaint_number" && sortBy === "id");
+    if (!isActive) return null;
     return sortOrder === "asc" ? (
       <ArrowUpwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
     ) : (
@@ -81,33 +133,37 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
     );
   };
 
-  const SortableHeader = ({ column, children }) => (
-    <th
-      onClick={() => onSort(column)}
-      style={{
-        cursor: "pointer",
-        userSelect: "none",
-        whiteSpace: "nowrap",
-        background: sortBy === column ? "#f3f4f6" : "transparent",
-        transition: "background-color 0.15s ease",
-      }}
-      onMouseEnter={(e) => {
-        if (sortBy !== column) {
-          e.currentTarget.style.background = "#f9fafb";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (sortBy !== column) {
-          e.currentTarget.style.background = "transparent";
-        }
-      }}
-    >
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5 }}>
-        {children}
-        {renderSortIcon(column)}
-      </Box>
-    </th>
-  );
+  const SortableHeader = ({ column, children }) => {
+    // Handle complaint_number column which maps to 'id' in backend
+    const isActive = sortBy === column || (column === "complaint_number" && sortBy === "id");
+    return (
+      <th
+        onClick={() => onSort(column)}
+        style={{
+          cursor: "pointer",
+          userSelect: "none",
+          whiteSpace: "nowrap",
+          background: isActive ? "#f3f4f6" : "transparent",
+          transition: "background-color 0.15s ease",
+        }}
+        onMouseEnter={(e) => {
+          if (!isActive) {
+            e.currentTarget.style.background = "#f9fafb";
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isActive) {
+            e.currentTarget.style.background = "transparent";
+          }
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5 }}>
+          {children}
+          {renderSortIcon(column)}
+        </Box>
+      </th>
+    );
+  };
 
   // Define all available columns with their mapping
   const allColumnsDefinition = [
@@ -127,14 +183,13 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
     { key: "domain_name", label: "Domain", sortable: false, showKey: "ShowDomainID" },
     { key: "category_name", label: "Category", sortable: false, showKey: "ShowCategoryID" },
     { key: "subcategory_name", label: "Subcategory", sortable: false, showKey: "ShowSubCategoryID" },
-    { key: "classification_en_label", label: "Classification (EN)", sortable: false, showKey: "ShowClassificationID" },
+    { key: "classification_name", label: "Classification", sortable: false, showKey: "ShowClassificationID" },
     { key: "severity_name", label: "Severity", sortable: false, showKey: "ShowSeverityID" },
     { key: "stage_name", label: "Stage", sortable: false, showKey: "ShowStageID" },
-    { key: "harm_level_name", label: "Harm Level", sortable: false, showKey: "ShowHarmLevelID" },
-    { key: "case_status_name", label: "Case Status", sortable: false, showKey: "ShowCaseStatusID" },
+    { key: "harm_level", label: "Harm Level", sortable: false, showKey: "ShowHarmLevelID" },
+    { key: "status_name", label: "Status", sortable: false, showKey: "ShowCaseStatusID" },
     { key: "source_name", label: "Source", sortable: false, showKey: "ShowSourceID" },
     { key: "explanation_status_name", label: "Explanation Status", sortable: false, showKey: "ShowExplanationStatusID" },
-    { key: "status_name", label: "Status", sortable: false, showKey: null },
   ];
 
   // Define columns based on view mode or custom view
@@ -146,12 +201,11 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
     { key: "domain_name", label: "Domain", sortable: false },
     { key: "category_name", label: "Category", sortable: false },
     { key: "subcategory_name", label: "Subcategory", sortable: false },
-    { key: "classification_en_label", label: "Classification (EN)", sortable: false },
+    { key: "classification_name", label: "Classification", sortable: false },
     { key: "severity_name", label: "Severity", sortable: false },
     { key: "stage_name", label: "Stage", sortable: false },
-    { key: "harm_level_name", label: "Harm Level", sortable: false },
+    { key: "harm_level", label: "Harm Level", sortable: false },
     { key: "status_name", label: "Status", sortable: false },
-    { key: "case_status_name", label: "Case Status", sortable: false },
   ];
 
   const simplifiedViewColumns = [
@@ -272,10 +326,7 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
                         fontWeight: 600, 
                         color: "#0f172a", 
                         fontSize: "0.9375rem",
-                        cursor: "pointer",
-                        "&:hover": { textDecoration: "underline" }
                       }}
-                      onClick={() => onRowClick(complaint.id)}
                     >
                       {complaint[col.key]}
                     </Box>
@@ -338,7 +389,7 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
                     >
                       {complaint[col.key]}
                     </Chip>
-                  ) : col.key === "harm_level_name" ? (
+                  ) : col.key === "harm_level" ? (
                     <Chip
                       color={getHarmLevelColor(complaint[col.key])}
                       size="sm"
@@ -357,9 +408,9 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
                         fontWeight: 400,
                       }}
                     >
-                      {complaint[col.key] || "-"}
+                      {complaint.subcategory_name || "—"}
                     </Box>
-                  ) : col.key === "classification_en_label" ? (
+                  ) : col.key === "classification_name" ? (
                     <Box
                       sx={{
                         fontSize: "0.8125rem",
@@ -367,7 +418,7 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
                         fontWeight: 400,
                       }}
                     >
-                      {complaint[col.key] || "-"}
+                      {complaint.classification_name || getClassificationName(complaint.classification_id)}
                     </Box>
                   ) : col.key === "patient_name" || col.key === "issuing_org_unit_name" ? (
                     <Box

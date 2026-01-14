@@ -1,9 +1,10 @@
 // src/pages/TableView.js
 import React, { useState, useEffect, useCallback } from "react";
-import { Box, Typography, Card, CircularProgress, Button, Chip } from "@mui/joy";
+import { Box, Typography, Card, CircularProgress, Button, Chip, Modal, ModalDialog, ModalClose, DialogTitle, DialogContent, DialogActions, Divider } from "@mui/joy";
 import { useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DownloadIcon from "@mui/icons-material/Download";
+import UploadIcon from "@mui/icons-material/Upload";
 import MainLayout from "../components/common/MainLayout";
 import SearchBar from "../components/TableView/SearchBar";
 import FilterPanel from "../components/TableView/FilterPanel";
@@ -11,7 +12,7 @@ import DataTable from "../components/TableView/DataTable";
 import Pagination from "../components/TableView/Pagination";
 import CustomViewManager from "../components/TableView/CustomViewManager";
 import DeleteConfirmationDialog from "../components/TableView/DeleteConfirmationDialog";
-import { fetchComplaints, fetchFilterOptions, exportComplaints, deleteComplaint } from "../api/complaints";
+import { fetchComplaints, fetchFilterOptions, exportComplaints, deleteComplaint, importExcel } from "../api/complaints";
 
 const TableView = () => {
   const navigate = useNavigate();
@@ -30,6 +31,7 @@ const TableView = () => {
   // Filter options
   const [filterOptions, setFilterOptions] = useState(null);
   const [loadingFilters, setLoadingFilters] = useState(true);
+  const [filterError, setFilterError] = useState(null);
 
   // Search and filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -64,18 +66,47 @@ const TableView = () => {
 
   // Export state
   const [exporting, setExporting] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+
+  // Import state
+  const [importing, setImporting] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [importPreview, setImportPreview] = useState(null);
 
   // ========================================
   // FETCH FILTER OPTIONS
   // ========================================
   useEffect(() => {
     console.log("🔄 Loading filter options...");
+    setFilterError(null);
     fetchFilterOptions()
       .then((data) => {
-        setFilterOptions(data);
+        console.log("✅ Filter options loaded:", data);
+        // Log specific fields to debug
+        console.log("🔍 Statuses field:", data.statuses);
+        console.log("🔍 Case_statuses field:", data.case_statuses);
+        console.log("🔍 Status field:", data.status);
+        console.log("🔍 All keys:", Object.keys(data));
+        // Transform reference data to filter options format
+        const transformedData = {
+          issuing_org_units: data.departments || [],
+          domains: data.domains || [],
+          categories: data.categories || [],
+          severities: data.severity_levels || data.severity || [],
+          stages: data.stages || [],
+          harm_levels: data.harm_levels || data.harm || [],
+          classifications_en: data.classifications_en || [],
+          statuses: data.statuses || data.case_statuses || data.status || [],
+          years: data.years || [],
+        };
+        console.log("📊 Transformed filter options:", transformedData);
+        console.log("📊 Transformed statuses:", transformedData.statuses);
+        setFilterOptions(transformedData);
       })
       .catch((err) => {
         console.error("❌ Failed to load filter options:", err);
+        setFilterError(err.message || "Failed to load filter options");
       })
       .finally(() => setLoadingFilters(false));
   }, []);
@@ -103,8 +134,19 @@ const TableView = () => {
     fetchComplaints(params)
       .then((data) => {
         setComplaints(data.complaints || []);
-        setPagination(data.pagination);
+        // Only update metadata from backend, preserve user-controlled page and page_size
+        setPagination((prev) => ({
+          ...prev,
+          total_records: data.pagination.total_records,
+          total_pages: data.pagination.total_pages,
+        }));
         console.log("✅ Complaints loaded:", data.complaints.length, "records");
+        if (data.complaints && data.complaints.length > 0) {
+          console.log("🔍 First complaint structure:", data.complaints[0]);
+          console.log("🔍 Has subcategory_name?", data.complaints[0].subcategory_name);
+          console.log("🔍 Has classification_name?", data.complaints[0].classification_name);
+          console.log("🔍 Has building_name?", data.complaints[0].building_name);
+        }
       })
       .catch((err) => {
         console.error("❌ Error loading complaints:", err);
@@ -120,17 +162,23 @@ const TableView = () => {
   // ========================================
   // HANDLERS
   // ========================================
-  const handleSearchChange = (value) => {
+  const handleSearchChange = useCallback((value) => {
+    console.log("🔍 handleSearchChange fired", { prevPage: pagination.page, nextPage: 1, searchQuery: value });
+    console.log(new Error("stack").stack);
     setSearchQuery(value);
     setPagination((prev) => ({ ...prev, page: 1 })); // Reset to page 1
-  };
+  }, [pagination.page]);
 
-  const handleFilterChange = (newFilters) => {
+  const handleFilterChange = useCallback((newFilters) => {
+    console.log("🔧 handleFilterChange fired", { prevPage: pagination.page, nextPage: 1, filters: newFilters });
+    console.log(new Error("stack").stack);
     setFilters(newFilters);
     setPagination((prev) => ({ ...prev, page: 1 })); // Reset to page 1
-  };
+  }, [pagination.page]);
 
-  const handleClearFilters = () => {
+  const handleClearFilters = useCallback(() => {
+    console.log("🧹 handleClearFilters fired", { prevPage: pagination.page, nextPage: 1 });
+    console.log(new Error("stack").stack);
     setFilters({
       issuing_org_unit_id: null,
       domain_id: null,
@@ -146,20 +194,29 @@ const TableView = () => {
     });
     setSearchQuery("");
     setPagination((prev) => ({ ...prev, page: 1 }));
-  };
+  }, [pagination.page]);
 
   const handleSort = (column) => {
-    if (sortBy === column) {
+    // Map frontend column keys to backend field names
+    let backendSortField = column;
+    if (column === "complaint_number") {
+      // Use numeric ID field for proper numeric sorting
+      backendSortField = "id";
+    }
+
+    if (sortBy === backendSortField) {
       // Toggle order
       setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
       // New column
-      setSortBy(column);
+      setSortBy(backendSortField);
       setSortOrder("asc");
     }
   };
 
   const handlePageChange = (newPage) => {
+    console.log("📄 handlePageChange fired", { prevPage: pagination.page, nextPage: newPage });
+    console.log(new Error("stack").stack);
     setPagination((prev) => ({ ...prev, page: newPage }));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -211,23 +268,42 @@ const TableView = () => {
     }
   };
 
-  const handleExport = async () => {
+  const handleExportClick = () => {
+    // Open confirmation dialog before exporting
+    setExportDialogOpen(true);
+  };
+
+  const handleExportConfirm = async () => {
+    setExportDialogOpen(false);
     setExporting(true);
+    
     try {
+      // Collect ALL current filter parameters (same as loadComplaints)
       const exportParams = {
-        format: "xlsx",
-        filters: Object.fromEntries(
+        search: searchQuery || undefined,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+        view: viewMode,
+        ...Object.fromEntries(
           Object.entries(filters).filter(([_, value]) => value !== null && value !== undefined && value !== "")
         ),
       };
 
+      console.log("📤 Exporting with params:", exportParams);
+
       const blob = await exportComplaints(exportParams);
       
-      // Create download link
+      // Create download link with improved filename
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `complaints-export-${new Date().toISOString().split("T")[0]}.xlsx`;
+      
+      // Better filename: incident_export_2026-01-07_filtered.xlsx
+      const today = new Date().toISOString().split("T")[0];
+      const hasFilters = Object.values(filters).some(v => v !== null && v !== undefined && v !== "") || searchQuery;
+      const filterSuffix = hasFilters ? "_filtered" : "_all";
+      link.download = `incident_export_${today}${filterSuffix}.xlsx`;
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -240,6 +316,68 @@ const TableView = () => {
     } finally {
       setExporting(false);
     }
+  };
+
+  const handleExportCancel = () => {
+    setExportDialogOpen(false);
+  };
+
+  const handleImportClick = () => {
+    // Trigger file input
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".xlsx";
+    fileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        // Validate file type
+        if (!file.name.endsWith(".xlsx")) {
+          alert("❌ Invalid file type. Please select an Excel file (.xlsx)");
+          return;
+        }
+        setSelectedFile(file);
+        // For now, show dialog with file info (in production, parse file for row count)
+        setImportPreview({ fileName: file.name, estimatedRows: "Unknown" });
+        setImportDialogOpen(true);
+      }
+    };
+    fileInput.click();
+  };
+
+  const handleImportConfirm = async () => {
+    if (!selectedFile) return;
+    
+    setImportDialogOpen(false);
+    setImporting(true);
+    
+    try {
+      const result = await importExcel(selectedFile);
+      
+      // Show success message
+      alert(
+        `✅ Import Successful!\n\n` +
+        `Total rows: ${result.total_rows}\n` +
+        `Inserted: ${result.inserted_count}\n` +
+        `Failed: ${result.failed_count}\n` +
+        `${result.errors && result.errors.length > 0 ? `\nErrors:\n${result.errors.join("\n")}` : ""}`
+      );
+      
+      // Reload complaints
+      await loadComplaints();
+    } catch (error) {
+      console.error("❌ Import failed:", error);
+      alert(`❌ Import Failed: ${error.message}`);
+    } finally {
+      setImporting(false);
+      setSelectedFile(null);
+      setImportPreview(null);
+    }
+  };
+
+  const handleImportCancel = () => {
+    setImportDialogOpen(false);
+    setSelectedFile(null);
+    setImportPreview(null);
   };
 
   // ========================================
@@ -279,11 +417,21 @@ const TableView = () => {
             </Button>
             <Button
               variant="solid"
+              color="success"
+              startDecorator={<UploadIcon />}
+              onClick={handleImportClick}
+              loading={importing}
+              disabled={loading}
+            >
+              Import Excel
+            </Button>
+            <Button
+              variant="solid"
               color="primary"
               startDecorator={<DownloadIcon />}
-              onClick={handleExport}
+              onClick={handleExportClick}
               loading={exporting}
-              disabled={loading || complaints.length === 0}
+              disabled={loading || pagination.total_records === 0}
             >
               Export
             </Button>
@@ -301,6 +449,15 @@ const TableView = () => {
             <SearchBar value={searchQuery} onChange={handleSearchChange} />
           </Box>
         </Box>
+
+        {/* Filter Error Message */}
+        {filterError && (
+          <Card sx={{ mb: 3, p: 2, bgcolor: "danger.softBg" }}>
+            <Typography color="danger">
+              ❌ Error loading filters: {filterError}
+            </Typography>
+          </Card>
+        )}
 
         {/* Filter Panel */}
         <FilterPanel
@@ -362,6 +519,7 @@ const TableView = () => {
               onDelete={handleDeleteRow}
               viewMode={viewMode}
               customView={selectedCustomView}
+              filterOptions={filterOptions}
             />
 
             {/* Pagination */}
@@ -396,6 +554,102 @@ const TableView = () => {
             )}
           </>
         )}
+
+        {/* Import Confirmation Dialog */}
+        <Modal 
+          open={importDialogOpen} 
+          onClose={handleImportCancel}
+          slotProps={{
+            backdrop: {
+              sx: {
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              }
+            }
+          }}
+        >
+          <ModalDialog 
+            variant="outlined" 
+            role="alertdialog" 
+            sx={{ 
+              minWidth: 400,
+              zIndex: 9999,
+            }}
+          >
+            <ModalClose />
+            <DialogTitle sx={{ color: "success.main" }}>
+              <UploadIcon sx={{ mr: 1 }} />
+              Import Excel Records
+            </DialogTitle>
+            <Divider />
+            <DialogContent>
+              <Typography level="body-md" sx={{ mb: 2 }}>
+                File: <strong>{importPreview?.fileName}</strong>
+              </Typography>
+              <Typography level="body-md" sx={{ color: "warning.main", fontWeight: 600 }}>
+                ⚠️ Warning:
+              </Typography>
+              <Typography level="body-sm" sx={{ mt: 1 }}>
+                You are about to import records into the database. These records will be inserted as <strong>CLOSED</strong> and <strong>FINAL</strong>.
+              </Typography>
+              <Typography level="body-sm" sx={{ mt: 1, color: "text.secondary" }}>
+                Are you sure you want to continue?
+              </Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button variant="solid" color="success" onClick={handleImportConfirm} loading={importing}>
+                Import
+              </Button>
+              <Button variant="plain" color="neutral" onClick={handleImportCancel} disabled={importing}>
+                Cancel
+              </Button>
+            </DialogActions>
+          </ModalDialog>
+        </Modal>
+
+        {/* Export Confirmation Dialog */}
+        <Modal 
+          open={exportDialogOpen} 
+          onClose={handleExportCancel}
+          slotProps={{
+            backdrop: {
+              sx: {
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              }
+            }
+          }}
+        >
+          <ModalDialog 
+            variant="outlined" 
+            role="alertdialog" 
+            sx={{ 
+              minWidth: 400,
+              zIndex: 9999,
+            }}
+          >
+            <ModalClose />
+            <DialogTitle>
+              <DownloadIcon sx={{ mr: 1 }} />
+              Export Records
+            </DialogTitle>
+            <Divider />
+            <DialogContent>
+              <Typography level="body-md">
+                You are about to export <strong>{pagination.total_records.toLocaleString()}</strong> records using the current filters.
+              </Typography>
+              <Typography level="body-sm" sx={{ mt: 1, color: "text.secondary" }}>
+                Do you want to continue?
+              </Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button variant="solid" color="primary" onClick={handleExportConfirm} loading={exporting}>
+                Export
+              </Button>
+              <Button variant="plain" color="neutral" onClick={handleExportCancel} disabled={exporting}>
+                Cancel
+              </Button>
+            </DialogActions>
+          </ModalDialog>
+        </Modal>
 
         {/* Delete Confirmation Dialog */}
         <DeleteConfirmationDialog

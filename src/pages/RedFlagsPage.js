@@ -258,7 +258,7 @@ const RedFlagsPage = ({ embedded = false }) => {
           onGroupByChange={setGroupBy}
         />
       </Box>
-      />
+
 
       <Box sx={{ mt: 3 }} />
 

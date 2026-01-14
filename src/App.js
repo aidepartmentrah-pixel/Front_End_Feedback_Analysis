@@ -16,6 +16,8 @@ import TrendMonitoringPage from "./pages/TrendMonitoringPage";
 import HistoryPage from "./pages/HistoryPage";
 import CriticalIssuesPage from "./pages/CriticalIssuesPage";
 import InvestigationPage from "./pages/InvestigationPage";
+import SeasonalReportsPage from "./pages/SeasonalReportsPage";
+import SeasonalReportDetailPage from "./pages/SeasonalReportDetailPage";
 
 function App() {
   return (
@@ -36,6 +38,8 @@ function App() {
         <Route path="/trend-monitoring" element={<TrendMonitoringPage />} />
         <Route path="/follow-up" element={<FollowUpPage />} />
         <Route path="/investigation" element={<InvestigationPage />} />
+        <Route path="/seasonal-reports" element={<SeasonalReportsPage />} />
+        <Route path="/seasonal-reports/:id" element={<SeasonalReportDetailPage />} />
       </Routes>
     </Router>
   );

@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import { Typography } from "@mui/joy";
 
-const CategoryTrendChart = ({ data }) => {
+const CategoryTrendChart = ({ data, referenceData }) => {
   if (!data || !data.chart_data || !data.chart_labels) {
     return (
       <Card sx={{ p: 3, mb: 3, textAlign: "center" }}>
@@ -24,11 +24,50 @@ const CategoryTrendChart = ({ data }) => {
     );
   }
 
+  // Build category ID to name map from reference data
+  const categoryMap = new Map();
+  if (referenceData?.allCategories && Array.isArray(referenceData.allCategories)) {
+    referenceData.allCategories.forEach(cat => {
+      categoryMap.set(cat.id, cat.name || cat.name_en || cat.category_name || `Category ${cat.id}`);
+    });
+  }
+  
+  console.log("📊 CategoryTrendChart - categoryMap:", Array.from(categoryMap.entries()));
+  console.log("📊 CategoryTrendChart - chart_data:", data.chart_data);
+
+  // Helper to get category name from name field (which might be "Category X" or an ID)
+  const getCategoryName = (name) => {
+    // If backend returns "Category X" format
+    const match = name?.match(/Category (\d+)/);
+    if (match) {
+      const categoryId = parseInt(match[1]);
+      const mappedName = categoryMap.get(categoryId);
+      console.log(`🔍 Mapping "${name}" (ID: ${categoryId}) -> "${mappedName}"`);
+      return mappedName || name;
+    }
+    
+    // If backend returns numeric ID directly as string
+    const numericId = parseInt(name);
+    if (!isNaN(numericId) && categoryMap.has(numericId)) {
+      const mappedName = categoryMap.get(numericId);
+      console.log(`🔍 Mapping ID ${numericId} -> "${mappedName}"`);
+      return mappedName;
+    }
+    
+    // If it's already a proper name, use it
+    if (name && typeof name === 'string' && !name.startsWith('Category ')) {
+      return name;
+    }
+    
+    return name || "Unknown Category";
+  };
+
   // Transform data for recharts
   const chartData = data.chart_labels.map((label, index) => {
     const point = { month: label };
     data.chart_data.forEach(series => {
-      point[series.name] = series.data[index] || 0;
+      const displayName = getCategoryName(series.name);
+      point[displayName] = series.data[index] || 0;
     });
     return point;
   });
@@ -92,18 +131,21 @@ const CategoryTrendChart = ({ data }) => {
             <Legend wrapperStyle={{ fontSize: "13px", fontWeight: 600 }} />
             
             {/* Render a line for each category */}
-            {data.chart_data.map((series) => (
-              <Line
-                key={series.name}
-                type="monotone"
-                dataKey={series.name}
-                stroke={series.color}
-                strokeWidth={3}
-                dot={{ fill: series.color, r: 5 }}
-                activeDot={{ r: 7 }}
-                name={series.name}
-              />
-            ))}
+            {data.chart_data.map((series) => {
+              const displayName = getCategoryName(series.name);
+              return (
+                <Line
+                  key={series.name}
+                  type="monotone"
+                  dataKey={displayName}
+                  stroke={series.color}
+                  strokeWidth={3}
+                  dot={{ fill: series.color, r: 5 }}
+                  activeDot={{ r: 7 }}
+                  name={displayName}
+                />
+              );
+            })}
           </LineChart>
         </ResponsiveContainer>
       </Box>

@@ -354,8 +354,19 @@ const CustomViewManager = ({ onViewSelect }) => {
       </Card>
 
       {/* Create/Edit Modal */}
-      <Modal open={showDialog} onClose={() => setShowDialog(false)}>
-        <ModalDialog>
+      <Modal 
+        open={showDialog} 
+        onClose={() => setShowDialog(false)}
+        sx={{ zIndex: 2000 }}
+      >
+        <ModalDialog
+          sx={{
+            maxWidth: 800,
+            maxHeight: "90vh",
+            overflow: "auto",
+            zIndex: 2000,
+          }}
+        >
           <DialogTitle>
             {(() => {
               const isEditing = editingViewId && editingViewId > 0;

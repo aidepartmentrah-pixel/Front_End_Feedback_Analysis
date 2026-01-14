@@ -1,7 +1,11 @@
 // src/pages/EditRecord.js
-import React, { useState, useEffect } from "react";
-import { Box, Container, Typography, Divider, CircularProgress, Card } from "@mui/joy";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { Box, Container, Typography, Divider, CircularProgress, Card, Alert } from "@mui/joy";
 import { useNavigate, useParams } from "react-router-dom";
+import { Warning } from "@mui/icons-material";
+
+// Utils
+import { validateIncidentCase } from "../utils/incidentCaseValidation";
 
 // Components
 import MainLayout from "../components/common/MainLayout";
@@ -12,6 +16,12 @@ import EditActionButtons from "../components/edit/EditActionButtons";
 
 // API
 import { getRecordById, updateRecord } from "../api/complaints";
+import { 
+  fetchReferenceData,
+  fetchCategories,
+  fetchSubcategories,
+  fetchClassifications
+} from "../api/insertRecord";
 
 const EditRecord = () => {
   const navigate = useNavigate();
@@ -40,8 +50,8 @@ const EditRecord = () => {
     patient_name: "",
     target_department_ids: [],
     source_id: null,
-    building_id: null,
-    is_inpatient: false,
+    building: null,
+    in_out: null,
     doctors: [],
   });
 
@@ -50,6 +60,57 @@ const EditRecord = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
+  const [recordValidation, setRecordValidation] = useState(null); // Initial validation result
+  const [referenceData, setReferenceData] = useState({
+    domains: [],
+    categories: [],
+    severities: [],
+    stages: [],
+    harm_levels: [],
+    building: [],
+    clinical_risk_types: [],
+    feedback_intent_types: [],
+    sources: [],
+    departments: [],
+  });
+
+  // State for sequential loading of categories, subcategories, classifications
+  const [categories, setCategories] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
+  const [classifications, setClassifications] = useState([]);
+  const isLoadingRecordRef = useRef(false);
+  const isSubmittingRef = useRef(false); // Prevent double submit
+
+  // Compute form validity
+  const isFormValid = useMemo(() => {
+    const validation = validateIncidentCase(formData);
+    return validation.isValid;
+  }, [formData]);
+
+  // Load reference data on mount
+  useEffect(() => {
+    const loadReferenceData = async () => {
+      try {
+        const data = await fetchReferenceData();
+        console.log("📚 Reference data loaded:", data);
+        console.log("📚 Departments count:", data.departments?.length);
+        console.log("📚 Sample department:", data.departments?.[0]);
+        
+        // Normalize field names for compatibility
+        const normalized = {
+          ...data,
+          severities: data.severity || data.severities || [],
+          harm_levels: data.harm || data.harm_levels || [],
+        };
+        
+        setReferenceData(normalized);
+      } catch (err) {
+        console.error("❌ Error loading reference data:", err);
+      }
+    };
+    loadReferenceData();
+  }, []);
 
   // Auto-load record from URL parameter
   useEffect(() => {
@@ -58,13 +119,75 @@ const EditRecord = () => {
       setError(null);
       console.log("🔄 Loading record:", id);
       getRecordById(id)
-        .then((record) => {
+        .then(async (res) => {
+          const record = res.record;
+
           console.log("📖 Record loaded:", record);
+          console.log("📖 Target departments in record:", record.target_departments);
+          console.log("📖 Building ID:", record.building_id, "Building name:", record.building_name);
+          console.log("📖 Domain ID:", record.domain_id);
+          console.log("📖 Category ID:", record.category_id);
+          console.log("📖 Subcategory ID:", record.subcategory_id);
+          console.log("📖 Classification ID:", record.classification_id);
+          
           setSelectedRecord(record);
           setOriginalRecord(JSON.parse(JSON.stringify(record)));
+          isLoadingRecordRef.current = true;
 
-          // Pre-fill form with record data
-          setFormData({
+          // Load categories/subcategories/classifications for this record
+          try {
+            if (record.domain_id) {
+              console.log("🔄 Loading categories for domain:", record.domain_id);
+              const cats = await fetchCategories(record.domain_id);
+              console.log("✅ Categories loaded:", cats.length);
+              setCategories(cats);
+              
+              if (record.category_id) {
+                console.log("🔄 Loading subcategories for category:", record.category_id);
+                const subs = await fetchSubcategories(record.category_id);
+                console.log("✅ Subcategories loaded:", subs.length);
+                setSubcategories(subs);
+                
+                if (record.subcategory_id) {
+                  console.log("🔄 Loading classifications for subcategory:", record.subcategory_id);
+                  const classifs = await fetchClassifications(record.subcategory_id);
+                  console.log("✅ Classifications loaded:", classifs.length);
+                  setClassifications(classifs);
+                }
+              }
+            }
+          } catch (err) {
+            console.error("❌ Error loading classification hierarchy:", err);
+          }
+
+          // Map target_departments array to IDs using department_id field
+          const targetDeptIds = Array.isArray(record.target_departments)
+            ? record.target_departments.map(dept => dept.department_id).filter(Boolean)
+            : [];
+          
+          console.log("📋 Mapped target department IDs:", targetDeptIds);
+
+          // Map doctors array
+          const doctorsList = Array.isArray(record.doctors)
+            ? record.doctors.map(doc => ({
+                doctor_id: doc.id || doc.doctor_id,
+                doctor_name: doc.name || doc.doctor_name
+              }))
+            : [];
+
+          // Map building_id to building name (RAH/BCI)
+          let buildingName = null;
+          if (record.building_id === 1) buildingName = "RAH";
+          else if (record.building_id === 2) buildingName = "BCI";
+          else if (record.building_name) buildingName = record.building_name;
+
+          // Map in_out from is_inpatient or in_out field
+          let inOutValue = null;
+          if (record.in_out) inOutValue = record.in_out; // Direct field
+          else if (record.is_inpatient === true || record.is_inpatient === 1) inOutValue = "IN";
+          else if (record.is_inpatient === false || record.is_inpatient === 0) inOutValue = "OUT";
+
+          const initialFormData = {
             complaint_text: record.complaint_text || "",
             feedback_received_date: record.received_date || new Date().toISOString().split("T")[0],
             issuing_department_id: record.issuing_org_unit_id || null,
@@ -74,20 +197,38 @@ const EditRecord = () => {
             classification_id: record.classification_id || null,
             severity_id: record.severity_id || null,
             stage_id: record.stage_id || null,
-            harm_id: record.harm_level_id || null,  // Maps harm_level_id from GET to harm_id for PUT
+            harm_id: record.harm_level_id || null,
             clinical_risk_type_id: record.clinical_risk_type_id || null,
             feedback_intent_type_id: record.feedback_intent_type_id || null,
             immediate_action: record.immediate_action || "",
             taken_action: record.taken_action || "",
             patient_name: record.patient_name || "",
-            target_department_ids: [],
-            source_id: null,
-            building_id: record.building_id || null,
-            is_inpatient: record.in_out === 1,
-            doctors: record.doctor_name ? [{ doctor_id: record.doctor_id, doctor_name: record.doctor_name }] : [],
-          });
-
+            target_department_ids: targetDeptIds,
+            source_id: record.source_id || null,
+            building: buildingName,
+            in_out: inOutValue,
+            doctors: doctorsList,
+            is_inpatient: record.is_inpatient,
+            explanation_status_id: record.explanation_status_id || null,
+            case_status_id: record.case_status_id || 1,
+          };
+          
+          setFormData(initialFormData);
           setHasChanges(false);
+          
+          // ✅ Validate loaded record
+          const initialValidation = validateIncidentCase(initialFormData);
+          setRecordValidation(initialValidation);
+          
+          if (!initialValidation.isValid) {
+            console.warn("⚠️ Loaded record is incomplete:", initialValidation.errors);
+          }
+          
+          // Small delay to ensure state is set before enabling useEffects
+          setTimeout(() => {
+            isLoadingRecordRef.current = false;
+            console.log("✅ Record loading complete, useEffects enabled");
+          }, 100);
         })
         .catch((err) => {
           console.error("❌ Error loading record:", err);
@@ -97,12 +238,101 @@ const EditRecord = () => {
     }
   }, [id]);
 
+  // Watch for domain_id changes - load categories
+  useEffect(() => {
+    if (isLoadingRecordRef.current) return; // Skip during initial record load
+    
+    if (formData.domain_id) {
+      const loadCats = async () => {
+        try {
+          const data = await fetchCategories(formData.domain_id);
+          setCategories(data);
+        } catch (err) {
+          console.error("Error loading categories:", err);
+        }
+      };
+      loadCats();
+      
+      // Clear dependent fields when domain changes
+      setFormData(prev => ({
+        ...prev,
+        category_id: null,
+        subcategory_id: null,
+        classification_id: null,
+      }));
+      setSubcategories([]);
+      setClassifications([]);
+    } else {
+      setCategories([]);
+      setSubcategories([]);
+      setClassifications([]);
+    }
+  }, [formData.domain_id]);
+
+  // Watch for category_id changes - load subcategories
+  useEffect(() => {
+    if (isLoadingRecordRef.current) return; // Skip during initial record load
+    
+    if (formData.category_id) {
+      const loadSubs = async () => {
+        try {
+          const data = await fetchSubcategories(formData.category_id);
+          setSubcategories(data);
+        } catch (err) {
+          console.error("Error loading subcategories:", err);
+        }
+      };
+      loadSubs();
+      
+      // Clear dependent fields when category changes
+      setFormData(prev => ({
+        ...prev,
+        subcategory_id: null,
+        classification_id: null,
+      }));
+      setClassifications([]);
+    } else {
+      setSubcategories([]);
+      setClassifications([]);
+    }
+  }, [formData.category_id]);
+
+  // Watch for subcategory_id changes - load classifications
+  useEffect(() => {
+    if (isLoadingRecordRef.current) return; // Skip during initial record load
+    
+    if (formData.subcategory_id) {
+      const loadClassifs = async () => {
+        try {
+          const data = await fetchClassifications(formData.subcategory_id);
+          setClassifications(data);
+        } catch (err) {
+          console.error("Error loading classifications:", err);
+        }
+      };
+      loadClassifs();
+      
+      // Clear dependent field when subcategory changes
+      setFormData(prev => ({
+        ...prev,
+        classification_id: null,
+      }));
+    } else {
+      setClassifications([]);
+    }
+  }, [formData.subcategory_id]);
+
   // Update form data
   const handleInputChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    console.log(`🔄 Field change: ${field} = ${value}`);
+    setFormData((prev) => {
+      const updated = {
+        ...prev,
+        [field]: value,
+      };
+      console.log(`📝 Updated formData.${field}:`, updated[field]);
+      return updated;
+    });
     setHasChanges(true);
   };
 
@@ -125,66 +355,36 @@ const EditRecord = () => {
 
   // Handle Update Record
   const handleUpdateRecord = async () => {
+    // Prevent double submit
+    if (isSubmittingRef.current) {
+      console.log("⚠️ Submit already in progress, ignoring duplicate click");
+      return;
+    }
+    
     try {
+      isSubmittingRef.current = true;
       setLoading(true);
       setError(null);
+      setValidationErrors({});
 
-      // Validate required fields
-      if (!formData.complaint_text.trim()) {
-        setError("Complaint text is required");
+      // ✅ Run centralized validation
+      const validation = validateIncidentCase(formData);
+      
+      if (!validation.isValid) {
+        // Show validation errors
+        setValidationErrors(validation.errors);
+        const errorCount = Object.keys(validation.errors).length;
+        setError(`❌ Please fix ${errorCount} highlighted field${errorCount > 1 ? 's' : ''} before saving.`);
         setLoading(false);
-        return;
-      }
-
-      if (!formData.feedback_received_date) {
-        setError("Feedback received date is required");
-        setLoading(false);
-        return;
-      }
-
-      if (!formData.issuing_department_id) {
-        setError("Issuing department is required");
-        setLoading(false);
-        return;
-      }
-
-      if (!formData.domain_id) {
-        setError("Domain is required");
-        setLoading(false);
-        return;
-      }
-
-      if (!formData.category_id) {
-        setError("Category is required");
-        setLoading(false);
-        return;
-      }
-
-      if (!formData.classification_id) {
-        setError("Classification is required");
-        setLoading(false);
-        return;
-      }
-
-      if (!formData.severity_id) {
-        setError("Severity is required");
-        setLoading(false);
-        return;
-      }
-
-      if (!formData.stage_id) {
-        setError("Stage is required");
-        setLoading(false);
-        return;
-      }
-
-      if (!formData.harm_id) {
-        setError("Harm level is required");
-        setLoading(false);
+        isSubmittingRef.current = false;
+        
+        // Scroll to top to show error message
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
 
       // Call API to update record
+      console.log("📤 Submitting update with formData:", formData);
       const result = await updateRecord(id, formData);
       console.log("✅ Record updated:", result);
 
@@ -198,8 +398,10 @@ const EditRecord = () => {
     } catch (err) {
       console.error("❌ Error updating record:", err);
       setError(`Error updating record: ${err.message}`);
+      isSubmittingRef.current = false;
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -214,7 +416,29 @@ const EditRecord = () => {
   // Handle Reset to Original
   const handleReset = () => {
     if (originalRecord) {
-      setFormData({
+      // Re-map all fields from originalRecord
+      const targetDeptIds = Array.isArray(originalRecord.target_departments)
+        ? originalRecord.target_departments.map(dept => dept.department_id).filter(Boolean)
+        : [];
+
+      const doctorsList = Array.isArray(originalRecord.doctors)
+        ? originalRecord.doctors.map(doc => ({
+            doctor_id: doc.id || doc.doctor_id,
+            doctor_name: doc.name || doc.doctor_name
+          }))
+        : [];
+
+      let buildingName = null;
+      if (originalRecord.building_id === 1) buildingName = "RAH";
+      else if (originalRecord.building_id === 2) buildingName = "BCI";
+      else if (originalRecord.building_name) buildingName = originalRecord.building_name;
+
+      let inOutValue = null;
+      if (originalRecord.in_out) inOutValue = originalRecord.in_out;
+      else if (originalRecord.is_inpatient === true || originalRecord.is_inpatient === 1) inOutValue = "IN";
+      else if (originalRecord.is_inpatient === false || originalRecord.is_inpatient === 0) inOutValue = "OUT";
+
+      const resetFormData = {
         complaint_text: originalRecord.complaint_text || "",
         feedback_received_date: originalRecord.received_date || new Date().toISOString().split("T")[0],
         issuing_department_id: originalRecord.issuing_org_unit_id || null,
@@ -224,20 +448,30 @@ const EditRecord = () => {
         classification_id: originalRecord.classification_id || null,
         severity_id: originalRecord.severity_id || null,
         stage_id: originalRecord.stage_id || null,
-        harm_id: originalRecord.harm_id || null,
+        harm_id: originalRecord.harm_level_id || null,
         clinical_risk_type_id: originalRecord.clinical_risk_type_id || null,
         feedback_intent_type_id: originalRecord.feedback_intent_type_id || null,
         immediate_action: originalRecord.immediate_action || "",
         taken_action: originalRecord.taken_action || "",
         patient_name: originalRecord.patient_name || "",
-        target_department_ids: [],
-        source_id: null,
-        building_id: originalRecord.building_id || null,
-        is_inpatient: originalRecord.in_out === 1,
-        doctors: originalRecord.doctor_name ? [{ doctor_id: originalRecord.doctor_id, doctor_name: originalRecord.doctor_name }] : [],
-      });
+        target_department_ids: targetDeptIds,
+        source_id: originalRecord.source_id || null,
+        building: buildingName,
+        in_out: inOutValue,
+        doctors: doctorsList,
+        is_inpatient: originalRecord.is_inpatient,
+        explanation_status_id: originalRecord.explanation_status_id || null,
+        case_status_id: originalRecord.case_status_id || 1,
+      };
+      
+      setFormData(resetFormData);
       setHasChanges(false);
       setSuccess(null);
+      setValidationErrors({});
+      
+      // Re-validate after reset
+      const validation = validateIncidentCase(resetFormData);
+      setRecordValidation(validation);
     }
   };
 
@@ -268,8 +502,34 @@ const EditRecord = () => {
 
         {/* Error Messages */}
         {error && (
-          <Card sx={{ mb: 2, p: 2, bgcolor: "danger.softBg" }}>
-            <Typography color="danger">❌ {error}</Typography>
+          <Card sx={{ 
+            mb: 2, 
+            p: 3, 
+            bgcolor: "danger.softBg",
+            border: "2px solid",
+            borderColor: "danger.solidBg",
+            boxShadow: "0 4px 12px rgba(220, 38, 38, 0.15)"
+          }}>
+            <Typography 
+              color="danger" 
+              level="title-md"
+              sx={{ 
+                fontWeight: 700, 
+                mb: 1,
+                display: "flex",
+                alignItems: "center",
+                gap: 1
+              }}
+            >
+              ❌ Validation Error
+            </Typography>
+            <Typography 
+              color="danger" 
+              level="body-sm"
+              sx={{ whiteSpace: "pre-line" }}
+            >
+              {error}
+            </Typography>
           </Card>
         )}
 
@@ -278,6 +538,34 @@ const EditRecord = () => {
           <Card sx={{ mb: 2, p: 2, bgcolor: "success.softBg" }}>
             <Typography color="success">✅ {success}</Typography>
           </Card>
+        )}
+        
+        {/* Warning Banner for Incomplete Records */}
+        {recordValidation && !recordValidation.isValid && !loading && (
+          <Alert 
+            color="warning" 
+            variant="soft"
+            startDecorator={<Warning />}
+            sx={{ 
+              mb: 2, 
+              p: 3,
+              border: "2px solid",
+              borderColor: "warning.solidBg",
+              boxShadow: "0 4px 12px rgba(237, 108, 2, 0.15)"
+            }}
+          >
+            <Box>
+              <Typography level="title-md" sx={{ fontWeight: 700, mb: 1 }}>
+                ⚠️ This record is incomplete and must be fixed before saving.
+              </Typography>
+              <Typography level="body-sm">
+                Missing required fields: {Object.keys(recordValidation.errors).length}
+              </Typography>
+              <Typography level="body-xs" sx={{ mt: 1, fontStyle: "italic" }}>
+                Please fill all fields marked with * before updating.
+              </Typography>
+            </Box>
+          </Alert>
         )}
 
         {/* Form (show only when record is loaded) */}
@@ -291,13 +579,27 @@ const EditRecord = () => {
               additionalNotes={formData.immediate_action}
               optionalThirdText={formData.taken_action}
               onTextChange={handleTextBlockChange}
+              validationErrors={validationErrors}
             />
 
             {/* Row 2: Metadata Inputs */}
-            <RecordMetadata formData={formData} onInputChange={handleInputChange} />
+            <RecordMetadata 
+              formData={formData} 
+              onInputChange={handleInputChange} 
+              referenceData={referenceData}
+              validationErrors={validationErrors}
+            />
 
             {/* Row 3: Classification Fields */}
-            <ClassificationFields formData={formData} onInputChange={handleInputChange} />
+            <ClassificationFields 
+              formData={formData} 
+              onInputChange={handleInputChange}
+              referenceData={referenceData}
+              categories={categories}
+              subcategories={subcategories}
+              classifications={classifications}
+              validationErrors={validationErrors}
+            />
 
             {/* Row 4: Action Buttons */}
             <EditActionButtons
@@ -306,6 +608,7 @@ const EditRecord = () => {
               onReset={handleReset}
               loading={loading}
               hasChanges={hasChanges}
+              isFormValid={isFormValid}
             />
           </>
         )}

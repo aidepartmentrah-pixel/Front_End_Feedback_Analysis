@@ -18,6 +18,7 @@ const ClassificationFields = ({
   subcategories,
   classifications,
   errorField,
+  validationErrors = {},
 }) => {
   return (
     <Card
@@ -37,7 +38,7 @@ const ClassificationFields = ({
 
         {/* Domain */}
         <Grid xs={12} sm={6} md={3}>
-          <FormControl fullWidth>
+          <FormControl fullWidth error={!!validationErrors.domain_id}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
               🌐 Domain *
             </FormLabel>
@@ -53,7 +54,7 @@ const ClassificationFields = ({
                 }
               }}
               sx={{
-                borderColor: errorField === "domain_id" ? "#ff4757" : undefined,
+                borderColor: (validationErrors.domain_id || errorField === "domain_id") ? "#ff4757" : undefined,
               }}
             >
               {referenceData?.domains && Array.isArray(referenceData.domains) && referenceData.domains.map((opt) => {
@@ -67,12 +68,17 @@ const ClassificationFields = ({
                 );
               })}
             </Select>
+            {validationErrors.domain_id && (
+              <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
+                {validationErrors.domain_id}
+              </Typography>
+            )}
           </FormControl>
         </Grid>
 
         {/* Category */}
         <Grid xs={12} sm={6} md={3}>
-          <FormControl fullWidth>
+          <FormControl fullWidth error={!!validationErrors.category_id}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
               📂 Category *
             </FormLabel>
@@ -89,7 +95,7 @@ const ClassificationFields = ({
                 }
               }}
               sx={{
-                borderColor: errorField === "category_id" ? "#ff4757" : undefined,
+                borderColor: (validationErrors.category_id || errorField === "category_id") ? "#ff4757" : undefined,
               }}
             >
               {Array.isArray(categories) && categories.map((opt) => {
@@ -103,14 +109,19 @@ const ClassificationFields = ({
                 );
               })}
             </Select>
+            {validationErrors.category_id && (
+              <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
+                {validationErrors.category_id}
+              </Typography>
+            )}
           </FormControl>
         </Grid>
 
         {/* Subcategory */}
         <Grid xs={12} sm={6} md={3}>
-          <FormControl fullWidth>
+          <FormControl fullWidth error={!!validationErrors.subcategory_id}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              📑 Sub-Category
+              📑 Sub-Category *
             </FormLabel>
             <Select
               value={formData.subcategory_id || ""}
@@ -124,6 +135,9 @@ const ClassificationFields = ({
                   sx: { maxHeight: 250, overflowY: 'auto' }
                 }
               }}
+              sx={{
+                borderColor: (validationErrors.subcategory_id || errorField === "subcategory_id") ? "#ff4757" : undefined,
+              }}
             >
               {Array.isArray(subcategories) && subcategories.map((opt) => {
                 console.log("Subcategory option FULL:", JSON.stringify(opt, null, 2));
@@ -136,14 +150,19 @@ const ClassificationFields = ({
                 );
               })}
             </Select>
+            {validationErrors.subcategory_id && (
+              <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
+                {validationErrors.subcategory_id}
+              </Typography>
+            )}
           </FormControl>
         </Grid>
 
         {/* Classification */}
         <Grid xs={12} sm={6} md={3}>
-          <FormControl fullWidth>
+          <FormControl fullWidth error={!!validationErrors.classification_id}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              🏷️ Classification
+              🏷️ Classification *
             </FormLabel>
             <Select
               value={formData.classification_id || ""}
@@ -157,6 +176,9 @@ const ClassificationFields = ({
                   sx: { maxHeight: 250, overflowY: 'auto' }
                 }
               }}
+              sx={{
+                borderColor: (validationErrors.classification_id || errorField === "classification_id") ? "#ff4757" : undefined,
+              }}
             >
               {Array.isArray(classifications) && classifications.map((opt) => {
                 console.log("Classification option FULL:", JSON.stringify(opt, null, 2));
@@ -169,6 +191,11 @@ const ClassificationFields = ({
                 );
               })}
             </Select>
+            {validationErrors.classification_id && (
+              <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
+                {validationErrors.classification_id}
+              </Typography>
+            )}
           </FormControl>
         </Grid>
 
@@ -178,7 +205,7 @@ const ClassificationFields = ({
       <Grid container spacing={2} sx={{ mt: 2 }}>
         {/* Severity */}
         <Grid xs={12} sm={6} md={3}>
-          <FormControl fullWidth>
+          <FormControl fullWidth error={!!validationErrors.severity_id}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
               ⚠️ Severity *
             </FormLabel>
@@ -194,7 +221,7 @@ const ClassificationFields = ({
                 }
               }}
               sx={{
-                borderColor: errorField === "severity_id" ? "#ff4757" : undefined,
+                borderColor: (validationErrors.severity_id || errorField === "severity_id") ? "#ff4757" : undefined,
               }}
             >
               {referenceData?.severity && Array.isArray(referenceData.severity) && referenceData.severity.map((opt) => {
@@ -206,14 +233,19 @@ const ClassificationFields = ({
                 );
               })}
             </Select>
+            {validationErrors.severity_id && (
+              <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
+                {validationErrors.severity_id}
+              </Typography>
+            )}
           </FormControl>
         </Grid>
 
         {/* Stage */}
         <Grid xs={12} sm={6} md={3}>
-          <FormControl fullWidth>
+          <FormControl fullWidth error={!!validationErrors.stage_id}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              📍 Stage
+              📍 Stage *
             </FormLabel>
             <Select
               value={formData.stage_id || ""}
@@ -226,6 +258,9 @@ const ClassificationFields = ({
                   sx: { maxHeight: 250, overflowY: 'auto' }
                 }
               }}
+              sx={{
+                borderColor: (validationErrors.stage_id || errorField === "stage_id") ? "#ff4757" : undefined,
+              }}
             >
               {referenceData?.stages && Array.isArray(referenceData.stages) && referenceData.stages.map((opt) => {
                 const displayName = opt.name || opt.label || opt.stage_name || opt.name_en || opt.name_ar || `Stage ${opt.id}`;
@@ -236,14 +271,19 @@ const ClassificationFields = ({
                 );
               })}
             </Select>
+            {validationErrors.stage_id && (
+              <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
+                {validationErrors.stage_id}
+              </Typography>
+            )}
           </FormControl>
         </Grid>
 
         {/* Harm Level */}
         <Grid xs={12} sm={6} md={3}>
-          <FormControl fullWidth>
+          <FormControl fullWidth error={!!validationErrors.harm_level_id}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              🩹 Harm Level
+              🩹 Harm Level *
             </FormLabel>
             <Select
               value={formData.harm_id || ""}
@@ -256,6 +296,9 @@ const ClassificationFields = ({
                   sx: { maxHeight: 250, overflowY: 'auto' }
                 }
               }}
+              sx={{
+                borderColor: (validationErrors.harm_level_id || errorField === "harm_id") ? "#ff4757" : undefined,
+              }}
             >
               {referenceData?.harm && Array.isArray(referenceData.harm) && referenceData.harm.map((opt) => {
                 const displayName = opt.name || opt.label || opt.harm_name || opt.level_name || opt.name_en || opt.name_ar || `Harm ${opt.id}`;
@@ -266,12 +309,17 @@ const ClassificationFields = ({
                 );
               })}
             </Select>
+            {validationErrors.harm_level_id && (
+              <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
+                {validationErrors.harm_level_id}
+              </Typography>
+            )}
           </FormControl>
         </Grid>
 
         {/* Feedback Intent Type */}
         <Grid xs={12} sm={6} md={3}>
-          <FormControl fullWidth>
+          <FormControl fullWidth error={!!validationErrors.feedback_intent_type_id}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
               💬 Feedback Intent Type *
             </FormLabel>
@@ -287,7 +335,7 @@ const ClassificationFields = ({
                 }
               }}
               sx={{
-                borderColor: errorField === "feedback_intent_type_id" ? "#ff4757" : undefined,
+                borderColor: (validationErrors.feedback_intent_type_id || errorField === "feedback_intent_type_id") ? "#ff4757" : undefined,
               }}
             >
               {Array.isArray(referenceData?.feedback_intent_types) && referenceData.feedback_intent_types.map((type) => {
@@ -299,12 +347,17 @@ const ClassificationFields = ({
                 );
               })}
             </Select>
+            {validationErrors.feedback_intent_type_id && (
+              <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
+                {validationErrors.feedback_intent_type_id}
+              </Typography>
+            )}
           </FormControl>
         </Grid>
 
         {/* Clinical Risk Type */}
         <Grid xs={12} sm={6} md={3}>
-          <FormControl fullWidth>
+          <FormControl fullWidth error={!!validationErrors.clinical_risk_type_id}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
               ⚕️ Clinical Risk Type *
             </FormLabel>
@@ -320,7 +373,7 @@ const ClassificationFields = ({
                 }
               }}
               sx={{
-                borderColor: errorField === "clinical_risk_type_id" ? "#ff4757" : undefined,
+                borderColor: (validationErrors.clinical_risk_type_id || errorField === "clinical_risk_type_id") ? "#ff4757" : undefined,
               }}
             >
               {Array.isArray(referenceData?.clinical_risk_types) && referenceData.clinical_risk_types.map((type) => {
@@ -332,6 +385,11 @@ const ClassificationFields = ({
                 );
               })}
             </Select>
+            {validationErrors.clinical_risk_type_id && (
+              <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
+                {validationErrors.clinical_risk_type_id}
+              </Typography>
+            )}
           </FormControl>
         </Grid>
       </Grid>

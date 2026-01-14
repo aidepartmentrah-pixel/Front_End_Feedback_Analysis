@@ -1,13 +1,20 @@
 // src/components/TableView/SearchBar.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Input } from "@mui/joy";
 import SearchIcon from "@mui/icons-material/Search";
 
 const SearchBar = ({ value, onChange }) => {
   const [localValue, setLocalValue] = useState(value);
+  const isExternalUpdate = useRef(false);
 
   // Debounce: Only call onChange after 500ms of inactivity
   useEffect(() => {
+    // Don't trigger onChange if this update came from external prop sync
+    if (isExternalUpdate.current) {
+      isExternalUpdate.current = false;
+      return;
+    }
+
     const timer = setTimeout(() => {
       onChange(localValue);
     }, 500);
@@ -15,8 +22,9 @@ const SearchBar = ({ value, onChange }) => {
     return () => clearTimeout(timer);
   }, [localValue, onChange]);
 
-  // Sync with external value changes
+  // Sync with external value changes (without triggering onChange)
   useEffect(() => {
+    isExternalUpdate.current = true;
     setLocalValue(value);
   }, [value]);
 

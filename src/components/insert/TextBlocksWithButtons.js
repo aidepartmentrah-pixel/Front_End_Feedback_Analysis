@@ -6,16 +6,16 @@ import StopIcon from "@mui/icons-material/Stop";
 import ClearIcon from "@mui/icons-material/Clear";
 import { transcribeAudio } from "../../api/insertRecord";
 
-const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdText, onTextChange, onTranscriptionComplete }) => {
+const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdText, onTextChange, onTranscriptionComplete, validationErrors = {} }) => {
   const [recording, setRecording] = useState(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
 
   const textBlocks = [
-    { field: "complaint_text", label: "📝 Complaint Text", placeholder: "Enter complaint details..." },
-    { field: "immediate_action", label: "⚡ Immediate Action", placeholder: "Enter immediate action taken..." },
-    { field: "taken_action", label: "🏥 الإجراءات المتخذة", placeholder: "أدخل الإجراءات المتخذة..." },
+    { field: "complaint_text", label: "📝 Complaint Text", placeholder: "Enter complaint details...", required: true },
+    { field: "immediate_action", label: "⚡ Immediate Action", placeholder: "Enter immediate action taken...", required: true },
+    { field: "taken_action", label: "🏥 الإجراءات المتخذة", placeholder: "أدخل الإجراءات المتخذة...", required: true },
   ];
 
   const handleStartRecording = async (field) => {
@@ -116,7 +116,7 @@ const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdTe
           <Grid xs={12} key={block.field}>
             <Box>
               <Typography level="body-sm" sx={{ fontWeight: 600, mb: 1, color: "#667eea" }}>
-                {block.label}
+                {block.label} {block.required && "*"}
               </Typography>
               <Textarea
                 placeholder={block.placeholder}
@@ -125,8 +125,9 @@ const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdTe
                 onChange={(e) => onTextChange(block.field, e.target.value)}
                 sx={{
                   borderRadius: "8px",
+                  borderColor: validationErrors[block.field] ? "#ff4757" : undefined,
                   "&:focus-within": {
-                    borderColor: "#667eea",
+                    borderColor: validationErrors[block.field] ? "#ff4757" : "#667eea",
                   },
                 }}
                 slotProps={{
@@ -135,6 +136,11 @@ const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdTe
                   }
                 }}
               />
+              {validationErrors[block.field] && (
+                <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
+                  {validationErrors[block.field]}
+                </Typography>
+              )}
               <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
                 {recording === block.field ? (
                   <Button

@@ -5,6 +5,7 @@ import { Box, Container } from "@mui/joy";
 
 // Utils
 import { normalizeClassifications } from "../utils/classificationMappings";
+import { validateIncidentCase, getFieldError } from "../utils/incidentCaseValidation";
 
 // Components
 import MainLayout from "../components/common/MainLayout";
@@ -41,7 +42,7 @@ const InsertRecord = () => {
     issuing_department_id: null,
     target_department_ids: [], // Multiple departments
     source_id: null,
-    in_out: null, // IN or OUT
+    is_inpatient: null, // true = Inpatient, false = Outpatient
     building: null, // RAH or BIC
     worker_type: null, // Doctor, Clerk, Nurse, etc.
     explanation_status_id: null, // NEW field
@@ -94,10 +95,12 @@ const InsertRecord = () => {
   const [error, setError] = useState(null);
   const [errorField, setErrorField] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [validationErrors, setValidationErrors] = useState({});
   const [isAiExtracting, setIsAiExtracting] = useState(false); // Flag to prevent clearing during AI
   const [extractionDebug, setExtractionDebug] = useState(null); // Debug info to show what's being set
   const [resetNER, setResetNER] = useState(0); // Trigger to reset NER outputs
   const isAiExtractingRef = useRef(false); // Ref for immediate access in useEffect
+  const isSubmittingRef = useRef(false); // Prevent double submit
 
   // Load reference data on mount
   useEffect(() => {
@@ -266,6 +269,12 @@ const InsertRecord = () => {
     }
   };
 
+  // Compute form validation status
+  const isFormValid = React.useMemo(() => {
+    const validation = validateIncidentCase(formData);
+    return validation.isValid;
+  }, [formData]);
+
   // Handle NER Extraction button click
   const handleRunNER = async () => {
     try {
@@ -316,93 +325,39 @@ const InsertRecord = () => {
 
   // Handle Add Record button click (submits to database)
   const handleAddRecord = async () => {
+    // Prevent double submit
+    if (isSubmittingRef.current) {
+      console.log("⚠️ Submit already in progress, ignoring duplicate click");
+      return;
+    }
+    
     try {
+      isSubmittingRef.current = true;
       setSubmitLoading(true);
       setError(null);
       setErrorField(null);
+      setValidationErrors({});
 
-      // Validate ALL 12 REQUIRED fields per new endpoint spec
-      if (!formData.complaint_text || formData.complaint_text.trim().length === 0) {
-        setError("Complaint text is required (min 1 char)");
-        setErrorField("complaint_text");
+      // ✅ Run centralized validation
+      const validation = validateIncidentCase(formData);
+      
+      if (!validation.isValid) {
+        // Show validation errors
+        setValidationErrors(validation.errors);
+        const errorCount = Object.keys(validation.errors).length;
+        setError(`❌ Please fix ${errorCount} highlighted field${errorCount > 1 ? 's' : ''} before submitting.`);
+        
+        // Find first error field and set it
+        const firstErrorField = Object.keys(validation.errors)[0];
+        if (firstErrorField) {
+          setErrorField(firstErrorField);
+        }
+        
+        // Scroll to top to show error banner
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
         setSubmitLoading(false);
-        return;
-      }
-
-      if (!formData.feedback_received_date) {
-        setError("Feedback received date is required (YYYY-MM-DD format)");
-        setErrorField("feedback_received_date");
-        setSubmitLoading(false);
-        return;
-      }
-
-      if (!formData.issuing_department_id || formData.issuing_department_id <= 0) {
-        setError("Issuing department is required (must be > 0)");
-        setErrorField("issuing_department_id");
-        setSubmitLoading(false);
-        return;
-      }
-
-      if (!formData.domain_id || formData.domain_id <= 0) {
-        setError("Domain is required (must be > 0)");
-        setErrorField("domain_id");
-        setSubmitLoading(false);
-        return;
-      }
-
-      if (!formData.category_id || formData.category_id <= 0) {
-        setError("Category is required (must be > 0)");
-        setErrorField("category_id");
-        setSubmitLoading(false);
-        return;
-      }
-
-      if (!formData.subcategory_id || formData.subcategory_id <= 0) {
-        setError("Subcategory is required (must be > 0)");
-        setErrorField("subcategory_id");
-        setSubmitLoading(false);
-        return;
-      }
-
-      if (!formData.classification_id || formData.classification_id <= 0) {
-        setError("Classification is required (must be > 0)");
-        setErrorField("classification_id");
-        setSubmitLoading(false);
-        return;
-      }
-
-      if (!formData.severity_id || formData.severity_id <= 0) {
-        setError("Severity is required (must be > 0)");
-        setErrorField("severity_id");
-        setSubmitLoading(false);
-        return;
-      }
-
-      if (!formData.stage_id || formData.stage_id <= 0) {
-        setError("Stage is required (must be > 0)");
-        setErrorField("stage_id");
-        setSubmitLoading(false);
-        return;
-      }
-
-      if (!formData.harm_id || formData.harm_id <= 0) {
-        setError("Harm is required (must be > 0)");
-        setErrorField("harm_id");
-        setSubmitLoading(false);
-        return;
-      }
-
-      if (!formData.clinical_risk_type_id || ![1, 2, 3].includes(Number(formData.clinical_risk_type_id))) {
-        setError("Clinical risk type is required (must be 1, 2, or 3)");
-        setErrorField("clinical_risk_type_id");
-        setSubmitLoading(false);
-        return;
-      }
-
-      if (!formData.feedback_intent_type_id || formData.feedback_intent_type_id <= 0) {
-        setError("Feedback intent type is required (must be > 0)");
-        setErrorField("feedback_intent_type_id");
-        setSubmitLoading(false);
+        isSubmittingRef.current = false;
         return;
       }
 
@@ -459,9 +414,10 @@ const InsertRecord = () => {
         payload.building_id = buildingIdMap[formData.building] || 1;
       }
       
-      // Convert in_out to is_inpatient (OPTIONAL, default: true)
-      if (formData.in_out !== null && formData.in_out !== undefined) {
-        payload.is_inpatient = formData.in_out === "IN";
+      // Send is_inpatient as boolean (OPTIONAL, default: true)
+      if (formData.is_inpatient !== null && formData.is_inpatient !== undefined) {
+        payload.is_inpatient = formData.is_inpatient;
+        console.log("Submitting is_inpatient:", payload.is_inpatient);
       }
       
       // OPTIONAL: Additional metadata
@@ -507,7 +463,7 @@ const InsertRecord = () => {
           issuing_department_id: null,
           target_department_ids: [],
           source_id: null,
-          in_out: null,
+          is_inpatient: null,
           building: null,
           worker_type: null,
           explanation_status_id: null,
@@ -545,8 +501,10 @@ const InsertRecord = () => {
         setErrorField(err.field);
       }
       console.error("Submit Error:", err);
+      isSubmittingRef.current = false;
     } finally {
       setSubmitLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -615,6 +573,7 @@ const InsertRecord = () => {
             }));
           }}
           onTranscriptionComplete={handleTranscriptionComplete}
+          validationErrors={validationErrors}
         />
 
         {/* Step 2: Metadata */}
@@ -623,6 +582,7 @@ const InsertRecord = () => {
           onInputChange={handleInputChange}
           referenceData={referenceData}
           errorField={errorField}
+          validationErrors={validationErrors}
         />
 
         {/* Step 3: NER Outputs (always visible) */}
@@ -643,10 +603,12 @@ const InsertRecord = () => {
           errorField={errorField}
           referenceData={referenceData}
           resetTrigger={resetNER}
+          validationErrors={validationErrors}
         />
 
         {/* Step 4: AI Classification & Severity Fields (merged Step 4 + 5) */}
         <ClassificationFields
+          validationErrors={validationErrors}
           formData={formData}
           onInputChange={handleInputChange}
           referenceData={referenceData}
@@ -891,6 +853,7 @@ const InsertRecord = () => {
           onAddRecord={handleAddRecord}
           loading={nerLoading || submitLoading}
           hasComplaintText={true}
+          isFormValid={isFormValid}
         />
       </Container>
     </MainLayout>

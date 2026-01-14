@@ -5,7 +5,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Cancel";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 
-const EditActionButtons = ({ onUpdate, onCancel, onReset, loading, hasChanges }) => {
+const EditActionButtons = ({ onUpdate, onCancel, onReset, loading, hasChanges, isFormValid = true }) => {
   return (
     <Box
       sx={{
@@ -25,7 +25,7 @@ const EditActionButtons = ({ onUpdate, onCancel, onReset, loading, hasChanges })
         color="success"
         startDecorator={<SaveIcon />}
         onClick={onUpdate}
-        disabled={!hasChanges || loading}
+        disabled={!hasChanges || loading || !isFormValid}
         loading={loading}
         sx={{
           flex: 1,
@@ -35,6 +35,7 @@ const EditActionButtons = ({ onUpdate, onCancel, onReset, loading, hasChanges })
             opacity: 0.6,
           },
         }}
+        title={!isFormValid ? "Please fill all required fields (*)" : ""}
       >
         {loading ? "Saving..." : "💾 Update"}
       </Button>
@@ -90,7 +91,11 @@ const EditActionButtons = ({ onUpdate, onCancel, onReset, loading, hasChanges })
 
       <Box sx={{ width: "100%", mt: 1 }}>
         <Typography level="body-xs" sx={{ color: "rgba(255, 255, 255, 0.9)", textAlign: "center" }}>
-          {hasChanges ? (
+          {!isFormValid ? (
+            <>
+              ⚠️ <strong>Form is incomplete</strong> | Please fill all required fields marked with * before saving
+            </>
+          ) : hasChanges ? (
             <>
               ⚠️ <strong>You have unsaved changes</strong> | Click <strong>Update</strong> to save or <strong>Reset</strong> to discard
             </>
@@ -104,5 +109,4 @@ const EditActionButtons = ({ onUpdate, onCancel, onReset, loading, hasChanges })
     </Box>
   );
 };
-
 export default EditActionButtons;

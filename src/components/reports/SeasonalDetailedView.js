@@ -6,7 +6,7 @@ import ErrorIcon from "@mui/icons-material/Error";
 import FlagIcon from "@mui/icons-material/Flag";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
-const SeasonalDetailedView = ({ complaints, threshold, filters }) => {
+const SeasonalDetailedView = ({ complaints, filters }) => {
   // Classify record type
   const getRecordType = (record) => {
     const harmLevel = record.harm?.toLowerCase() || "";
@@ -34,7 +34,6 @@ const SeasonalDetailedView = ({ complaints, threshold, filters }) => {
   // Calculate clinical percentage
   const clinicalRecords = complaints.filter(c => c.problemDomain === "CLINICAL");
   const clinicalPercentage = complaints.length > 0 ? (clinicalRecords.length / complaints.length) * 100 : 0;
-  const exceedsThreshold = clinicalPercentage > parseFloat(threshold);
 
   const getTrimesterLabel = (trimester) => {
     const labels = {
@@ -118,12 +117,8 @@ const SeasonalDetailedView = ({ complaints, threshold, filters }) => {
         <Card
           sx={{
             p: 2,
-            background: exceedsThreshold
-              ? "linear-gradient(135deg, rgba(255, 165, 2, 0.1) 0%, rgba(255, 140, 0, 0.1) 100%)"
-              : "linear-gradient(135deg, rgba(46, 213, 115, 0.1) 0%, rgba(34, 197, 94, 0.1) 100%)",
-            border: exceedsThreshold
-              ? "2px solid rgba(255, 165, 2, 0.3)"
-              : "2px solid rgba(46, 213, 115, 0.3)",
+            background: "linear-gradient(135deg, rgba(46, 213, 115, 0.1) 0%, rgba(34, 197, 94, 0.1) 100%)",
+            border: "2px solid rgba(46, 213, 115, 0.3)",
           }}
         >
           <Typography level="body-sm" sx={{ color: "#666", mb: 0.5 }}>نسبة الحالات السريرية</Typography>
@@ -131,7 +126,7 @@ const SeasonalDetailedView = ({ complaints, threshold, filters }) => {
             level="h4"
             sx={{
               fontWeight: 800,
-              color: exceedsThreshold ? "#ffa502" : "#2ed573",
+              color: "#2ed573",
             }}
           >
             {clinicalPercentage.toFixed(2)}%
@@ -139,53 +134,6 @@ const SeasonalDetailedView = ({ complaints, threshold, filters }) => {
           <Typography level="body-xs" sx={{ color: "#999" }}>Clinical %</Typography>
         </Card>
       </Box>
-
-      {/* Threshold Status */}
-      {exceedsThreshold ? (
-        <Alert
-          color="warning"
-          variant="soft"
-          startDecorator={<WarningIcon />}
-          sx={{
-            mb: 3,
-            fontSize: "0.95rem",
-            fontWeight: 600,
-            background: "linear-gradient(135deg, rgba(255, 165, 2, 0.15) 0%, rgba(255, 140, 0, 0.15) 100%)",
-            border: "2px solid #ffa502",
-          }}
-        >
-          <Box>
-            <Typography level="title-md" sx={{ color: "#d97706", fontWeight: 700 }}>
-              ⚠️ تجاوز الحد المسموح
-            </Typography>
-            <Typography level="body-sm" sx={{ color: "#92400e", mt: 0.5 }}>
-              نسبة الحالات السريرية ({clinicalPercentage.toFixed(2)}%) تتجاوز العتبة المحددة ({threshold}%).
-            </Typography>
-          </Box>
-        </Alert>
-      ) : (
-        <Alert
-          color="success"
-          variant="soft"
-          startDecorator={<CheckCircleIcon />}
-          sx={{
-            mb: 3,
-            fontSize: "0.95rem",
-            fontWeight: 600,
-            background: "linear-gradient(135deg, rgba(46, 213, 115, 0.15) 0%, rgba(34, 197, 94, 0.15) 100%)",
-            border: "2px solid #2ed573",
-          }}
-        >
-          <Box>
-            <Typography level="title-md" sx={{ color: "#15803d", fontWeight: 700 }}>
-              ✅ ضمن المقبول
-            </Typography>
-            <Typography level="body-sm" sx={{ color: "#166534", mt: 0.5 }}>
-              نسبة الحالات السريرية ({clinicalPercentage.toFixed(2)}%) ضمن العتبة المقبولة ({threshold}%).
-            </Typography>
-          </Box>
-        </Alert>
-      )}
 
       {/* Red Flags Section */}
       {redFlags.length > 0 && (

@@ -1,34 +1,32 @@
 // src/pages/ReportingPage.js
-import React, { useState, useMemo, useEffect } from "react";
-import { Box, Typography, Alert } from "@mui/joy";
+import React, { useState, useEffect } from "react";
+import { Box, Typography, Card } from "@mui/joy";
 import MainLayout from "../components/common/MainLayout";
 import { fetchDashboardHierarchy } from "../api/dashboard";
+import {
+  fetchMonthlyReport,
+  fetchSeasonalReport,
+  exportReport,
+  downloadBlob
+} from "../api/reports";
 
 // Components
 import ReportTypeSwitch from "../components/reports/ReportTypeSwitch";
-import ExportScopeToggle from "../components/reports/ExportScopeToggle";
 import ReportFilters from "../components/reports/ReportFilters";
-import ThresholdInput from "../components/reports/ThresholdInput";
-import MonthlyDetailedTable from "../components/reports/MonthlyDetailedTable";
-import MonthlyNumericTable from "../components/reports/MonthlyNumericTable";
-import SeasonalDetailedView from "../components/reports/SeasonalDetailedView";
 import ReportActions from "../components/reports/ReportActions";
-import BulkExportTable from "../components/reports/BulkExportTable";
-
-// Data and helpers
-import { mockComplaints } from "../data/mockReportData";
-import {
-  filterComplaintsByDate,
-  filterComplaintsByDepartment,
-  calculateMonthlyStats,
-  calculateSeasonalStats,
-  groupByHCATStructure,
-} from "../utils/reportHelpers";
 
 const ReportingPage = () => {
   // Hierarchy state
   const [hierarchy, setHierarchy] = useState(null);
   const [loadingHierarchy, setLoadingHierarchy] = useState(true);
+
+  // Date validation state
+  const [isDateRangeInvalid, setIsDateRangeInvalid] = useState(false);
+
+  // Report data state
+  const [reportData, setReportData] = useState(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+  const [reportError, setReportError] = useState(null);
 
   // Fetch hierarchy on mount
   useEffect(() => {
@@ -41,40 +39,45 @@ const ReportingPage = () => {
   // Report type: monthly or seasonal
   const [reportType, setReportType] = useState("monthly");
 
-  // Export scope: single or bulk
-  const [exportScope, setExportScope] = useState("single");
+  // Report scope level (hospital, administration, department, section)
+  const [reportScope, setReportScope] = useState({
+    level: "hospital",            // "hospital" | "administration" | "department" | "section"
+    administrationIds: [],        // selected administration IDs for navigation
+    departmentIds: [],            // selected department IDs for navigation
+    sectionIds: []                // selected section IDs (final target when level="section")
+  });
 
-  // Filters state
+  // Filters state (auto-synced with reportType via useEffect)
   const [filters, setFilters] = useState({
-    dateMode: "month", // "range", "month", or "trimester"
+    dateMode: "month", // "range", "month" (for monthly), or "trimester" (for seasonal)
     fromDate: "",
     toDate: "",
     month: "1",
     trimester: "",
-    year: "2025",
-    building: "",
-    idara: "",
-    dayra: "",
-    qism: "",
+    year: new Date().getFullYear().toString(),
     mode: "detailed", // "detailed" or "numeric" for monthly reports
   });
 
-  // Threshold setting for seasonal reports (always "all domains")
-  const [threshold, setThreshold] = useState("10");
-
-  // Mock department counts for bulk export
-  const mockDepartmentCounts = [
-    { id: 1, name: "Cardiac 1", nameAr: "قسم القلب 1", count: 45 },
-    { id: 2, name: "Cardiac 2", nameAr: "قسم القلب 2", count: 32 },
-    { id: 3, name: "ICU", nameAr: "وحدة العناية المركزة", count: 23 },
-    { id: 4, name: "Emergency", nameAr: "قسم الطوارئ", count: 67 },
-    { id: 5, name: "Radiology", nameAr: "قسم الأشعة", count: 12 },
-    { id: 6, name: "Laboratory", nameAr: "قسم المختبر", count: 8 },
-    { id: 7, name: "Pharmacy", nameAr: "قسم الصيدلية", count: 5 },
-    { id: 8, name: "Neurology", nameAr: "قسم الأعصاب", count: 0 },
-    { id: 9, name: "Orthopedics", nameAr: "قسم العظام", count: 18 },
-    { id: 10, name: "Pediatrics", nameAr: "قسم الأطفال", count: 0 },
-  ];
+  // Auto-sync time filter mode with report type
+  useEffect(() => {
+    if (reportType === "monthly") {
+      // Force month mode for monthly reports (user can manually switch to range)
+      setFilters(f => ({
+        ...f,
+        dateMode: "month",
+        trimester: "",
+      }));
+    } else if (reportType === "seasonal") {
+      // Force trimester mode for seasonal reports
+      setFilters(f => ({
+        ...f,
+        dateMode: "trimester",
+        month: "",
+        fromDate: "",
+        toDate: ""
+      }));
+    }
+  }, [reportType]);
 
   // Initial filters for reset
   const initialFilters = {
@@ -83,79 +86,367 @@ const ReportingPage = () => {
     toDate: "",
     month: "1",
     trimester: "",
-    year: "2025",
-    building: "",
-    idara: "",
-    dayra: "",
-    qism: "",
+    year: new Date().getFullYear().toString(),
     mode: "detailed",
   };
 
-  // Filter complaints based on current filters
-  const filteredComplaints = useMemo(() => {
-    let filtered = [...mockComplaints];
+  // Compute whether Generate button should be disabled
+  const isGenerateDisabled = React.useMemo(() => {
+    if (reportType === "monthly") {
+      // Month mode: check if month is valid
+      if (filters.dateMode === "month") {
+        const monthNum = parseInt(filters.month, 10);
+        if (!filters.month || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+          return true;
+        }
+      }
+      
+      // Range mode: check if dates are filled and valid
+      if (filters.dateMode === "range") {
+        if (!filters.fromDate || !filters.toDate) {
+          return true;
+        }
+        if (isDateRangeInvalid) {
+          return true;
+        }
+      }
+    }
     
-    // Apply date filters
-    filtered = filterComplaintsByDate(filtered, filters);
+    // For seasonal reports, add any specific validation here if needed
+    // Currently no validation needed for seasonal
     
-    // Apply department filters
-    filtered = filterComplaintsByDepartment(filtered, filters);
-    
-    return filtered;
-  }, [filters]);
+    return false;
+  }, [reportType, filters.dateMode, filters.month, filters.fromDate, filters.toDate, isDateRangeInvalid]);
 
-  // Calculate statistics for monthly reports
-  const monthlyStats = useMemo(() => {
-    return calculateMonthlyStats(filteredComplaints);
-  }, [filteredComplaints]);
+  // Handle Generate Report
+  const handleGenerateReport = async () => {
+    // Validation for monthly reports
+    if (reportType === "monthly") {
+      // Check month mode validation
+      if (filters.dateMode === "month") {
+        const monthNum = parseInt(filters.month, 10);
+        if (!filters.month || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+          alert(
+            "⚠️ خطأ في التحقق من البيانات (Validation Error)\n\n" +
+            "الرجاء تحديد شهر صحيح (1-12)\n" +
+            "Please select a valid month (1-12)\n\n" +
+            "الرجاء اختيار شهر من القائمة والمحاولة مرة أخرى."
+          );
+          return;
+        }
+      }
+      
+      // Check range mode validation
+      if (filters.dateMode === "range") {
+        if (!filters.fromDate || !filters.toDate) {
+          alert(
+            "⚠️ خطأ في التحقق من البيانات (Validation Error)\n\n" +
+            "الرجاء تحديد تاريخ البداية وتاريخ النهاية\n" +
+            "Please specify both From Date and To Date\n\n" +
+            "الرجاء ملء كلا التاريخين والمحاولة مرة أخرى."
+          );
+          return;
+        }
+        
+        // Check if fromDate <= toDate (this is already tracked by isDateRangeInvalid)
+        if (isDateRangeInvalid) {
+          alert(
+            "⚠️ خطأ في التحقق من البيانات (Validation Error)\n\n" +
+            "تاريخ البداية يجب أن يكون قبل تاريخ النهاية\n" +
+            "From Date must be before To Date\n\n" +
+            "الرجاء تصحيح نطاق التاريخ والمحاولة مرة أخرى."
+          );
+          return;
+        }
+      }
+    }
 
-  // Calculate seasonal statistics (open records and clinical threshold)
-  const seasonalStats = useMemo(() => {
-    if (reportType !== "seasonal") return { totalOpen: 0, clinicalCount: 0, clinicalPercentage: 0, openRecords: [] };
-    return calculateSeasonalStats(filteredComplaints);
-  }, [reportType, filteredComplaints]);
+    // Call API
+    setLoadingReport(true);
+    setReportError(null);
+    setReportData(null);
 
-  // Group data by HCAT structure for seasonal preview table
-  const seasonalGroupedData = useMemo(() => {
-    if (reportType !== "seasonal") return [];
-    return groupByHCATStructure(filteredComplaints);
-  }, [reportType, filteredComplaints]);
+    try {
+      let data;
 
-  // Handle refresh
-  const handleRefresh = () => {
-    alert("🔄 تم تحديث البيانات!\n\nفي النظام الحقيقي، سيتم جلب البيانات من الخادم.");
+      if (reportType === "monthly") {
+        // ========== MONTHLY REPORT ==========
+        const params = {
+          year: filters.year,
+          mode: filters.mode,
+        };
+
+        // Add date parameters based on dateMode
+        if (filters.dateMode === "month") {
+          // Month/Year mode
+          params.month = filters.month;
+        } else if (filters.dateMode === "range") {
+          // Date range mode
+          params.start_date = filters.fromDate;
+          params.end_date = filters.toDate;
+        }
+
+        // Add organization scope parameters
+        if (reportScope.level !== "hospital") {
+          params.scope = reportScope.level;
+          
+          if (reportScope.administrationIds.length > 0) {
+            params.administration_ids = reportScope.administrationIds.join(",");
+          }
+          if (reportScope.departmentIds.length > 0) {
+            params.department_ids = reportScope.departmentIds.join(",");
+          }
+          if (reportScope.sectionIds.length > 0) {
+            params.section_ids = reportScope.sectionIds.join(",");
+          }
+        }
+
+        console.log("📡 Generating monthly report with params:", params);
+        data = await fetchMonthlyReport(params);
+        console.log("✅ Monthly report generated:", data);
+
+      } else if (reportType === "seasonal") {
+        // ========== SEASONAL REPORT (NEW BACKEND CONTRACT) ==========
+
+        // 1) Determine orgunit_id
+        let orgunit_id = null;
+
+        if (reportScope.level === "section" && reportScope.sectionIds.length > 0) {
+          orgunit_id = reportScope.sectionIds[0];
+        } else if (reportScope.level === "department" && reportScope.departmentIds.length > 0) {
+          orgunit_id = reportScope.departmentIds[0];
+        } else if (reportScope.level === "administration" && reportScope.administrationIds.length > 0) {
+          orgunit_id = reportScope.administrationIds[0];
+        }
+
+        if (!orgunit_id) {
+          alert("❌ Please select an Administration / Department / Section");
+          throw new Error("No orgunit selected");
+        }
+
+        // 2) You MUST get season_id from somewhere:
+        // TEMP SOLUTION: map trimester+year → season_id via backend or dropdown
+        // For now, assume you already have it in filters.season_id
+
+        if (!filters.season_id) {
+          alert("❌ No season selected (season_id is missing)");
+          throw new Error("season_id missing");
+        }
+
+        const params = {
+          season_id: Number(filters.season_id),
+          orgunit_id: Number(orgunit_id),
+          user_id: 1, // or from auth later
+        };
+
+        console.log("📡 Generating seasonal report with params:", params);
+
+        data = await fetchSeasonalReport(params);
+      }
+
+
+      setReportData(data);
+      alert("✅ تم توليد التقرير بنجاح!\n\nReport generated successfully!");
+    } catch (error) {
+      console.error("❌ Error generating report:", error);
+      setReportError(error.message);
+      alert("❌ فشل توليد التقرير\n\nFailed to generate report: " + error.message);
+    } finally {
+      setLoadingReport(false);
+    }
   };
 
-  // Handle reset filters
-  const handleResetFilters = () => {
-    setFilters(initialFilters);
-    setThreshold("10");
-    alert("✅ تم إعادة تعيين الفلاتر إلى القيم الافتراضية.");
+  // Helper function to build export payload
+  const buildExportPayload = () => {
+    const payload = {
+      reportType,
+      filters: { ...filters },
+      reportScope: { ...reportScope },
+      timestamp: new Date().toISOString(),
+    };
+
+    // Add organization filters
+    if (reportScope.level !== "hospital") {
+      payload.filters.scope = reportScope.level;
+      if (reportScope.administrationIds.length > 0) {
+        payload.filters.administration_ids = reportScope.administrationIds.join(",");
+      }
+      if (reportScope.departmentIds.length > 0) {
+        payload.filters.department_ids = reportScope.departmentIds.join(",");
+      }
+      if (reportScope.sectionIds.length > 0) {
+        payload.filters.section_ids = reportScope.sectionIds.join(",");
+      }
+    }
+
+    return payload;
   };
 
   // Handle PDF export
-  const handleExportPDF = () => {
-    alert("📄 تصدير PDF\n\nسيتم توليد تقرير PDF باللغة العربية مع جميع النماذج المطلوبة.");
+  const handleExportPDF = async () => {
+    // Check if report is loaded
+    if (!reportData) {
+      alert(
+        "⚠️ لم يتم توليد التقرير (No Report Loaded)\n\n" +
+        "الرجاء توليد التقرير أولاً قبل التصدير\n" +
+        "Please generate a report first before exporting"
+      );
+      return;
+    }
+
+    // Check for date range validation errors (monthly only)
+    if (reportType === "monthly" && isDateRangeInvalid) {
+      alert(
+        "⚠️ خطأ في التحقق من البيانات (Validation Error)\n\n" +
+        "تاريخ البداية يجب أن يكون قبل تاريخ النهاية\n" +
+        "From Date must be before To Date\n\n" +
+        "الرجاء تصحيح نطاق التاريخ والمحاولة مرة أخرى."
+      );
+      return;
+    }
+
+    // Export using centralized API
+    try {
+      // Get record count from reportData
+      const recordCount = reportData?.data?.length || reportData?.records?.length || "unknown";
+      const countText = recordCount !== "unknown" ? `${recordCount} records` : "this report";
+      
+      // Confirmation dialog
+      const confirmed = window.confirm(
+        `📄 PDF Export Confirmation\n\n` +
+        `You are about to export ${countText}.\n\n` +
+        `أنت على وشك تصدير ${recordCount !== "unknown" ? recordCount + " سجل" : "هذا التقرير"}.\n\n` +
+        `Continue? هل تريد المتابعة؟`
+      );
+      
+      if (!confirmed) {
+        console.log("❌ PDF export cancelled by user");
+        return;
+      }
+      
+      const payload = buildExportPayload();
+      const { blob, filename } = await exportReport({ 
+        report_type: reportType, 
+        format: "pdf", 
+        filters: payload.filters 
+      });
+      downloadBlob(blob, filename);
+      alert("✅ تم تصدير PDF بنجاح!\n\nPDF export successful!");
+    } catch (error) {
+      console.error("PDF export error:", error);
+      alert("❌ فشل التصدير\n\nExport failed: " + error.message);
+    }
   };
 
   // Handle CSV export
-  const handleExportCSV = () => {
-    alert("📊 تصدير CSV\n\nسيتم تصدير البيانات إلى ملف CSV.");
+  const handleExportCSV = async () => {
+    // Check if report is loaded
+    if (!reportData) {
+      alert(
+        "⚠️ لم يتم توليد التقرير (No Report Loaded)\n\n" +
+        "الرجاء توليد التقرير أولاً قبل التصدير\n" +
+        "Please generate a report first before exporting"
+      );
+      return;
+    }
+
+    // Check for date range validation errors (monthly only)
+    if (reportType === "monthly" && isDateRangeInvalid) {
+      alert(
+        "⚠️ خطأ في التحقق من البيانات (Validation Error)\n\n" +
+        "تاريخ البداية يجب أن يكون قبل تاريخ النهاية\n" +
+        "From Date must be before To Date\n\n" +
+        "الرجاء تصحيح نطاق التاريخ والمحاولة مرة أخرى."
+      );
+      return;
+    }
+
+    // Export using centralized API
+    try {
+      // Get record count from reportData
+      const recordCount = reportData?.data?.length || reportData?.records?.length || "unknown";
+      const countText = recordCount !== "unknown" ? `${recordCount} records` : "this report";
+      
+      // Confirmation dialog
+      const confirmed = window.confirm(
+        `📊 Excel Export Confirmation\n\n` +
+        `You are about to export ${countText}.\n\n` +
+        `أنت على وشك تصدير ${recordCount !== "unknown" ? recordCount + " سجل" : "هذا التقرير"}.\n\n` +
+        `Continue? هل تريد المتابعة؟`
+      );
+      
+      if (!confirmed) {
+        console.log("❌ Excel export cancelled by user");
+        return;
+      }
+      
+      const payload = buildExportPayload();
+      const { blob, filename } = await exportReport({ 
+        report_type: reportType, 
+        format: "xlsx", 
+        filters: payload.filters 
+      });
+      downloadBlob(blob, filename);
+      alert("✅ تم تصدير Excel بنجاح!\n\nExcel export successful!");
+    } catch (error) {
+      console.error("Excel export error:", error);
+      alert("❌ فشل التصدير\n\nExport failed: " + error.message);
+    }
   };
 
-  // Get current period label for bulk export
-  const getCurrentPeriod = () => {
-    if (reportType === "monthly") {
-      const months = ["January", "February", "March", "April", "May", "June", 
-                      "July", "August", "September", "October", "November", "December"];
-      const monthIndex = parseInt(filters.month) - 1;
-      return `${months[monthIndex]} ${filters.year}`;
-    } else {
-      // Seasonal
-      if (filters.dateMode === "trimester" && filters.trimester) {
-        return `${filters.trimester} ${filters.year}`;
+  // Handle Word export
+  const handleExportWord = async () => {
+    // Check if report is loaded
+    if (!reportData) {
+      alert(
+        "⚠️ لم يتم توليد التقرير (No Report Loaded)\n\n" +
+        "الرجاء توليد التقرير أولاً قبل التصدير\n" +
+        "Please generate a report first before exporting"
+      );
+      return;
+    }
+
+    // Check for date range validation errors (monthly only)
+    if (reportType === "monthly" && isDateRangeInvalid) {
+      alert(
+        "⚠️ خطأ في التحقق من البيانات (Validation Error)\n\n" +
+        "تاريخ البداية يجب أن يكون قبل تاريخ النهاية\n" +
+        "From Date must be before To Date\n\n" +
+        "الرجاء تصحيح نطاق التاريخ والمحاولة مرة أخرى."
+      );
+      return;
+    }
+
+    // Export using centralized API
+    try {
+      // Get record count from reportData
+      const recordCount = reportData?.data?.length || reportData?.records?.length || "unknown";
+      const countText = recordCount !== "unknown" ? `${recordCount} records` : "this report";
+      
+      // Confirmation dialog
+      const confirmed = window.confirm(
+        `📄 Word Export Confirmation\n\n` +
+        `You are about to export ${countText}.\n\n` +
+        `أنت على وشك تصدير ${recordCount !== "unknown" ? recordCount + " سجل" : "هذا التقرير"}.\n\n` +
+        `Continue? هل تريد المتابعة؟`
+      );
+      
+      if (!confirmed) {
+        console.log("❌ Word export cancelled by user");
+        return;
       }
-      return `Q4 ${filters.year}`; // default
+      
+      const payload = buildExportPayload();
+      const { blob, filename } = await exportReport({ 
+        report_type: reportType, 
+        format: "docx", 
+        filters: payload.filters 
+      });
+      downloadBlob(blob, filename);
+      alert("✅ تم تصدير Word بنجاح!\n\nWord export successful!");
+    } catch (error) {
+      console.error("Word export error:", error);
+      alert("❌ فشل التصدير\n\nExport failed: " + error.message);
     }
   };
 
@@ -174,101 +465,175 @@ const ReportingPage = () => {
               mb: 1,
             }}
           >
-            📊 نظام التقارير (Hospital Reporting System)
+            📊 مولد التقارير (Report Generator)
           </Typography>
           <Typography level="body-md" sx={{ color: "#666" }}>
-            تقارير شهرية تفصيلية/رقمية وتحليل HCAT الفصلي مع تتبع العتبات
+            قم بإنشاء وتصدير تقارير شهرية وفصلية مخصصة
           </Typography>
         </Box>
 
         {/* Report Type Switch */}
         <ReportTypeSwitch reportType={reportType} setReportType={setReportType} />
 
-        {/* Export Scope Toggle */}
-        <ExportScopeToggle scope={exportScope} setScope={setExportScope} />
+        {/* Filters */}
+        <ReportFilters 
+          filters={filters} 
+          setFilters={setFilters} 
+          reportType={reportType}
+          hierarchy={hierarchy}
+          loadingHierarchy={loadingHierarchy}
+          reportScope={reportScope}
+          setReportScope={setReportScope}
+          onValidationChange={setIsDateRangeInvalid}
+        />
 
-        {/* Filters - Only show if Single Report */}
-        {exportScope === "single" && (
-          <>
-            <ReportFilters 
-              filters={filters} 
-              setFilters={setFilters} 
-              reportType={reportType}
-              hierarchy={hierarchy}
-              loadingHierarchy={loadingHierarchy}
-            />
+        {/* Report Generation Summary */}
+        <Card
+          sx={{
+            mb: 3,
+            p: 3,
+            background: "linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)",
+            border: "2px solid rgba(102, 126, 234, 0.2)",
+          }}
+        >
+          <Typography level="h6" sx={{ mb: 2, fontWeight: 700, color: "#667eea" }}>
+            📊 ملخص التقرير (Report Summary)
+          </Typography>
+          
+          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 2 }}>
+            {/* Report Type */}
+            <Box>
+              <Typography level="body-sm" sx={{ color: "#666", mb: 0.5 }}>
+                📄 نوع التقرير
+              </Typography>
+              <Typography level="title-md" sx={{ fontWeight: 700, color: "#667eea" }}>
+                {reportType === "monthly" ? "📅 شهري (Monthly)" : "🍃 فصلي (Seasonal)"}
+              </Typography>
+            </Box>
 
-            {/* Threshold Settings - Only for Seasonal Reports */}
-            {reportType === "seasonal" && (
-              <ThresholdInput
-                threshold={threshold}
-                setThreshold={setThreshold}
-              />
+            {/* Report Mode (Monthly only) */}
+            {reportType === "monthly" && (
+              <Box>
+                <Typography level="body-sm" sx={{ color: "#666", mb: 0.5 }}>
+                  📊 الوضع
+                </Typography>
+                <Typography level="title-md" sx={{ fontWeight: 700, color: "#667eea" }}>
+                  {filters.mode === "detailed" ? "📋 تفصيلي (Detailed)" : "🔢 رقمي (Numeric)"}
+                </Typography>
+              </Box>
             )}
-          </>
-        )}
 
-        {/* Data Summary - Only for Single Report */}
-        {exportScope === "single" && (
-          <Alert
+            {/* Period */}
+            <Box>
+              <Typography level="body-sm" sx={{ color: "#666", mb: 0.5 }}>
+                📆 الفترة
+              </Typography>
+              <Typography level="title-md" sx={{ fontWeight: 700, color: "#667eea" }}>
+                {filters.dateMode === "month" && filters.month && filters.year && (
+                  `${filters.month}/${filters.year}`
+                )}
+                {filters.dateMode === "trimester" && filters.trimester && filters.year && (
+                  `${filters.trimester} ${filters.year}`
+                )}
+                {filters.dateMode === "range" && filters.fromDate && filters.toDate && (
+                  `${filters.fromDate} → ${filters.toDate}`
+                )}
+                {!((filters.dateMode === "month" && filters.month && filters.year) ||
+                   (filters.dateMode === "trimester" && filters.trimester && filters.year) ||
+                   (filters.dateMode === "range" && filters.fromDate && filters.toDate)) && "غير محدد"}
+              </Typography>
+            </Box>
+
+            {/* Scope Level */}
+            <Box>
+              <Typography level="body-sm" sx={{ color: "#666", mb: 0.5 }}>
+                🏯 النطاق
+              </Typography>
+              <Typography level="title-md" sx={{ fontWeight: 700, color: "#667eea" }}>
+                {reportScope.level === "hospital" && "🏥 المستشفى (Hospital)"}
+                {reportScope.level === "administration" && `🏢 إدارة (${reportScope.administrationIds.length || "All"})`}
+                {reportScope.level === "department" && `🏬 دائرة (${reportScope.departmentIds.length || "All"})`}
+                {reportScope.level === "section" && `🧩 قسم (${reportScope.sectionIds.length || "All"})`}
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* Generation Notice */}
+          <Box
             sx={{
-              mb: 3,
-              background: "linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)",
-              borderColor: "rgba(102, 126, 234, 0.3)",
-              color: "#667eea",
+              mt: 3,
+              p: 2,
+              background: "rgba(102, 126, 234, 0.05)",
+              borderRadius: "8px",
+              border: "1px dashed rgba(102, 126, 234, 0.3)",
             }}
           >
-            📊 تم العثور على <strong>{filteredComplaints.length}</strong> شكوى تطابق الفلاتر المحددة
-          </Alert>
-        )}
-
-        {/* Single Report Mode */}
-        {exportScope === "single" && (
-          <Box sx={{ minHeight: "700px" }}>
-            {/* Monthly Reports */}
-            {reportType === "monthly" && (
-              <Box sx={{ minHeight: "700px", maxWidth: "100%", overflow: "hidden" }}>
-                {filters.mode === "detailed" && (
-                  <MonthlyDetailedTable complaints={filteredComplaints} />
-                )}
-                {filters.mode === "numeric" && (
-                  <MonthlyNumericTable stats={monthlyStats} />
-                )}
-              </Box>
-            )}
-
-            {/* Seasonal Reports */}
-            {reportType === "seasonal" && (
-              <Box sx={{ minHeight: "700px", maxWidth: "100%", overflow: "hidden" }}>
-                <SeasonalDetailedView 
-                  complaints={filteredComplaints} 
-                  threshold={threshold}
-                  filters={filters}
-                />
-              </Box>
-            )}
+            <Typography level="body-sm" sx={{ color: "#667eea", fontWeight: 600 }}>
+              ℹ️ هذه الصفحة لإنشاء التقارير فقط. لعرض التقارير المخزنة، انتقل إلى لوحة التقارير الفصلية.
+            </Typography>
+            <Typography level="body-xs" sx={{ color: "#999", mt: 0.5 }}>
+              This page is for generating reports only. To view stored reports, go to Seasonal Reports Dashboard.
+            </Typography>
           </Box>
+        </Card>
+
+        {/* Action Buttons */}
+        <ReportActions
+          onGenerate={handleGenerateReport}
+          onExportPDF={handleExportPDF}
+          onExportCSV={handleExportCSV}
+          onExportWord={handleExportWord}
+          disableGenerate={isGenerateDisabled}
+          disableExport={!reportData}
+          loading={loadingReport}
+        />
+
+        {/* Report Data Display */}
+        {reportData && (
+          <Card
+            sx={{
+              mt: 3,
+              p: 3,
+              background: "linear-gradient(135deg, rgba(46, 213, 115, 0.08) 0%, rgba(0, 184, 148, 0.08) 100%)",
+              border: "2px solid rgba(46, 213, 115, 0.3)",
+            }}
+          >
+            <Typography level="h6" sx={{ mb: 2, fontWeight: 700, color: "#00b894" }}>
+              ✅ تم توليد التقرير (Report Generated)
+            </Typography>
+            <Box
+              sx={{
+                p: 2,
+                background: "white",
+                borderRadius: "8px",
+                maxHeight: "400px",
+                overflow: "auto",
+              }}
+            >
+              <pre style={{ margin: 0, fontSize: "0.85rem", whiteSpace: "pre-wrap" }}>
+                {JSON.stringify(reportData, null, 2)}
+              </pre>
+            </Box>
+          </Card>
         )}
 
-        {/* Bulk Export Mode */}
-        {exportScope === "bulk" && (
-          <Box sx={{ minHeight: "700px" }}>
-            <BulkExportTable 
-              reportType={reportType} 
-              period={getCurrentPeriod()} 
-              departmentCounts={mockDepartmentCounts}
-            />
-          </Box>
-        )}
-
-        {/* Action Buttons - Always visible for consistency */}
-        {exportScope === "single" && (
-          <ReportActions
-            onRefresh={handleRefresh}
-            onResetFilters={handleResetFilters}
-            onExportPDF={handleExportPDF}
-            onExportCSV={handleExportCSV}
-          />
+        {/* Report Error Display */}
+        {reportError && (
+          <Card
+            sx={{
+              mt: 3,
+              p: 3,
+              background: "rgba(245, 87, 108, 0.08)",
+              border: "2px solid rgba(245, 87, 108, 0.3)",
+            }}
+          >
+            <Typography level="h6" sx={{ mb: 2, fontWeight: 700, color: "#f5576c" }}>
+              ❌ خطأ في توليد التقرير (Report Error)
+            </Typography>
+            <Typography level="body-sm" sx={{ color: "#666" }}>
+              {reportError}
+            </Typography>
+          </Card>
         )}
 
         {/* Info Footer */}

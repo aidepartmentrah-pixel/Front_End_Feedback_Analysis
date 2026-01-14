@@ -1,18 +1,24 @@
 // src/pages/FollowUpPage.js
 import React, { useState, useEffect } from "react";
-import { Box, Typography, Card, Tabs, TabList, Tab, TabPanel, Button, Select, Option, Input, FormControl, FormLabel } from "@mui/joy";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { Box, Typography, Card, Tabs, TabList, Tab, TabPanel, Button, Select, Option, Input, FormControl, FormLabel, Alert } from "@mui/joy";
 import MainLayout from "../components/common/MainLayout";
 import ActionCalendar from "../components/followUp/ActionCalendar";
 import ActionDetailsModal from "../components/followUp/ActionDetailsModal";
 import { mockFollowUpActions } from "../data/followUpData";
+import { getActionItemsBySeasonalReport } from "../api/seasonalReports";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ScheduleIcon from "@mui/icons-material/Schedule";
+import ClearIcon from "@mui/icons-material/Clear";
 import Chip from "@mui/joy/Chip";
 
 const FollowUpPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
   // Load actions from both mock data and localStorage (saved from feedback forms)
   const loadActions = () => {
     const savedActions = JSON.parse(localStorage.getItem('followUpActions') || '[]');
@@ -27,8 +33,59 @@ const FollowUpPage = () => {
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [delayDays, setDelayDays] = useState({});
 
+  // Seasonal Report filter state
+  const [seasonalReportId, setSeasonalReportId] = useState("");
+  const [loadingSeasonalReport, setLoadingSeasonalReport] = useState(false);
+  const [seasonalReportError, setSeasonalReportError] = useState(null);
+
+  // Check URL params for seasonalReportId on mount
+  useEffect(() => {
+    const reportId = searchParams.get('seasonalReportId');
+    if (reportId) {
+      setSeasonalReportId(reportId);
+      loadSeasonalReportActions(reportId);
+    }
+  }, []);
+
+  // Load actions from seasonal report
+  const loadSeasonalReportActions = async (reportId) => {
+    try {
+      setLoadingSeasonalReport(true);
+      setSeasonalReportError(null);
+      console.log("🔍 Loading action items for seasonal report:", reportId);
+      
+      const data = await getActionItemsBySeasonalReport(reportId);
+      console.log("✅ Seasonal report actions loaded:", data);
+      
+      // Transform API data to match local action structure
+      const transformedActions = data.map(item => ({
+        id: item.actionItemId,
+        actionTitle: item.actionTitle,
+        dueDate: item.dueDate || new Date().toISOString().split('T')[0],
+        status: item.isDone ? "completed" : "pending",
+        priority: "medium", // Default priority
+        department: `Seasonal Report #${reportId}`,
+        assignedTo: "N/A",
+        notes: "",
+        sourceType: "seasonal_report",
+        sourceId: reportId,
+      }));
+      
+      setActions(transformedActions);
+    } catch (err) {
+      console.error("❌ Error loading seasonal report actions:", err);
+      setSeasonalReportError(err.message || "Failed to load seasonal report actions");
+      setActions([]); // Clear actions on error
+    } finally {
+      setLoadingSeasonalReport(false);
+    }
+  };
+
   // Reload actions when component mounts or when coming from feedback page
   useEffect(() => {
+    // Skip if seasonal report filter is active
+    if (seasonalReportId) return;
+
     const handleStorageChange = () => {
       setActions(loadActions());
     };
@@ -42,7 +99,7 @@ const FollowUpPage = () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('focus', handleStorageChange);
     };
-  }, []);
+  }, [seasonalReportId]);
 
   // Filter actions
   const filteredActions = actions.filter(action => {
@@ -163,17 +220,44 @@ const handleSaveAction = (updatedAction) => {
   );
   setActions(updatedActions);
 
-  // 2️⃣ Sync to localStorage
-  const savedActions = JSON.parse(localStorage.getItem('followUpActions') || '[]');
-  const updatedSavedActions = savedActions.map(action =>
-    action.id === updatedAction.id ? updatedAction : action
-  );
-  localStorage.setItem('followUpActions', JSON.stringify(updatedSavedActions));
+  // 2️⃣ Sync to localStorage (skip if from seasonal report)
+  if (!seasonalReportId) {
+    const savedActions = JSON.parse(localStorage.getItem('followUpActions') || '[]');
+    const updatedSavedActions = savedActions.map(action =>
+      action.id === updatedAction.id ? updatedAction : action
+    );
+    localStorage.setItem('followUpActions', JSON.stringify(updatedSavedActions));
+  }
 };
 
   const handleRefresh = () => {
-    // Reload actions from localStorage and mock data
-    setActions(loadActions());
+    if (seasonalReportId) {
+      // Reload from seasonal report API
+      loadSeasonalReportActions(seasonalReportId);
+    } else {
+      // Reload actions from localStorage and mock data
+      setActions(loadActions());
+    }
+  };
+
+  const handleApplySeasonalReportFilter = () => {
+    if (!seasonalReportId || seasonalReportId.trim() === "") {
+      alert("Please enter a Seasonal Report ID");
+      return;
+    }
+    
+    // Update URL
+    setSearchParams({ seasonalReportId });
+    
+    // Load data
+    loadSeasonalReportActions(seasonalReportId);
+  };
+
+  const handleClearSeasonalReportFilter = () => {
+    setSeasonalReportId("");
+    setSeasonalReportError(null);
+    setSearchParams({}); // Clear URL params
+    setActions(loadActions()); // Reload default actions
   };
 
   return (
@@ -204,59 +288,136 @@ const handleSaveAction = (updatedAction) => {
           </Card>
         </Box>
 
+        {/* Seasonal Report Filter Banner */}
+        {seasonalReportId && (
+          <Alert
+            color="primary"
+            sx={{ mb: 2 }}
+            endDecorator={
+              <Button
+                size="sm"
+                variant="plain"
+                color="primary"
+                startDecorator={<ClearIcon />}
+                onClick={handleClearSeasonalReportFilter}
+              >
+                Clear Filter
+              </Button>
+            }
+          >
+            📊 <strong>Filtered by Seasonal Report #{seasonalReportId}</strong> - Showing {actions.length} action item(s)
+          </Alert>
+        )}
+
+        {/* Seasonal Report Filter Error */}
+        {seasonalReportError && (
+          <Alert color="danger" sx={{ mb: 2 }} onClose={() => setSeasonalReportError(null)}>
+            {seasonalReportError}
+          </Alert>
+        )}
+
         {/* Filters */}
         <Card sx={{ p: 2, mb: 3 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <FilterListIcon sx={{ color: "#667eea" }} />
-              <Typography level="body-sm" sx={{ fontWeight: 700 }}>تصفية:</Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {/* Parent Filters Row (Seasonal Report ID) */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", pb: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <FilterListIcon sx={{ color: "#667eea" }} />
+                <Typography level="body-sm" sx={{ fontWeight: 700 }}>Parent Filter:</Typography>
+              </Box>
+
+              <FormControl size="sm" sx={{ minWidth: 200 }}>
+                <FormLabel sx={{ fontSize: "0.75rem" }}>Seasonal Report ID</FormLabel>
+                <Input
+                  size="sm"
+                  type="number"
+                  placeholder="Enter Report ID..."
+                  value={seasonalReportId}
+                  onChange={(e) => setSeasonalReportId(e.target.value)}
+                  disabled={loadingSeasonalReport}
+                />
+              </FormControl>
+
+              <Button
+                size="sm"
+                color="primary"
+                onClick={handleApplySeasonalReportFilter}
+                loading={loadingSeasonalReport}
+                disabled={!seasonalReportId || seasonalReportId.trim() === ""}
+              >
+                {loadingSeasonalReport ? "Loading..." : "Apply Filter"}
+              </Button>
+
+              {seasonalReportId && (
+                <Button
+                  size="sm"
+                  variant="outlined"
+                  color="neutral"
+                  startDecorator={<ClearIcon />}
+                  onClick={handleClearSeasonalReportFilter}
+                >
+                  Clear
+                </Button>
+              )}
+
+              <Typography level="body-xs" sx={{ color: "#999", ml: "auto" }}>
+                ℹ️ Filter by Seasonal Report, Incident Case, or Season Case (one at a time)
+              </Typography>
             </Box>
 
-            <Select
-              size="sm"
-              value={statusFilter}
-              onChange={(e, value) => setStatusFilter(value)}
-              sx={{ minWidth: 150 }}
-            >
-              <Option value="all">جميع الحالات</Option>
-              <Option value="pending">معلق</Option>
-              <Option value="delayed">متأخر</Option>
-              <Option value="completed">مكتمل</Option>
-            </Select>
+            {/* Standard Filters Row (Status, Priority, Department) */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+              <Typography level="body-sm" sx={{ fontWeight: 700 }}>Additional Filters:</Typography>
 
-            <Select
-              size="sm"
-              value={priorityFilter}
-              onChange={(e, value) => setPriorityFilter(value)}
-              sx={{ minWidth: 150 }}
-            >
-              <Option value="all">جميع الأولويات</Option>
-              <Option value="high">عاجل</Option>
-              <Option value="medium">متوسط</Option>
-              <Option value="low">عادي</Option>
-            </Select>
+              <Select
+                size="sm"
+                value={statusFilter}
+                onChange={(e, value) => setStatusFilter(value)}
+                sx={{ minWidth: 150 }}
+                disabled={!!seasonalReportId}
+              >
+                <Option value="all">جميع الحالات</Option>
+                <Option value="pending">معلق</Option>
+                <Option value="delayed">متأخر</Option>
+                <Option value="completed">مكتمل</Option>
+              </Select>
 
-            <Select
-              size="sm"
-              value={departmentFilter}
-              onChange={(e, value) => setDepartmentFilter(value)}
-              sx={{ minWidth: 180 }}
-            >
-              <Option value="all">جميع الأقسام</Option>
-              {departments.map(dept => (
-                <Option key={dept} value={dept}>{dept}</Option>
-              ))}
-            </Select>
+              <Select
+                size="sm"
+                value={priorityFilter}
+                onChange={(e, value) => setPriorityFilter(value)}
+                sx={{ minWidth: 150 }}
+                disabled={!!seasonalReportId}
+              >
+                <Option value="all">جميع الأولويات</Option>
+                <Option value="high">عاجل</Option>
+                <Option value="medium">متوسط</Option>
+                <Option value="low">عادي</Option>
+              </Select>
 
-            <Button
-              size="sm"
-              variant="outlined"
-              startDecorator={<RefreshIcon />}
-              onClick={handleRefresh}
-              sx={{ ml: "auto" }}
-            >
-              تحديث
-            </Button>
+              <Select
+                size="sm"
+                value={departmentFilter}
+                onChange={(e, value) => setDepartmentFilter(value)}
+                sx={{ minWidth: 180 }}
+                disabled={!!seasonalReportId}
+              >
+                <Option value="all">جميع الأقسام</Option>
+                {departments.map(dept => (
+                  <Option key={dept} value={dept}>{dept}</Option>
+                ))}
+              </Select>
+
+              <Button
+                size="sm"
+                variant="outlined"
+                startDecorator={<RefreshIcon />}
+                onClick={handleRefresh}
+                sx={{ ml: "auto" }}
+              >
+                تحديث
+              </Button>
+            </Box>
           </Box>
         </Card>
 

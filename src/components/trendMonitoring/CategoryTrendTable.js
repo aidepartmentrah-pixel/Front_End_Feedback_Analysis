@@ -6,7 +6,7 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 
-const CategoryTrendTable = ({ data }) => {
+const CategoryTrendTable = ({ data, referenceData }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   if (!data || !data.table) {
@@ -18,6 +18,40 @@ const CategoryTrendTable = ({ data }) => {
       </Card>
     );
   }
+
+  // Build category ID to name map from reference data
+  const categoryMap = new Map();
+  if (referenceData?.allCategories && Array.isArray(referenceData.allCategories)) {
+    referenceData.allCategories.forEach(cat => {
+      categoryMap.set(cat.id, cat.name || cat.name_en || cat.category_name || `Category ${cat.id}`);
+    });
+  }
+
+  console.log("📊 CategoryTrendTable - categoryMap:", Array.from(categoryMap.entries()));
+  console.log("📊 CategoryTrendTable - table data:", data.table);
+
+  // Helper to get category name from name field
+  const getCategoryName = (name) => {
+    // If backend returns "Category X" format
+    const match = name?.match(/Category (\d+)/);
+    if (match) {
+      const categoryId = parseInt(match[1]);
+      return categoryMap.get(categoryId) || name;
+    }
+    
+    // If backend returns numeric ID directly as string
+    const numericId = parseInt(name);
+    if (!isNaN(numericId) && categoryMap.has(numericId)) {
+      return categoryMap.get(numericId);
+    }
+    
+    // If it's already a proper name, use it
+    if (name && typeof name === 'string' && !name.startsWith('Category ')) {
+      return name;
+    }
+    
+    return name || "Unknown Category";
+  };
 
   const getTrendIcon = (direction) => {
     if (direction === "increasing") return <TrendingUpIcon sx={{ fontSize: "16px", color: "#ff4757" }} />;
@@ -73,21 +107,23 @@ const CategoryTrendTable = ({ data }) => {
                 </tr>
               </thead>
               <tbody>
-                {data.table.map((item, index) => (
-                  <tr key={index} style={{ borderBottom: "1px solid #e0e0e0" }}>
-                    <td>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Box
-                          sx={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: "50%",
-                            bgcolor: item.color,
-                          }}
-                        />
-                        <span style={{ fontWeight: 600 }}>{item.name}</span>
-                      </Box>
-                    </td>
+                {data.table.map((item, index) => {
+                  const displayName = getCategoryName(item.name);
+                  return (
+                    <tr key={index} style={{ borderBottom: "1px solid #e0e0e0" }}>
+                      <td>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <Box
+                            sx={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: "50%",
+                              bgcolor: item.color,
+                            }}
+                          />
+                          <span style={{ fontWeight: 600 }}>{displayName}</span>
+                        </Box>
+                      </td>
                     <td style={{ textAlign: "center", fontWeight: 700, fontSize: "15px" }}>
                       {item.total}
                     </td>
@@ -105,7 +141,8 @@ const CategoryTrendTable = ({ data }) => {
                       </span>
                     </td>
                   </tr>
-                ))}
+                );
+                })}
               </tbody>
             </Table>
           </Box>
