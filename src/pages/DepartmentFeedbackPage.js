@@ -12,9 +12,41 @@ import DepartmentFeedbackForm from "../components/departmentFeedback/DepartmentF
 import FeedbackActions from "../components/departmentFeedback/FeedbackActions";
 import ExplanationTypeSwitch from "../components/departmentFeedback/ExplanationTypeSwitch";
 import { syncActionItemsToFollowUp } from "../utils/actionItemsHelper";
+import * as ExplanationsAPI from "../api/explanations";
 // import axios from "axios";
 
 const DepartmentFeedbackPage = () => {
+  // Helper function to map API response to UI data structure
+  const mapApiCaseToUIRecord = (apiCase) => {
+    const dateReceived = new Date(apiCase.date_submitted);
+    const today = new Date();
+    const daysSinceReceived = Math.floor((today - dateReceived) / (1000 * 60 * 60 * 24));
+    const isDelayed = daysSinceReceived > delayThreshold;
+    
+    return {
+      id: apiCase.case_id.toString(),
+      complaintID: apiCase.case_number,
+      dateReceived: apiCase.date_submitted,
+      patientName: apiCase.patient_name || "N/A",
+      patientFullName: apiCase.patient_name || "N/A",
+      targetDepartment: apiCase.department_name,
+      severity: apiCase.case_type === "Red Flag" ? "HIGH" : apiCase.case_type === "Never Event" ? "HIGH" : "MEDIUM",
+      status: isDelayed ? "OVERDUE" : "OPEN",
+      daysSinceReceived,
+      isDelayed,
+      qism: apiCase.department_name, // Will be populated from department lookup if available
+      problemDomain: apiCase.problem_domain || "N/A",
+      problemCategory: apiCase.problem_category || "N/A",
+      subCategory: apiCase.sub_category || "N/A",
+      classificationAr: apiCase.classification_ar || "N/A",
+      rawContent: apiCase.raw_content || "N/A",
+      immediateAction: apiCase.immediate_action || "N/A",
+      isRedFlag: apiCase.case_type === "Red Flag",
+      explanation_status: apiCase.explanation_status,
+      case_status: apiCase.case_status,
+    };
+  };
+
   // Tab state
   const [activeTab, setActiveTab] = useState(0);
   
@@ -33,7 +65,11 @@ const DepartmentFeedbackPage = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [validationErrors, setValidationErrors] = useState([]);
+  const [validationWarnings, setValidationWarnings] = useState([]);
   const [delayThreshold, setDelayThreshold] = useState(14);
+  const [statistics, setStatistics] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(false);
 
   // Mock Data - Replace with API call
   const mockOpenRecords = [
@@ -175,6 +211,24 @@ const DepartmentFeedbackPage = () => {
     });
   };
 
+  // Fetch statistics on mount
+  useEffect(() => {
+    fetchStatistics();
+  }, []);
+
+  const fetchStatistics = async () => {
+    setLoadingStats(true);
+    try {
+      const response = await ExplanationsAPI.getExplanationStatistics();
+      setStatistics(response.statistics);
+    } catch (err) {
+      console.error("Failed to fetch statistics", err);
+      // Don't show error to user, just log it
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
   // Fetch delay threshold from settings
   useEffect(() => {
     const fetchDelayThreshold = async () => {
@@ -202,16 +256,25 @@ const DepartmentFeedbackPage = () => {
     setLoading(true);
     setError(null);
     try {
-      // TODO: Replace with actual API call
-      // const response = await axios.get('/api/department-feedback/open-records', { params: filters });
-      // setOpenRecords(response.data);
+      // Build API query parameters from filters
+      const apiParams = {
+        dept_id: filters.department ? parseInt(filters.department) : undefined,
+        start_date: filters.fromDate || undefined,
+        end_date: filters.toDate || undefined,
+        case_type: filters.severity === "HIGH" ? "Red Flag" : undefined,
+        include_red_flags_only: filters.severity === "HIGH" ? true : undefined,
+      };
+
+      // Fetch from API
+      const response = await ExplanationsAPI.getPendingExplanations(apiParams);
       
-      // Mock data with delay
-      setTimeout(() => {
-        setOpenRecords(processRecords(mockOpenRecords));
-        setLoading(false);
-      }, 500);
+      // Map API response to UI data structure
+      const mappedRecords = response.data.map(mapApiCaseToUIRecord);
+      
+      setOpenRecords(mappedRecords);
+      setLoading(false);
     } catch (err) {
+      console.error("Error fetching open records:", err);
       setError("فشل تحميل السجلات. حاول مرة أخرى.");
       setLoading(false);
     }
@@ -258,16 +321,54 @@ const DepartmentFeedbackPage = () => {
   // Open dialog with complaint details
   const handleOpenDialog = async (record) => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await axios.get(`/api/department-feedback/${record.id}/details`);
-      // setSelectedComplaint(response.data);
+      setLoading(true);
       
-      // Mock data
-      setSelectedComplaint(record);
-      setFormData({});
+      // Fetch full case details from API
+      const response = await ExplanationsAPI.getCaseDetails(record.id);
+      
+      // Map API response to UI structure
+      const caseDetails = {
+        ...record, // Keep the original record data
+        // Override with API response data
+        id: response.case.case_id.toString(),
+        complaintID: response.case.case_number,
+        targetDepartment: response.case.department_name,
+        qism: response.case.department_name,
+        case_status: response.case.case_status,
+        explanation_status: response.case.explanation_status,
+        requires_explanation: response.case.requires_explanation,
+        // Validation info
+        can_submit_explanation: response.validation.can_submit_explanation,
+        has_existing_explanation: response.validation.has_existing_explanation,
+        is_case_closed: response.validation.is_case_closed,
+        // Existing explanation data (if any)
+        existing_explanation_text: response.case.explanation_text,
+        explanation_submitted_date: response.case.explanation_submitted_date,
+        explanation_submitted_by: response.case.explanation_submitted_by,
+        // Action items
+        action_items: response.action_items || [],
+      };
+      
+      setSelectedComplaint(caseDetails);
+      
+      // Pre-populate form if explanation exists
+      if (response.case.explanation_text) {
+        setFormData({
+          explanation_text: response.case.explanation_text,
+          corrective_actions: response.case.corrective_actions || "",
+          contributing_factors: response.case.contributing_factors || "",
+          action_items: response.action_items || [],
+        });
+      } else {
+        setFormData({});
+      }
+      
       setDialogOpen(true);
+      setLoading(false);
     } catch (err) {
+      console.error("Error loading case details:", err);
       setError("فشل تحميل تفاصيل الشكوى. حاول مرة أخرى.");
+      setLoading(false);
     }
   };
 
@@ -276,6 +377,9 @@ const DepartmentFeedbackPage = () => {
     setDialogOpen(false);
     setSelectedComplaint(null);
     setFormData({});
+    setValidationErrors([]);
+    setValidationWarnings([]);
+    setError(null);
   };
 
   // Save feedback
@@ -283,29 +387,85 @@ const DepartmentFeedbackPage = () => {
     if (!canSave) return;
 
     setSaving(true);
+    setValidationErrors([]);
+    setValidationWarnings([]);
+    setError(null);
+
     try {
-      // Sync action items to follow-up system
-      if (formData.action_items && formData.action_items.length > 0) {
-        const followUpActions = syncActionItemsToFollowUp(formData, selectedComplaint);
-        
-        // Store in localStorage for now (in real app, send to API)
-        const existingActions = JSON.parse(localStorage.getItem('followUpActions') || '[]');
-        const updatedActions = [...existingActions, ...followUpActions];
-        localStorage.setItem('followUpActions', JSON.stringify(updatedActions));
-        
-        console.log('Action items synced to Follow Up:', followUpActions);
+      // Step 1: Validate the explanation before submitting
+      const validationPayload = {
+        explanation_text: formData.explanation_text,
+        action_items: (formData.action_items || []).map(item => ({
+          title: item.title,
+          description: item.description || null,
+          due_date: item.due_date || null,
+        })),
+      };
+
+      const validationResult = await ExplanationsAPI.validateExplanation(
+        selectedComplaint.id,
+        validationPayload
+      );
+
+      // Check validation result
+      if (!validationResult.valid) {
+        setValidationErrors(validationResult.errors || []);
+        setValidationWarnings(validationResult.warnings || []);
+        setError(`Validation failed: ${validationResult.errors.join(', ')}`);
+        setSaving(false);
+        return;
       }
-      
-      // TODO: Replace with actual API call
-      // await axios.post(`/api/department-feedback/${selectedComplaint.id}/add`, formData);
-      
-      // Mock delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      alert(`تم حفظ التوضيح بنجاح!${formData.action_items?.length ? `\n✓ تم إضافة ${formData.action_items.length} إجراء إلى نظام المتابعة` : ''}`);
+
+      // Show warnings if any (but continue)
+      if (validationResult.warnings && validationResult.warnings.length > 0) {
+        setValidationWarnings(validationResult.warnings);
+      }
+
+      // Step 2: Submit the explanation
+      // TODO: Get actual user_id from auth context
+      const submissionPayload = {
+        explanation_text: formData.explanation_text,
+        action_items: (formData.action_items || []).map(item => ({
+          title: item.title,
+          description: item.description || null,
+          due_date: item.due_date || null,
+        })),
+        user_id: 1, // TODO: Replace with actual user ID from authentication
+      };
+
+      const response = await ExplanationsAPI.submitExplanation(
+        selectedComplaint.id,
+        submissionPayload
+      );
+
+      // Success!
+      const actionItemsCount = response.action_items_created?.length || 0;
+      alert(
+        `تم حفظ التوضيح بنجاح!\n` +
+        `Case Status: ${response.case.case_status}\n` +
+        `Explanation Status: ${response.case.explanation_status}` +
+        (actionItemsCount > 0 ? `\n✓ تم إضافة ${actionItemsCount} إجراء إلى نظام المتابعة` : '')
+      );
+
+      // Update the selected complaint with new data
+      setSelectedComplaint(prev => ({
+        ...prev,
+        case_status: response.case.case_status,
+        explanation_status: response.case.explanation_status,
+        has_existing_explanation: true,
+        explanation_submitted_date: response.case.explanation_submitted_date,
+        explanation_submitted_by: response.case.explanation_submitted_by,
+      }));
+
       setSaving(false);
+      
+      // Refresh the cases list and statistics
+      fetchOpenRecords();
+      fetchStatistics();
     } catch (err) {
-      setError("فشل حفظ التوضيح. حاول مرة أخرى.");
+      console.error('Error saving explanation:', err);
+      const errorMessage = err.response?.data?.detail || "فشل حفظ التوضيح. حاول مرة أخرى.";
+      setError(errorMessage);
       setSaving(false);
     }
   };
@@ -315,45 +475,115 @@ const DepartmentFeedbackPage = () => {
     if (!canSave) return;
 
     setSaving(true);
+    setValidationErrors([]);
+    setValidationWarnings([]);
+    setError(null);
+
     try {
-      // Sync action items to follow-up system
-      if (formData.action_items && formData.action_items.length > 0) {
-        const followUpActions = syncActionItemsToFollowUp(formData, selectedComplaint);
-        
-        // Store in localStorage for now (in real app, send to API)
-        const existingActions = JSON.parse(localStorage.getItem('followUpActions') || '[]');
-        const updatedActions = [...existingActions, ...followUpActions];
-        localStorage.setItem('followUpActions', JSON.stringify(updatedActions));
-        
-        console.log('Action items synced to Follow Up:', followUpActions);
+      // Step 1: Validate the explanation before submitting
+      const validationPayload = {
+        explanation_text: formData.explanation_text,
+        action_items: (formData.action_items || []).map(item => ({
+          title: item.title,
+          description: item.description || null,
+          due_date: item.due_date || null,
+        })),
+      };
+
+      const validationResult = await ExplanationsAPI.validateExplanation(
+        selectedComplaint.id,
+        validationPayload
+      );
+
+      // Check validation result
+      if (!validationResult.valid) {
+        setValidationErrors(validationResult.errors || []);
+        setValidationWarnings(validationResult.warnings || []);
+        setError(`Validation failed: ${validationResult.errors.join(', ')}`);
+        setSaving(false);
+        return;
       }
+
+      // Show warnings if any (but continue)
+      if (validationResult.warnings && validationResult.warnings.length > 0) {
+        setValidationWarnings(validationResult.warnings);
+      }
+
+      // Step 2: Submit the explanation
+      // TODO: Get actual user_id from auth context
+      const submissionPayload = {
+        explanation_text: formData.explanation_text,
+        action_items: (formData.action_items || []).map(item => ({
+          title: item.title,
+          description: item.description || null,
+          due_date: item.due_date || null,
+        })),
+        user_id: 1, // TODO: Replace with actual user ID from authentication
+      };
+
+      const submitResponse = await ExplanationsAPI.submitExplanation(
+        selectedComplaint.id,
+        submissionPayload
+      );
+
+      const actionItemsCount = submitResponse.action_items_created?.length || 0;
+
+      // Step 3: Check if case can be closed
+      const closureCheckResponse = await ExplanationsAPI.checkCaseClosure(
+        selectedComplaint.id,
+        1 // TODO: Replace with actual user ID
+      );
+
+      // Prepare success message
+      let successMessage = `تم حفظ التوضيح بنجاح!\n`;
+      successMessage += `Case Status: ${closureCheckResponse.case_closed ? 'Closed' : submitResponse.case.case_status}\n`;
+      successMessage += `Explanation Status: ${submitResponse.case.explanation_status}\n`;
       
-      // TODO: Replace with actual API calls
-      // await axios.post(`/api/department-feedback/${selectedComplaint.id}/add`, formData);
-      // await axios.post(`/api/department-feedback/${selectedComplaint.id}/close`);
-      
-      // Mock delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      alert(`تم حفظ وإغلاق السجل بنجاح!${formData.action_items?.length ? `\n✓ تم إضافة ${formData.action_items.length} إجراء إلى نظام المتابعة` : ''}`);
+      if (actionItemsCount > 0) {
+        successMessage += `✓ تم إضافة ${actionItemsCount} إجراء إلى نظام المتابعة\n`;
+      }
+
+      if (closureCheckResponse.case_closed) {
+        successMessage += `\n✅ Case automatically closed - all action items complete!`;
+      } else if (closureCheckResponse.can_close) {
+        successMessage += `\n✓ Case can be closed manually`;
+      } else {
+        const completion = closureCheckResponse.completion;
+        successMessage += `\n⏳ Case remains open: ${completion.completed_action_items}/${completion.total_action_items} action items complete (${completion.percent_complete}%)`;
+      }
+
+      alert(successMessage);
+
       setSaving(false);
       handleCloseDialog();
+      
+      // Refresh the cases list and statistics
       fetchOpenRecords();
+      fetchStatistics();
     } catch (err) {
-      setError("فشل حفظ وإغلاق السجل. حاول مرة أخرى.");
+      console.error('Error saving and closing explanation:', err);
+      const errorMessage = err.response?.data?.detail || "فشل حفظ وإغلاق السجل. حاول مرة أخرى.";
+      setError(errorMessage);
       setSaving(false);
     }
   };
 
   // Check if form can be saved
   const canSave = useMemo(() => {
-    return (
+    // Check if required fields are filled
+    const hasRequiredFields = (
       formData.explanation_text &&
       formData.explanation_text.trim() !== "" &&
       formData.corrective_actions &&
       formData.corrective_actions.trim() !== ""
     );
-  }, [formData]);
+    
+    // Check API validation if complaint is loaded
+    const canSubmitPerAPI = selectedComplaint?.can_submit_explanation !== false;
+    const isCaseClosed = selectedComplaint?.is_case_closed === true;
+    
+    return hasRequiredFields && canSubmitPerAPI && !isCaseClosed;
+  }, [formData, selectedComplaint]);
 
   return (
     <MainLayout>
@@ -382,6 +612,87 @@ const DepartmentFeedbackPage = () => {
           <Alert color="danger" sx={{ mb: 3 }}>
             {error}
           </Alert>
+        )}
+
+        {/* Statistics Display */}
+        {statistics && !loadingStats && (
+          <Box
+            sx={{
+              mb: 3,
+              p: 2.5,
+              borderRadius: "8px",
+              background: "linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)",
+              border: "1px solid rgba(102, 126, 234, 0.2)",
+            }}
+          >
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+              <Typography level="title-md" sx={{ fontWeight: 700, color: "#667eea" }}>
+                📊 Explanation Statistics
+              </Typography>
+              <button
+                onClick={() => {
+                  fetchStatistics();
+                  fetchOpenRecords();
+                }}
+                disabled={loadingStats || loading}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: "4px",
+                  border: "1px solid #667eea",
+                  background: "white",
+                  color: "#667eea",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: loadingStats || loading ? "not-allowed" : "pointer",
+                  opacity: loadingStats || loading ? 0.6 : 1,
+                }}
+              >
+                {loadingStats || loading ? "🔄 Refreshing..." : "🔄 Refresh"}
+              </button>
+            </Box>
+            <Grid container spacing={2}>
+              <Grid xs={12} sm={6} md={3}>
+                <Box sx={{ textAlign: "center", p: 1.5, borderRadius: "6px", background: "#fff" }}>
+                  <Typography level="h4" sx={{ color: "#ffa502", fontWeight: 700 }}>
+                    {statistics.by_status?.Waiting || 0}
+                  </Typography>
+                  <Typography level="body-xs" sx={{ color: "#666", mt: 0.5 }}>
+                    Waiting for Explanation
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid xs={12} sm={6} md={3}>
+                <Box sx={{ textAlign: "center", p: 1.5, borderRadius: "6px", background: "#fff" }}>
+                  <Typography level="h4" sx={{ color: "#2ed573", fontWeight: 700 }}>
+                    {statistics.by_status?.Responded || 0}
+                  </Typography>
+                  <Typography level="body-xs" sx={{ color: "#666", mt: 0.5 }}>
+                    Responded
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid xs={12} sm={6} md={3}>
+                <Box sx={{ textAlign: "center", p: 1.5, borderRadius: "6px", background: "#fff" }}>
+                  <Typography level="h4" sx={{ color: "#ff4757", fontWeight: 700 }}>
+                    {statistics.overdue?.over_7_days || 0}
+                  </Typography>
+                  <Typography level="body-xs" sx={{ color: "#666", mt: 0.5 }}>
+                    Overdue (7+ days)
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid xs={12} sm={6} md={3}>
+                <Box sx={{ textAlign: "center", p: 1.5, borderRadius: "6px", background: "#fff" }}>
+                  <Typography level="h4" sx={{ color: "#9b59b6", fontWeight: 700 }}>
+                    {statistics.total_requiring_explanation || 0}
+                  </Typography>
+                  <Typography level="body-xs" sx={{ color: "#666", mt: 0.5 }}>
+                    Total Requiring Explanation
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </Box>
         )}
 
         {/* Modern Tab Switcher */}
@@ -545,6 +856,16 @@ const DepartmentFeedbackPage = () => {
                       <Typography level="body-sm" sx={{ color: "#666" }}>
                         {selectedComplaint.complaintID} - {selectedComplaint.patientFullName}
                       </Typography>
+                      {selectedComplaint.has_existing_explanation && (
+                        <Typography level="body-xs" sx={{ color: "#2ed573", mt: 0.5, fontWeight: 600 }}>
+                          ✓ Explanation already submitted on {new Date(selectedComplaint.explanation_submitted_date).toLocaleDateString()}
+                        </Typography>
+                      )}
+                      {selectedComplaint.is_case_closed && (
+                        <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5, fontWeight: 600 }}>
+                          ⚠️ This case is closed
+                        </Typography>
+                      )}
                     </Grid>
                     <Grid xs={12} md={6} sx={{ textAlign: { xs: "left", md: "right" } }}>
                       <Typography level="body-xs" sx={{ color: "#666" }}>
@@ -552,6 +873,9 @@ const DepartmentFeedbackPage = () => {
                       </Typography>
                       <Typography level="body-xs" sx={{ color: "#666" }}>
                         الشدة: {selectedComplaint.severity} | الحالة: {selectedComplaint.status === "OVERDUE" ? "متأخر" : "مفتوح"}
+                      </Typography>
+                      <Typography level="body-xs" sx={{ color: "#666" }}>
+                        Case Status: {selectedComplaint.case_status} | Explanation: {selectedComplaint.explanation_status}
                       </Typography>
                     </Grid>
                   </Grid>
@@ -567,6 +891,38 @@ const DepartmentFeedbackPage = () => {
                   }}
                 >
                   <Grid container spacing={3}>
+                    {/* Validation Errors */}
+                    {validationErrors.length > 0 && (
+                      <Grid xs={12}>
+                        <Alert color="danger" variant="soft">
+                          <Typography level="body-sm" sx={{ fontWeight: 600, mb: 0.5 }}>
+                            Validation Errors:
+                          </Typography>
+                          <ul style={{ margin: "4px 0", paddingLeft: "20px" }}>
+                            {validationErrors.map((error, idx) => (
+                              <li key={idx}>{error}</li>
+                            ))}
+                          </ul>
+                        </Alert>
+                      </Grid>
+                    )}
+
+                    {/* Validation Warnings */}
+                    {validationWarnings.length > 0 && (
+                      <Grid xs={12}>
+                        <Alert color="warning" variant="soft">
+                          <Typography level="body-sm" sx={{ fontWeight: 600, mb: 0.5 }}>
+                            Warnings:
+                          </Typography>
+                          <ul style={{ margin: "4px 0", paddingLeft: "20px" }}>
+                            {validationWarnings.map((warning, idx) => (
+                              <li key={idx}>{warning}</li>
+                            ))}
+                          </ul>
+                        </Alert>
+                      </Grid>
+                    )}
+
                     <Grid xs={12}>
                       <ComplaintSummary complaint={selectedComplaint} />
                     </Grid>

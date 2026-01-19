@@ -37,7 +37,6 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import DescriptionIcon from "@mui/icons-material/Description";
 
 const SeasonalReportDetailPage = () => {
@@ -69,7 +68,6 @@ const SeasonalReportDetailPage = () => {
   const [showAddForm, setShowAddForm] = useState(false);
 
   // Export state
-  const [exportingPDF, setExportingPDF] = useState(false);
   const [exportingWord, setExportingWord] = useState(false);
 
   // Explanation status options (can be moved to reference data later)
@@ -197,33 +195,6 @@ const SeasonalReportDetailPage = () => {
     // TODO: Call API to delete action item
   };
 
-  // Export to PDF
-  const handleExportPDF = async () => {
-    try {
-      setExportingPDF(true);
-      console.log("📄 Exporting report to PDF...");
-
-      const blob = await exportSeasonalReport(id, "pdf");
-
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `seasonal_report_${id}_${new Date().toISOString().split("T")[0]}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      console.log("✅ PDF exported successfully");
-    } catch (err) {
-      console.error("❌ Failed to export PDF:", err);
-      alert(err.message || "Failed to export report to PDF");
-    } finally {
-      setExportingPDF(false);
-    }
-  };
-
   // Export to Word
   const handleExportWord = async () => {
     try {
@@ -321,22 +292,11 @@ const SeasonalReportDetailPage = () => {
           {/* Export Buttons */}
           <Stack direction="row" spacing={2}>
             <Button
-              color="danger"
-              variant="solid"
-              startDecorator={<PictureAsPdfIcon />}
-              onClick={handleExportPDF}
-              loading={exportingPDF}
-              disabled={exportingWord}
-            >
-              {exportingPDF ? "Exporting..." : "Export to PDF"}
-            </Button>
-            <Button
               color="primary"
               variant="solid"
               startDecorator={<DescriptionIcon />}
               onClick={handleExportWord}
               loading={exportingWord}
-              disabled={exportingPDF}
             >
               {exportingWord ? "Exporting..." : "Export to Word"}
             </Button>

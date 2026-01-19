@@ -112,11 +112,15 @@ const ReportingPage = () => {
       }
     }
     
-    // For seasonal reports, add any specific validation here if needed
-    // Currently no validation needed for seasonal
+    // For seasonal reports: validate trimester and year are selected
+    if (reportType === "seasonal") {
+      if (!filters.trimester || !filters.year) {
+        return true;
+      }
+    }
     
     return false;
-  }, [reportType, filters.dateMode, filters.month, filters.fromDate, filters.toDate, isDateRangeInvalid]);
+  }, [reportType, filters.dateMode, filters.month, filters.fromDate, filters.toDate, filters.trimester, filters.year, isDateRangeInvalid]);
 
   // Handle Generate Report
   const handleGenerateReport = async () => {
@@ -158,6 +162,19 @@ const ReportingPage = () => {
           );
           return;
         }
+      }
+    }
+
+    // Validation for seasonal reports
+    if (reportType === "seasonal") {
+      if (!filters.trimester || !filters.year) {
+        alert(
+          "⚠️ خطأ في التحقق من البيانات (Validation Error)\n\n" +
+          "الرجاء تحديد الفصل والسنة\n" +
+          "Please select both Trimester and Year\n\n" +
+          "الرجاء اختيار الفصل والسنة والمحاولة مرة أخرى."
+        );
+        return;
       }
     }
 
@@ -206,42 +223,76 @@ const ReportingPage = () => {
         console.log("✅ Monthly report generated:", data);
 
       } else if (reportType === "seasonal") {
-        // ========== SEASONAL REPORT (NEW BACKEND CONTRACT) ==========
+        // ========== SEASONAL REPORT (BACKEND V2 API) ==========
 
-        // 1) Determine orgunit_id
+        // 1) Determine orgunit_id and orgunit_type based on scope level
         let orgunit_id = null;
+        let orgunit_type;
 
-        if (reportScope.level === "section" && reportScope.sectionIds.length > 0) {
-          orgunit_id = reportScope.sectionIds[0];
-        } else if (reportScope.level === "department" && reportScope.departmentIds.length > 0) {
-          orgunit_id = reportScope.departmentIds[0];
-        } else if (reportScope.level === "administration" && reportScope.administrationIds.length > 0) {
-          orgunit_id = reportScope.administrationIds[0];
+        if (reportScope.level === "hospital") {
+          // Hospital level - always allowed
+          orgunit_id = hierarchy?.hospital_id || 1;
+          orgunit_type = 0;
+        } else if (reportScope.level === "administration") {
+          // Administration level
+          if (reportScope.administrationIds.length > 0) {
+            // Specific administration(s) selected
+            orgunit_id = reportScope.administrationIds[0];
+          } else {
+            // "All administrations" - use hospital_id as base
+            orgunit_id = hierarchy?.hospital_id || 1;
+          }
+          orgunit_type = 1;
+        } else if (reportScope.level === "department") {
+          // Department level
+          if (reportScope.departmentIds.length > 0) {
+            // Specific department(s) selected
+            orgunit_id = reportScope.departmentIds[0];
+          } else {
+            // "All departments" - use hospital_id as base
+            orgunit_id = hierarchy?.hospital_id || 1;
+          }
+          orgunit_type = 2;
+        } else if (reportScope.level === "section") {
+          // Section level
+          if (reportScope.sectionIds.length > 0) {
+            // Specific section(s) selected
+            orgunit_id = reportScope.sectionIds[0];
+          } else {
+            // "All sections" - use hospital_id as base
+            orgunit_id = hierarchy?.hospital_id || 1;
+          }
+          orgunit_type = 3;
+        } else {
+          throw new Error("Invalid scope level");
         }
 
+        // Validate orgunit_id exists (should always be set now)
         if (!orgunit_id) {
-          alert("❌ Please select an Administration / Department / Section");
-          throw new Error("No orgunit selected");
+          alert(
+            "❌ خطأ في التحقق من البيانات (Validation Error)\n\n" +
+            "فشل تحديد معرف الوحدة التنظيمية\n" +
+            "Failed to determine organizational unit ID\n\n" +
+            "الرجاء التحقق من إعدادات التسلسل الهرمي."
+          );
+          throw new Error("No orgunit_id could be determined");
         }
 
-        // 2) You MUST get season_id from somewhere:
-        // TEMP SOLUTION: map trimester+year → season_id via backend or dropdown
-        // For now, assume you already have it in filters.season_id
-
-        if (!filters.season_id) {
-          alert("❌ No season selected (season_id is missing)");
-          throw new Error("season_id missing");
-        }
-
+        // 3) Build params with new backend contract
         const params = {
-          season_id: Number(filters.season_id),
+          year: Number(filters.year),
+          trimester: filters.trimester, // e.g., "Q1", "Q2", "Q3", "Q4"
           orgunit_id: Number(orgunit_id),
-          user_id: 1, // or from auth later
+          orgunit_type: orgunit_type,
+          user_id: 1, // TODO: Replace with actual user ID from auth
         };
 
-        console.log("📡 Generating seasonal report with params:", params);
+        console.log("� SEASONAL REQUEST PAYLOAD:", JSON.stringify(params, null, 2));
+        console.log("📡 Calling fetchSeasonalReport with params:", params);
 
         data = await fetchSeasonalReport(params);
+        
+        console.log("✅ SEASONAL RESPONSE RECEIVED:", JSON.stringify(data, null, 2));
       }
 
 
@@ -249,6 +300,17 @@ const ReportingPage = () => {
       alert("✅ تم توليد التقرير بنجاح!\n\nReport generated successfully!");
     } catch (error) {
       console.error("❌ Error generating report:", error);
+      
+      // Enhanced error logging for seasonal reports
+      if (reportType === "seasonal") {
+        console.error("❌ SEASONAL REPORT ERROR DETAILS:", {
+          message: error.message,
+          stack: error.stack,
+          filters: filters,
+          reportScope: reportScope
+        });
+      }
+      
       setReportError(error.message);
       alert("❌ فشل توليد التقرير\n\nFailed to generate report: " + error.message);
     } finally {
@@ -265,7 +327,7 @@ const ReportingPage = () => {
       timestamp: new Date().toISOString(),
     };
 
-    // Add organization filters
+    // Add organization filters for monthly reports
     if (reportScope.level !== "hospital") {
       payload.filters.scope = reportScope.level;
       if (reportScope.administrationIds.length > 0) {
@@ -279,119 +341,42 @@ const ReportingPage = () => {
       }
     }
 
+    // Add orgunit_id and orgunit_type for seasonal reports (Backend V2 format)
+    if (reportType === "seasonal") {
+      let orgunit_id = null;
+      let orgunit_type;
+
+      if (reportScope.level === "hospital") {
+        orgunit_id = hierarchy?.hospital_id || 1;
+        orgunit_type = 0;
+      } else if (reportScope.level === "administration") {
+        if (reportScope.administrationIds.length > 0) {
+          orgunit_id = reportScope.administrationIds[0];
+        } else {
+          orgunit_id = hierarchy?.hospital_id || 1;
+        }
+        orgunit_type = 1;
+      } else if (reportScope.level === "department") {
+        if (reportScope.departmentIds.length > 0) {
+          orgunit_id = reportScope.departmentIds[0];
+        } else {
+          orgunit_id = hierarchy?.hospital_id || 1;
+        }
+        orgunit_type = 2;
+      } else if (reportScope.level === "section") {
+        if (reportScope.sectionIds.length > 0) {
+          orgunit_id = reportScope.sectionIds[0];
+        } else {
+          orgunit_id = hierarchy?.hospital_id || 1;
+        }
+        orgunit_type = 3;
+      }
+
+      payload.filters.orgunit_id = orgunit_id;
+      payload.filters.orgunit_type = orgunit_type;
+    }
+
     return payload;
-  };
-
-  // Handle PDF export
-  const handleExportPDF = async () => {
-    // Check if report is loaded
-    if (!reportData) {
-      alert(
-        "⚠️ لم يتم توليد التقرير (No Report Loaded)\n\n" +
-        "الرجاء توليد التقرير أولاً قبل التصدير\n" +
-        "Please generate a report first before exporting"
-      );
-      return;
-    }
-
-    // Check for date range validation errors (monthly only)
-    if (reportType === "monthly" && isDateRangeInvalid) {
-      alert(
-        "⚠️ خطأ في التحقق من البيانات (Validation Error)\n\n" +
-        "تاريخ البداية يجب أن يكون قبل تاريخ النهاية\n" +
-        "From Date must be before To Date\n\n" +
-        "الرجاء تصحيح نطاق التاريخ والمحاولة مرة أخرى."
-      );
-      return;
-    }
-
-    // Export using centralized API
-    try {
-      // Get record count from reportData
-      const recordCount = reportData?.data?.length || reportData?.records?.length || "unknown";
-      const countText = recordCount !== "unknown" ? `${recordCount} records` : "this report";
-      
-      // Confirmation dialog
-      const confirmed = window.confirm(
-        `📄 PDF Export Confirmation\n\n` +
-        `You are about to export ${countText}.\n\n` +
-        `أنت على وشك تصدير ${recordCount !== "unknown" ? recordCount + " سجل" : "هذا التقرير"}.\n\n` +
-        `Continue? هل تريد المتابعة؟`
-      );
-      
-      if (!confirmed) {
-        console.log("❌ PDF export cancelled by user");
-        return;
-      }
-      
-      const payload = buildExportPayload();
-      const { blob, filename } = await exportReport({ 
-        report_type: reportType, 
-        format: "pdf", 
-        filters: payload.filters 
-      });
-      downloadBlob(blob, filename);
-      alert("✅ تم تصدير PDF بنجاح!\n\nPDF export successful!");
-    } catch (error) {
-      console.error("PDF export error:", error);
-      alert("❌ فشل التصدير\n\nExport failed: " + error.message);
-    }
-  };
-
-  // Handle CSV export
-  const handleExportCSV = async () => {
-    // Check if report is loaded
-    if (!reportData) {
-      alert(
-        "⚠️ لم يتم توليد التقرير (No Report Loaded)\n\n" +
-        "الرجاء توليد التقرير أولاً قبل التصدير\n" +
-        "Please generate a report first before exporting"
-      );
-      return;
-    }
-
-    // Check for date range validation errors (monthly only)
-    if (reportType === "monthly" && isDateRangeInvalid) {
-      alert(
-        "⚠️ خطأ في التحقق من البيانات (Validation Error)\n\n" +
-        "تاريخ البداية يجب أن يكون قبل تاريخ النهاية\n" +
-        "From Date must be before To Date\n\n" +
-        "الرجاء تصحيح نطاق التاريخ والمحاولة مرة أخرى."
-      );
-      return;
-    }
-
-    // Export using centralized API
-    try {
-      // Get record count from reportData
-      const recordCount = reportData?.data?.length || reportData?.records?.length || "unknown";
-      const countText = recordCount !== "unknown" ? `${recordCount} records` : "this report";
-      
-      // Confirmation dialog
-      const confirmed = window.confirm(
-        `📊 Excel Export Confirmation\n\n` +
-        `You are about to export ${countText}.\n\n` +
-        `أنت على وشك تصدير ${recordCount !== "unknown" ? recordCount + " سجل" : "هذا التقرير"}.\n\n` +
-        `Continue? هل تريد المتابعة؟`
-      );
-      
-      if (!confirmed) {
-        console.log("❌ Excel export cancelled by user");
-        return;
-      }
-      
-      const payload = buildExportPayload();
-      const { blob, filename } = await exportReport({ 
-        report_type: reportType, 
-        format: "xlsx", 
-        filters: payload.filters 
-      });
-      downloadBlob(blob, filename);
-      alert("✅ تم تصدير Excel بنجاح!\n\nExcel export successful!");
-    } catch (error) {
-      console.error("Excel export error:", error);
-      alert("❌ فشل التصدير\n\nExport failed: " + error.message);
-    }
   };
 
   // Handle Word export
@@ -437,13 +422,29 @@ const ReportingPage = () => {
       }
       
       const payload = buildExportPayload();
-      const { blob, filename } = await exportReport({ 
+      const result = await exportReport({ 
         report_type: reportType, 
         format: "docx", 
         filters: payload.filters 
       });
-      downloadBlob(blob, filename);
-      alert("✅ تم تصدير Word بنجاح!\n\nWord export successful!");
+      
+      downloadBlob(result.blob, result.filename);
+      
+      if (result.isZip) {
+        alert(
+          `✅ تم تصدير التقرير بنجاح!\n\nReport export successful!\n\n` +
+          `📦 File: ${result.filename}\n\n` +
+          `📊 ZIP Contents:\n` +
+          `• Regular seasonal report\n` +
+          `• Comparison report with charts\n` +
+          `${reportScope.level !== 'hospital' && reportScope.level !== 'section' ? '• Summary report (multi-unit)\n' : ''}\n` +
+          `Extract the ZIP file to view all documents.`
+        );
+      } else if (result.isMultiExport) {
+        alert(`✅ تم تصدير Word بنجاح!\n\nMulti-file Word export successful!\n\nFile: ${result.filename}`);
+      } else {
+        alert("✅ تم تصدير Word بنجاح!\n\nWord export successful!");
+      }
     } catch (error) {
       console.error("Word export error:", error);
       alert("❌ فشل التصدير\n\nExport failed: " + error.message);
@@ -533,7 +534,14 @@ const ReportingPage = () => {
                   `${filters.month}/${filters.year}`
                 )}
                 {filters.dateMode === "trimester" && filters.trimester && filters.year && (
-                  `${filters.trimester} ${filters.year}`
+                  <>
+                    {filters.trimester === "Q1" && "الفصل الأول - Q1"}
+                    {filters.trimester === "Q2" && "الفصل الثاني - Q2"}
+                    {filters.trimester === "Q3" && "الفصل الثالث - Q3"}
+                    {filters.trimester === "Q4" && "الفصل الرابع - Q4"}
+                    {" "}
+                    {filters.year}
+                  </>
                 )}
                 {filters.dateMode === "range" && filters.fromDate && filters.toDate && (
                   `${filters.fromDate} → ${filters.toDate}`
@@ -580,8 +588,6 @@ const ReportingPage = () => {
         {/* Action Buttons */}
         <ReportActions
           onGenerate={handleGenerateReport}
-          onExportPDF={handleExportPDF}
-          onExportCSV={handleExportCSV}
           onExportWord={handleExportWord}
           disableGenerate={isGenerateDisabled}
           disableExport={!reportData}

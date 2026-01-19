@@ -13,9 +13,11 @@
 //
 // 2. Fetch Seasonal Report:
 //    const data = await fetchSeasonalReport({
-//      season_id: 123,
-//      year: "2026",
-//      trimester: "Trim1"
+//      year: 2025,
+//      trimester: "Q1",
+//      orgunit_id: 123,
+//      orgunit_type: 1,
+//      user_id: 1
 //    });
 //
 // 3. Export and Download:
@@ -70,14 +72,14 @@ export async function fetchMonthlyReport(params) {
 }
 
 /**
- * Fetch Seasonal Report
+ * Fetch Seasonal Report (Backend V2 API)
  * 
  * @param {Object} params - Query parameters for seasonal report
- * @param {number|string} params.season_id - Seasonal report ID (required)
- * @param {number|string} [params.orgunit_id] - Organization unit ID (optional filter)
- * @param {string} [params.orgunit_type] - Organization type: "administration" | "department" | "section"
- * @param {string} [params.year] - Year filter
- * @param {string} [params.trimester] - Trimester: "Trim1" | "Trim2" | "Trim3" | "Trim4"
+ * @param {number} params.year - Year (required)
+ * @param {string} params.trimester - Trimester: "Q1" | "Q2" | "Q3" | "Q4" (required)
+ * @param {number} params.orgunit_id - Organization unit ID (required)
+ * @param {number} params.orgunit_type - Organization type: 0=hospital, 1=administration, 2=department, 3=section (required)
+ * @param {number} params.user_id - User ID (required)
  * 
  * @returns {Promise<Object>} Seasonal report JSON data
  */
@@ -107,7 +109,7 @@ export async function fetchSeasonalReport(params) {
  * @param {string} options.format - Export format: "pdf" | "xlsx" | "docx"
  * @param {Object} options.filters - Filter parameters used to generate the report
  * 
- * @returns {Promise<Object>} Object containing { blob, filename }
+ * @returns {Promise<Object>} Object containing { blob, filename, isMultiExport }
  */
 export async function exportReport({ report_type, format, filters }) {
   if (!["monthly", "seasonal"].includes(report_type)) {
@@ -156,23 +158,45 @@ export async function exportReport({ report_type, format, filters }) {
       method: "POST",
     };
   } else {
-    // Seasonal export: Keep existing payload format with JSON body
+    // Seasonal export: Backend V2 API format
     url = `${API_BASE_URL}/api/reports/${report_type}/export`;
+    
+    // Extract required parameters from filters
+    const year = Number(filters.year);
+    const period = filters.trimester; // "Q1", "Q2", "Q3", "Q4"
+    const orgunit_id = Number(filters.orgunit_id || 1);
+    const orgunit_type = Number(filters.orgunit_type || 0);
+    const language = filters.language || "en";
+    
     requestOptions = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        year,
+        period,
+        orgunit_id,
+        orgunit_type,
         format,
-        filters,
+        language,
       }),
     };
+    
+    console.log("🔍 SEASONAL EXPORT PAYLOAD:", {
+      year,
+      period,
+      orgunit_id,
+      orgunit_type,
+      format,
+      language,
+    });
   }
   
   console.log("📡 Exporting Report:", report_type.toUpperCase(), format.toUpperCase(), url);
   
   try {
+    // Step 1: First request to detect response type (JSON or blob)
     const response = await fetch(url, requestOptions);
     
     console.log("📥 Export Response:", response.status, response.statusText);
@@ -183,27 +207,100 @@ export async function exportReport({ report_type, format, filters }) {
       throw new Error(`Failed to export report: ${response.status} ${response.statusText}`);
     }
     
-    // Get the blob from response
-    const blob = await response.blob();
-    console.log("📦 Export Blob Size:", blob.size, "bytes");
+    // Check Content-Type to determine if it's JSON or a file
+    const contentType = response.headers.get("Content-Type");
+    console.log("📋 Response Content-Type:", contentType);
     
-    // Extract filename from Content-Disposition header or generate one
-    const extension = format === "xlsx" ? "xlsx" : format === "docx" ? "docx" : "pdf";
-    let filename = `${report_type}_report_${Date.now()}.${extension}`;
-    const contentDisposition = response.headers.get("Content-Disposition");
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-      if (filenameMatch && filenameMatch[1]) {
-        filename = filenameMatch[1].replace(/['"]/g, "");
+    // Step 2: Check if response is JSON (multi-export metadata)
+    if (contentType && contentType.includes("application/json")) {
+      const jsonData = await response.json();
+      console.log("📄 JSON Response:", jsonData);
+      
+      // Check if it's a multi-export with download URL
+      if (jsonData.is_multi_export && jsonData.download_url) {
+        console.log(`📦 Multi-export detected: ${jsonData.file_name}`);
+        console.log(`🔗 Download URL: ${jsonData.download_url}`);
+        
+        // Step 3: Download the actual file from the download URL
+        const downloadUrl = `${API_BASE_URL}${jsonData.download_url}`;
+        console.log(`📡 Fetching multi-export file from: ${downloadUrl}`);
+        
+        const fileResponse = await fetch(downloadUrl, {
+          method: "GET",
+        });
+        
+        if (!fileResponse.ok) {
+          throw new Error(`Failed to download multi-export file: ${fileResponse.status}`);
+        }
+        
+        const blob = await fileResponse.blob();
+        console.log("📦 Multi-export Blob Size:", blob.size, "bytes");
+        
+        return {
+          blob,
+          filename: jsonData.file_name,
+          isMultiExport: true,
+          exportId: jsonData.export_id,
+          expiresAt: jsonData.expires_at,
+        };
+      } else {
+        // JSON response but not a multi-export (unexpected)
+        throw new Error("Unexpected JSON response from export endpoint");
+      }
+    } else {
+      // Step 4: Direct file response (single file or ZIP)
+      const blob = await response.blob();
+      console.log("📦 Export Blob Size:", blob.size, "bytes");
+      
+      // Extract filename from Content-Disposition header
+      let filename = null;
+      const contentDisposition = response.headers.get("Content-Disposition");
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, "");
+        }
+      }
+      
+      // Check if response is a ZIP file (seasonal reports with comparison charts)
+      const isZip = contentType && contentType.includes("application/zip");
+      
+      if (isZip) {
+        console.log("🗜️ ZIP file detected (seasonal report with comparison)");
+        console.log("📦 ZIP Contents: Regular report + Comparison report with charts");
+        
+        // Use backend filename as-is (already has .zip extension)
+        if (!filename) {
+          // Fallback only if header is missing
+          filename = `${report_type}_report_${Date.now()}.zip`;
+        }
+        
+        console.log("✅ ZIP Export successful:", filename);
+        
+        return {
+          blob,
+          filename,
+          isMultiExport: true, // ZIP contains multiple documents
+          isZip: true,
+        };
+      } else {
+        // Single file export (monthly reports or legacy format)
+        if (!filename) {
+          // Generate fallback filename based on format
+          const extension = format === "xlsx" ? "xlsx" : format === "docx" ? "docx" : "pdf";
+          filename = `${report_type}_report_${Date.now()}.${extension}`;
+        }
+        
+        console.log("✅ Single file export successful:", filename);
+        
+        return {
+          blob,
+          filename,
+          isMultiExport: false,
+          isZip: false,
+        };
       }
     }
-    
-    console.log("✅ Export successful:", filename);
-    
-    return {
-      blob,
-      filename,
-    };
   } catch (error) {
     console.error("❌ Error exporting report:", error);
     throw error;

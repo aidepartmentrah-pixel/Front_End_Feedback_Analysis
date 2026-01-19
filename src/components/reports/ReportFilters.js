@@ -18,10 +18,21 @@ const ReportFilters = ({ filters, setFilters, reportType, hierarchy, loadingHier
     } else if (reportType === "seasonal") {
       // Force trimester mode for seasonal reports
       if (filters.dateMode !== "trimester") {
-        setFilters(f => ({ ...f, dateMode: "trimester", month: "", fromDate: "", toDate: "" }));
+        // Set default trimester to Q1 if not already set
+        const currentTrimester = filters.trimester || "Q1";
+        setFilters(f => ({ 
+          ...f, 
+          dateMode: "trimester", 
+          month: "", 
+          fromDate: "", 
+          toDate: "",
+          trimester: currentTrimester,
+          // Ensure year is set to current year if empty
+          year: f.year || new Date().getFullYear().toString()
+        }));
       }
     }
-  }, [reportType, filters.dateMode, setFilters]);
+  }, [reportType, filters.dateMode, filters.trimester, filters.year, setFilters]);
 
   // Date range validation - check if fromDate > toDate
   const isDateRangeInvalid = useMemo(() => {
@@ -503,30 +514,38 @@ const ReportFilters = ({ filters, setFilters, reportType, hierarchy, loadingHier
         {filters.dateMode === "trimester" && (
           <>
             <Grid xs={12} sm={6} md={3}>
-              <FormControl>
-                <FormLabel sx={{ fontWeight: 600, mb: 1 }}>الفصل (Trimester)</FormLabel>
+              <FormControl required={reportType === "seasonal"}>
+                <FormLabel sx={{ fontWeight: 600, mb: 1 }}>
+                  الفصل (Trimester) {reportType === "seasonal" && <span style={{ color: "red" }}>*</span>}
+                </FormLabel>
                 <Select
                   value={filters.trimester}
                   onChange={(e, value) => handleChange("trimester", value)}
                   disabled={reportType === "monthly"}
+                  placeholder={reportType === "seasonal" ? "يجب اختيار فصل (Required)" : "اختر فصل"}
+                  color={reportType === "seasonal" && !filters.trimester ? "danger" : "neutral"}
                 >
-                  <Option value="">-- اختر فصل --</Option>
-                  <Option value="Trim1">الفصل 1 (Jan-Mar)</Option>
-                  <Option value="Trim2">الفصل 2 (Apr-Jun)</Option>
-                  <Option value="Trim3">الفصل 3 (Jul-Sep)</Option>
-                  <Option value="Trim4">الفصل 4 (Oct-Dec)</Option>
+                  {reportType !== "seasonal" && <Option value="">-- اختر فصل --</Option>}
+                  <Option value="Q1">الفصل الأول - Q1 (Jan-Mar)</Option>
+                  <Option value="Q2">الفصل الثاني - Q2 (Apr-Jun)</Option>
+                  <Option value="Q3">الفصل الثالث - Q3 (Jul-Sep)</Option>
+                  <Option value="Q4">الفصل الرابع - Q4 (Oct-Dec)</Option>
                 </Select>
               </FormControl>
             </Grid>
 
             <Grid xs={12} sm={6} md={3}>
-              <FormControl>
-                <FormLabel sx={{ fontWeight: 600, mb: 1 }}>السنة (Year)</FormLabel>
+              <FormControl required={reportType === "seasonal"}>
+                <FormLabel sx={{ fontWeight: 600, mb: 1 }}>
+                  السنة (Year) {reportType === "seasonal" && <span style={{ color: "red" }}>*</span>}
+                </FormLabel>
                 <Select
                   value={filters.year}
                   onChange={(e, value) => handleChange("year", value)}
+                  placeholder={reportType === "seasonal" ? "يجب اختيار سنة (Required)" : "اختر سنة"}
+                  color={reportType === "seasonal" && !filters.year ? "danger" : "neutral"}
                 >
-                  <Option value="">-- اختر سنة --</Option>
+                  {reportType !== "seasonal" && <Option value="">-- اختر سنة --</Option>}
                   {years.map((year) => (
                     <Option key={year} value={year.toString()}>
                       {year}
@@ -535,6 +554,30 @@ const ReportFilters = ({ filters, setFilters, reportType, hierarchy, loadingHier
                 </Select>
               </FormControl>
             </Grid>
+
+            {/* Validation Warning for Seasonal Reports */}
+            {reportType === "seasonal" && (!filters.trimester || !filters.year) && (
+              <Grid xs={12}>
+                <Alert
+                  color="warning"
+                  variant="soft"
+                  startDecorator={<WarningIcon />}
+                  sx={{
+                    fontWeight: 600,
+                    fontSize: "0.95rem"
+                  }}
+                >
+                  <Box>
+                    <Typography level="title-sm" sx={{ color: "warning.700", fontWeight: 700 }}>
+                      ⚠️ مطلوب: يجب اختيار الفصل والسنة (Required: Trimester and Year must be selected)
+                    </Typography>
+                    <Typography level="body-sm" sx={{ color: "warning.600" }}>
+                      لا يمكن توليد التقرير الفصلي بدون تحديد الفصل والسنة • Cannot generate seasonal report without selecting trimester and year
+                    </Typography>
+                  </Box>
+                </Alert>
+              </Grid>
+            )}
           </>
         )}
 
