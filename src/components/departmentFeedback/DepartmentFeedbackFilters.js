@@ -1,9 +1,27 @@
 // src/components/departmentFeedback/DepartmentFeedbackFilters.js
-import React from "react";
-import { Box, Card, Typography, FormControl, FormLabel, Input, Select, Option, Grid } from "@mui/joy";
+import React, { useState, useEffect } from "react";
+import { Box, Card, Typography, FormControl, FormLabel, Input, Select, Option, Grid, CircularProgress } from "@mui/joy";
 import SearchIcon from "@mui/icons-material/Search";
+import { fetchReferenceData } from "../../api/insertRecord";
 
 const DepartmentFeedbackFilters = ({ filters, setFilters }) => {
+  const [departments, setDepartments] = useState([]);
+  const [loadingDepts, setLoadingDepts] = useState(true);
+
+  useEffect(() => {
+    const loadDepartments = async () => {
+      try {
+        const refData = await fetchReferenceData();
+        setDepartments(refData.departments || []);
+      } catch (error) {
+        console.error('Failed to load departments:', error);
+      } finally {
+        setLoadingDepts(false);
+      }
+    };
+    loadDepartments();
+  }, []);
+
   const handleChange = (field, value) => {
     setFilters({ ...filters, [field]: value });
   };
@@ -46,15 +64,18 @@ const DepartmentFeedbackFilters = ({ filters, setFilters }) => {
             <Select
               value={filters.department}
               onChange={(e, value) => handleChange("department", value)}
+              disabled={loadingDepts}
+              endDecorator={loadingDepts && <CircularProgress size="sm" />}
             >
               <Option value="">الكل (All)</Option>
-              <Option value="Emergency Department">Emergency Department</Option>
-              <Option value="ICU">ICU</Option>
-              <Option value="Cardiology">Cardiology</Option>
-              <Option value="Radiology">Radiology</Option>
-              <Option value="General Surgery">General Surgery</Option>
-              <Option value="Pediatrics">Pediatrics</Option>
-              <Option value="Outpatient Pharmacy">Outpatient Pharmacy</Option>
+              {departments
+                .filter((dept) => dept && dept.org_unit_id != null)
+                .map((dept) => (
+                  <Option key={dept.org_unit_id} value={dept.org_unit_id.toString()}>
+                    {dept.org_unit_name_en || dept.org_unit_name_ar || `Department ${dept.org_unit_id}`}
+                    {dept.org_unit_name_ar && ` (${dept.org_unit_name_ar})`}
+                  </Option>
+                ))}
             </Select>
           </FormControl>
         </Grid>

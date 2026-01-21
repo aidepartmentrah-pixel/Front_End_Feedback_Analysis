@@ -46,6 +46,7 @@ const InsertRecord = () => {
     building: null, // RAH or BIC
     worker_type: null, // Doctor, Clerk, Nurse, etc.
     explanation_status_id: null, // NEW field
+    requires_explanation: false, // Boolean: Does this case require explanation?
 
     // Step 3: NER Outputs
     patient_name: "", // Patient name from NER
@@ -420,6 +421,12 @@ const InsertRecord = () => {
         console.log("Submitting is_inpatient:", payload.is_inpatient);
       }
       
+      // Send requires_explanation as boolean (OPTIONAL, default: false)
+      if (formData.requires_explanation !== null && formData.requires_explanation !== undefined) {
+        payload.requires_explanation = formData.requires_explanation;
+        console.log("Submitting requires_explanation:", payload.requires_explanation);
+      }
+      
       // OPTIONAL: Additional metadata
       if (formData.explanation_status_id && formData.explanation_status_id > 0) {
         payload.explanation_status_id = Number(formData.explanation_status_id);
@@ -467,6 +474,7 @@ const InsertRecord = () => {
           building: null,
           worker_type: null,
           explanation_status_id: null,
+          requires_explanation: false,
           patient_name: "",
           patient_admission_id: null,
           doctor_ids: [],

@@ -4,7 +4,7 @@ import axios from "axios";
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
 /**
- * Get all pending cases requiring explanation
+ * Get all pending cases requiring explanation (Red Flag, Never Event, Ordinary)
  * @param {Object} params - Query parameters
  * @param {number} params.dept_id - Department ID filter
  * @param {string} params.start_date - Start date filter (YYYY-MM-DD)
@@ -15,7 +15,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
  */
 export const getPendingExplanations = async (params = {}) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/explanations/pending`, {
+    const response = await axios.get(`${API_BASE_URL}/api/explanations/pending/cases`, {
       params: {
         dept_id: params.dept_id,
         start_date: params.start_date,
@@ -24,9 +24,47 @@ export const getPendingExplanations = async (params = {}) => {
         include_red_flags_only: params.include_red_flags_only,
       },
     });
+    
+    console.log('[DEBUG] Pending Cases API Response:', response.data);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to fetch pending cases');
+    }
+    
     return response.data;
   } catch (error) {
-    console.error("Error fetching pending explanations:", error);
+    console.error("Error fetching pending cases:", error);
+    throw error;
+  }
+};
+
+/**
+ * Get all pending seasonal reports requiring explanation
+ * @param {Object} params - Query parameters
+ * @param {number} params.org_unit_id - Organization unit ID filter
+ * @param {number} params.season_id - Season ID filter
+ * @param {boolean} params.non_compliant_only - Only include non-compliant reports
+ * @returns {Promise} API response with pending seasonal reports
+ */
+export const getPendingSeasonalReports = async (params = {}) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/api/explanations/pending/seasonal`, {
+      params: {
+        org_unit_id: params.org_unit_id,
+        season_id: params.season_id,
+        non_compliant_only: params.non_compliant_only,
+      },
+    });
+    
+    console.log('[DEBUG] Pending Seasonal Reports API Response:', response.data);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to fetch pending seasonal reports');
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching pending seasonal reports:", error);
     throw error;
   }
 };
@@ -38,6 +76,11 @@ export const getPendingExplanations = async (params = {}) => {
 export const getExplanationStatistics = async () => {
   try {
     const response = await axios.get(`${API_BASE_URL}/api/explanations/statistics`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to fetch statistics');
+    }
+    
     return response.data;
   } catch (error) {
     console.error("Error fetching explanation statistics:", error);
@@ -56,6 +99,129 @@ export const getCaseDetails = async (caseId) => {
     return response.data;
   } catch (error) {
     console.error(`Error fetching case details for case ${caseId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Get Red Flag/Never Event feedback for a case
+ * @param {number} caseId - The case ID
+ * @returns {Promise} API response with feedback data
+ */
+export const getRedFlagFeedback = async (caseId) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/api/explanations/red-flag/${caseId}`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to fetch Red Flag feedback');
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching Red Flag feedback for case ${caseId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Submit Red Flag/Never Event feedback
+ * @param {number} caseId - The case ID
+ * @param {Object} data - Feedback data with causes and preventive actions
+ * @returns {Promise} API response with submission result
+ */
+export const submitRedFlagFeedback = async (caseId, data) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/api/explanations/red-flag/${caseId}`, data);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to submit Red Flag feedback');
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error(`Error submitting Red Flag feedback for case ${caseId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Get Ordinary case explanation
+ * @param {number} caseId - The case ID
+ * @returns {Promise} API response with explanation data
+ */
+export const getOrdinaryExplanation = async (caseId) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/api/explanations/ordinary/${caseId}`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to fetch Ordinary explanation');
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching Ordinary explanation for case ${caseId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Submit Ordinary case explanation
+ * @param {number} caseId - The case ID
+ * @param {Object} data - Simple explanation data
+ * @returns {Promise} API response with submission result
+ */
+export const submitOrdinaryExplanation = async (caseId, data) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/api/explanations/ordinary/${caseId}`, data);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to submit Ordinary explanation');
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error(`Error submitting Ordinary explanation for case ${caseId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Get Seasonal report explanation
+ * @param {number} reportId - The seasonal report ID
+ * @returns {Promise} API response with seasonal explanation data
+ */
+export const getSeasonalExplanation = async (reportId) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/api/explanations/seasonal/${reportId}`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to fetch Seasonal explanation');
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching Seasonal explanation for report ${reportId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Submit Seasonal report explanation
+ * @param {number} reportId - The seasonal report ID
+ * @param {Object} data - Seasonal explanation data
+ * @returns {Promise} API response with submission result
+ */
+export const submitSeasonalExplanation = async (reportId, data) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/api/explanations/seasonal/${reportId}`, data);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to submit Seasonal explanation');
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error(`Error submitting Seasonal explanation for report ${reportId}:`, error);
     throw error;
   }
 };

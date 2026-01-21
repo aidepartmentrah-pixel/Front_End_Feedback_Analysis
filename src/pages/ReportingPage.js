@@ -9,6 +9,14 @@ import {
   exportReport,
   downloadBlob
 } from "../api/reports";
+import {
+  getAvailableQuarters,
+  viewSeasonalReport,
+  exportSingleSeasonalReport,
+  generate2QuarterComparison,
+  generate3QuarterComparison,
+  generate4QuarterComparison,
+} from "../api/seasonalReports";
 
 // Components
 import ReportTypeSwitch from "../components/reports/ReportTypeSwitch";
@@ -20,6 +28,14 @@ const ReportingPage = () => {
   const [hierarchy, setHierarchy] = useState(null);
   const [loadingHierarchy, setLoadingHierarchy] = useState(true);
 
+  // Available quarters from backend
+  const [availableQuarters, setAvailableQuarters] = useState([]);
+  const [loadingQuarters, setLoadingQuarters] = useState(true);
+
+  // Comparison state for seasonal reports
+  const [comparisonType, setComparisonType] = useState("single"); // "single", "compare-2", "compare-3", "compare-4"
+  const [selectedSeasons, setSelectedSeasons] = useState([]);
+
   // Date validation state
   const [isDateRangeInvalid, setIsDateRangeInvalid] = useState(false);
 
@@ -28,12 +44,31 @@ const ReportingPage = () => {
   const [loadingReport, setLoadingReport] = useState(false);
   const [reportError, setReportError] = useState(null);
 
-  // Fetch hierarchy on mount
+  // Fetch hierarchy and available quarters on mount
   useEffect(() => {
     fetchDashboardHierarchy()
-      .then((data) => setHierarchy(data))
-      .catch((error) => console.error("Failed to load hierarchy:", error))
-      .finally(() => setLoadingHierarchy(false));
+      .then((hierarchyData) => {
+        setHierarchy(hierarchyData);
+        
+        // Fetch available quarters for hospital level (default)
+        const hospitalId = hierarchyData?.hospital_id || 1;
+        return getAvailableQuarters(hospitalId, 0); // 0 = Hospital level
+      })
+      .then((quartersData) => {
+        setAvailableQuarters(quartersData);
+        
+        // Auto-select the most recent quarter
+        if (quartersData && quartersData.length > 0) {
+          const firstQuarter = quartersData[0];
+          const seasonId = firstQuarter.season_id || firstQuarter.SeasonID;
+          setSelectedSeasons([seasonId]);
+        }
+      })
+      .catch((error) => console.error("Failed to load data:", error))
+      .finally(() => {
+        setLoadingHierarchy(false);
+        setLoadingQuarters(false);
+      });
   }, []);
 
   // Report type: monthly or seasonal
@@ -79,6 +114,49 @@ const ReportingPage = () => {
     }
   }, [reportType]);
 
+  // Handle comparison type changes
+  useEffect(() => {
+    if (reportType === "seasonal" && comparisonType !== "single") {
+      const requiredSeasons = getRequiredSeasonCount();
+      
+      // Auto-select consecutive quarters based on comparison type (only for comparison modes)
+      if (availableQuarters.length > 0) {
+        // Handle both season_id (backend new) and SeasonID (old format)
+        const seasons = availableQuarters.slice(0, requiredSeasons).map(q => q.season_id || q.SeasonID);
+        setSelectedSeasons(seasons);
+      }
+    } else if (reportType === "seasonal" && comparisonType === "single") {
+      // For single mode, clear chip selections (we use dropdowns instead)
+      setSelectedSeasons([]);
+    }
+  }, [comparisonType, reportType, availableQuarters]);
+
+  // Get required number of seasons based on comparison type
+  const getRequiredSeasonCount = () => {
+    switch (comparisonType) {
+      case "single":
+        return 1;
+      case "compare-2":
+        return 2;
+      case "compare-3":
+        return 3;
+      case "compare-4":
+        return 4;
+      default:
+        return 1;
+    }
+  };
+
+  // Get selected quarter names
+  const getSelectedQuarterNames = () => {
+    return selectedSeasons
+      .map(seasonId => {
+        const quarter = availableQuarters.find(q => (q.season_id || q.SeasonID) === seasonId);
+        return quarter ? (quarter.name || quarter.SeasonName) : `Season ${seasonId}`;
+      })
+      .join(", ");
+  };
+
   // Initial filters for reset
   const initialFilters = {
     dateMode: "month",
@@ -112,15 +190,24 @@ const ReportingPage = () => {
       }
     }
     
-    // For seasonal reports: validate trimester and year are selected
+    // For seasonal reports
     if (reportType === "seasonal") {
-      if (!filters.trimester || !filters.year) {
-        return true;
+      if (comparisonType === "single") {
+        // Single mode: require year and trimester from dropdowns
+        if (!filters.trimester || !filters.year) {
+          return true;
+        }
+      } else {
+        // Comparison mode: require correct number of seasons selected
+        const requiredCount = getRequiredSeasonCount();
+        if (!selectedSeasons || selectedSeasons.length !== requiredCount) {
+          return true;
+        }
       }
     }
     
     return false;
-  }, [reportType, filters.dateMode, filters.month, filters.fromDate, filters.toDate, filters.trimester, filters.year, isDateRangeInvalid]);
+  }, [reportType, filters.dateMode, filters.month, filters.fromDate, filters.toDate, filters.trimester, filters.year, isDateRangeInvalid, comparisonType, selectedSeasons]);
 
   // Handle Generate Report
   const handleGenerateReport = async () => {
@@ -167,14 +254,29 @@ const ReportingPage = () => {
 
     // Validation for seasonal reports
     if (reportType === "seasonal") {
-      if (!filters.trimester || !filters.year) {
-        alert(
-          "⚠️ خطأ في التحقق من البيانات (Validation Error)\n\n" +
-          "الرجاء تحديد الفصل والسنة\n" +
-          "Please select both Trimester and Year\n\n" +
-          "الرجاء اختيار الفصل والسنة والمحاولة مرة أخرى."
-        );
-        return;
+      if (comparisonType === "single") {
+        // Single mode: validate year and trimester dropdowns
+        if (!filters.trimester || !filters.year) {
+          alert(
+            "⚠️ خطأ في التحقق من البيانات (Validation Error)\n\n" +
+            "الرجاء تحديد الفصل والسنة\n" +
+            "Please select both Trimester and Year\n\n" +
+            "الرجاء اختيار الفصل والسنة والمحاولة مرة أخرى."
+          );
+          return;
+        }
+      } else {
+        // Comparison mode: validate correct number of quarters selected
+        const requiredCount = getRequiredSeasonCount();
+        if (!selectedSeasons || selectedSeasons.length !== requiredCount) {
+          alert(
+            "⚠️ خطأ في التحقق من البيانات (Validation Error)\n\n" +
+            `الرجاء تحديد ${requiredCount} فصول بالضبط\n` +
+            `Please select exactly ${requiredCount} quarters\n\n` +
+            "الرجاء اختيار الفصول المطلوبة والمحاولة مرة أخرى."
+          );
+          return;
+        }
       }
     }
 
@@ -278,21 +380,47 @@ const ReportingPage = () => {
           throw new Error("No orgunit_id could be determined");
         }
 
-        // 3) Build params with new backend contract
-        const params = {
-          year: Number(filters.year),
-          trimester: filters.trimester, // e.g., "Q1", "Q2", "Q3", "Q4"
-          orgunit_id: Number(orgunit_id),
-          orgunit_type: orgunit_type,
-          user_id: 1, // TODO: Replace with actual user ID from auth
-        };
-
-        console.log("� SEASONAL REQUEST PAYLOAD:", JSON.stringify(params, null, 2));
-        console.log("📡 Calling fetchSeasonalReport with params:", params);
-
-        data = await fetchSeasonalReport(params);
-        
-        console.log("✅ SEASONAL RESPONSE RECEIVED:", JSON.stringify(data, null, 2));
+        // 3) Build params based on comparison type
+        if (comparisonType === "single") {
+          // Single seasonal report using year/trimester from dropdowns
+          const params = {
+            year: parseInt(filters.year),
+            trimester: filters.trimester, // "Q1", "Q2", "Q3", "Q4"
+            orgunit_id: Number(orgunit_id),
+            orgunit_type: orgunit_type,
+            user_id: 1 // TODO: Get from auth context
+          };
+          
+          console.log("📡 Generating single seasonal report with params:", params);
+          data = await viewSeasonalReport(params);
+          console.log("✅ Single seasonal report generated:", data);
+        } else {
+          // Comparison reports
+          const params = {
+            season_ids: selectedSeasons,
+            orgunit_id: Number(orgunit_id),
+            orgunit_type: orgunit_type,
+            format: "json"
+          };
+          
+          console.log("📡 Generating " + comparisonType + " comparison with params:", params);
+          
+          switch (comparisonType) {
+            case "compare-2":
+              data = await generate2QuarterComparison(params);
+              break;
+            case "compare-3":
+              data = await generate3QuarterComparison(params);
+              break;
+            case "compare-4":
+              data = await generate4QuarterComparison(params);
+              break;
+            default:
+              throw new Error("Invalid comparison type");
+          }
+          
+          console.log("✅ Comparison report generated:", data);
+        }
       }
 
 
@@ -432,22 +560,22 @@ const ReportingPage = () => {
       
       if (result.isZip) {
         alert(
-          `✅ تم تصدير التقرير بنجاح!\n\nReport export successful!\n\n` +
-          `📦 File: ${result.filename}\n\n` +
-          `📊 ZIP Contents:\n` +
-          `• Regular seasonal report\n` +
-          `• Comparison report with charts\n` +
-          `${reportScope.level !== 'hospital' && reportScope.level !== 'section' ? '• Summary report (multi-unit)\n' : ''}\n` +
+          `تم تصدير التقرير بنجاح!\n\nReport export successful!\n\n` +
+          `File: ${result.filename}\n\n` +
+          `ZIP Contents:\n`  +
+          `- Regular seasonal report\n` +
+          `- Comparison report with charts\n` +
+          `${reportScope.level !== 'hospital' && reportScope.level !== 'section' ? '- Summary report (multi-unit)\n' : ''}\n` +
           `Extract the ZIP file to view all documents.`
         );
       } else if (result.isMultiExport) {
-        alert(`✅ تم تصدير Word بنجاح!\n\nMulti-file Word export successful!\n\nFile: ${result.filename}`);
+        alert(`تم تصدير Word بنجاح!\n\nMulti-file Word export successful!\n\nFile: ${result.filename}`);
       } else {
-        alert("✅ تم تصدير Word بنجاح!\n\nWord export successful!");
+        alert("تم تصدير Word بنجاح!\n\nWord export successful!");
       }
     } catch (error) {
       console.error("Word export error:", error);
-      alert("❌ فشل التصدير\n\nExport failed: " + error.message);
+      alert("فشل التصدير\n\nExport failed: " + error.message);
     }
   };
 
@@ -486,6 +614,13 @@ const ReportingPage = () => {
           reportScope={reportScope}
           setReportScope={setReportScope}
           onValidationChange={setIsDateRangeInvalid}
+          comparisonType={comparisonType}
+          setComparisonType={setComparisonType}
+          selectedSeasons={selectedSeasons}
+          setSelectedSeasons={setSelectedSeasons}
+          availableQuarters={availableQuarters}
+          getRequiredSeasonCount={getRequiredSeasonCount}
+          getSelectedQuarterNames={getSelectedQuarterNames}
         />
 
         {/* Report Generation Summary */}

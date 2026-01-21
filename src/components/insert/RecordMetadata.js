@@ -57,6 +57,8 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
       </Typography>
 
       <Grid container spacing={2}>
+        {/* ROW 1: Date, Source, Patient Type, Building (4 fields × 3 cols = 12) */}
+        
         {/* Feedback Date */}
         <Grid xs={12} sm={6} md={3}>
           <FormControl fullWidth error={!!validationErrors.feedback_received_date}>
@@ -90,7 +92,6 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
               📱 Source *
             </FormLabel>
-
             <Select
               value={formData.source_id || ""}
               onChange={(e, value) => onInputChange("source_id", value)}
@@ -136,7 +137,6 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
               🚪 Patient Type *
             </FormLabel>
-
             <RadioGroup
               value={formData.is_inpatient === true ? "inpatient" : formData.is_inpatient === false ? "outpatient" : ""}
               onChange={(e) => onInputChange("is_inpatient", e.target.value === "inpatient" ? true : false)}
@@ -160,7 +160,6 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
               🏢 Building
             </FormLabel>
-
             <Select
               value={formData.building || ""}
               onChange={(e, value) => onInputChange("building", value)}
@@ -175,13 +174,14 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
           </FormControl>
         </Grid>
 
+        {/* ROW 2: Issuing Department, Requires Explanation (6 + 6 = 12) */}
+        
         {/* Issuing Department (Single Select) */}
-        <Grid xs={12} sm={6} md={4}>
+        <Grid xs={12} sm={6} md={6}>
           <FormControl fullWidth error={!!validationErrors.issuing_org_unit_id}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
               🏢 Issuing Department *
             </FormLabel>
-
             <Select
               value={formData.issuing_department_id || ""}
               placeholder="Select issuing department"
@@ -223,11 +223,28 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
           </FormControl>
         </Grid>
 
+        {/* Requires Explanation */}
+        <Grid xs={12} sm={6} md={6}>
+          <FormControl fullWidth>
+            <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
+              📝 Requires Explanation?
+            </FormLabel>
+            <RadioGroup
+              value={formData.requires_explanation === true ? "yes" : "no"}
+              onChange={(e) => onInputChange("requires_explanation", e.target.value === "yes")}
+              orientation="horizontal"
+              sx={{ gap: 2, mt: 0.5 }}
+            >
+              <Radio value="yes" label="Yes" size="sm" />
+              <Radio value="no" label="No" size="sm" />
+            </RadioGroup>
+          </FormControl>
+        </Grid>
 
-
-
-        {/* Target Departments (Multi-Select, Issuing Style) */}
-        <Grid xs={12} sm={6} md={8}>
+        {/* ROW 3: Target Departments (Full Width) */}
+        
+        {/* Target Departments (Multi-Select) */}
+        <Grid xs={12}>
           <FormControl fullWidth>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
               🏥 Target Departments (Multiple)

@@ -3,7 +3,24 @@ import React, { useMemo, useEffect } from "react";
 import { Box, Card, Typography, FormControl, FormLabel, Input, Select, Option, Grid, Radio, RadioGroup, Chip, Alert } from "@mui/joy";
 import WarningIcon from "@mui/icons-material/Warning";
 
-const ReportFilters = ({ filters, setFilters, reportType, hierarchy, loadingHierarchy, reportScope, setReportScope, onValidationChange }) => {
+const ReportFilters = ({ 
+  filters, 
+  setFilters, 
+  reportType, 
+  hierarchy, 
+  loadingHierarchy, 
+  reportScope, 
+  setReportScope, 
+  onValidationChange,
+  // Comparison props
+  comparisonType,
+  setComparisonType,
+  selectedSeasons,
+  setSelectedSeasons,
+  availableQuarters,
+  getRequiredSeasonCount,
+  getSelectedQuarterNames
+}) => {
   // Generate dynamic year list (current year + last 10 years)
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 11 }, (_, i) => currentYear - i);
@@ -513,19 +530,39 @@ const ReportFilters = ({ filters, setFilters, reportType, hierarchy, loadingHier
         {/* Trimester/Year - Show only if dateMode is 'trimester' */}
         {filters.dateMode === "trimester" && (
           <>
+            {/* Comparison Type - Show only for seasonal reports */}
+            {reportType === "seasonal" && comparisonType !== undefined && (
+              <Grid xs={12} sm={6} md={3}>
+                <FormControl>
+                  <FormLabel sx={{ fontWeight: 600, mb: 1 }}>
+                    نوع التقرير (Report Type)
+                  </FormLabel>
+                  <Select
+                    value={comparisonType}
+                    onChange={(e, value) => setComparisonType && setComparisonType(value)}
+                  >
+                    <Option value="single">تقرير فصلي (Single)</Option>
+                    <Option value="compare-2">مقارنة فصلين (2 Quarters)</Option>
+                    <Option value="compare-3">مقارنة 3 فصول (3 Quarters)</Option>
+                    <Option value="compare-4">مقارنة 4 فصول (4 Quarters)</Option>
+                  </Select>
+                </FormControl>
+              </Grid>
+            )}
+
             <Grid xs={12} sm={6} md={3}>
-              <FormControl required={reportType === "seasonal"}>
+              <FormControl required={reportType === "seasonal" && comparisonType === "single"}>
                 <FormLabel sx={{ fontWeight: 600, mb: 1 }}>
-                  الفصل (Trimester) {reportType === "seasonal" && <span style={{ color: "red" }}>*</span>}
+                  الفصل (Trimester) {reportType === "seasonal" && comparisonType === "single" && <span style={{ color: "red" }}>*</span>}
                 </FormLabel>
                 <Select
                   value={filters.trimester}
                   onChange={(e, value) => handleChange("trimester", value)}
-                  disabled={reportType === "monthly"}
-                  placeholder={reportType === "seasonal" ? "يجب اختيار فصل (Required)" : "اختر فصل"}
-                  color={reportType === "seasonal" && !filters.trimester ? "danger" : "neutral"}
+                  disabled={reportType === "monthly" || (reportType === "seasonal" && comparisonType !== "single")}
+                  placeholder={reportType === "seasonal" && comparisonType === "single" ? "يجب اختيار فصل (Required)" : "اختر فصل"}
+                  color={reportType === "seasonal" && comparisonType === "single" && !filters.trimester ? "danger" : "neutral"}
                 >
-                  {reportType !== "seasonal" && <Option value="">-- اختر فصل --</Option>}
+                  {(reportType !== "seasonal" || comparisonType !== "single") && <Option value="">-- اختر فصل --</Option>}
                   <Option value="Q1">الفصل الأول - Q1 (Jan-Mar)</Option>
                   <Option value="Q2">الفصل الثاني - Q2 (Apr-Jun)</Option>
                   <Option value="Q3">الفصل الثالث - Q3 (Jul-Sep)</Option>
@@ -535,17 +572,18 @@ const ReportFilters = ({ filters, setFilters, reportType, hierarchy, loadingHier
             </Grid>
 
             <Grid xs={12} sm={6} md={3}>
-              <FormControl required={reportType === "seasonal"}>
+              <FormControl required={reportType === "seasonal" && comparisonType === "single"}>
                 <FormLabel sx={{ fontWeight: 600, mb: 1 }}>
-                  السنة (Year) {reportType === "seasonal" && <span style={{ color: "red" }}>*</span>}
+                  السنة (Year) {reportType === "seasonal" && comparisonType === "single" && <span style={{ color: "red" }}>*</span>}
                 </FormLabel>
                 <Select
                   value={filters.year}
                   onChange={(e, value) => handleChange("year", value)}
-                  placeholder={reportType === "seasonal" ? "يجب اختيار سنة (Required)" : "اختر سنة"}
-                  color={reportType === "seasonal" && !filters.year ? "danger" : "neutral"}
+                  disabled={reportType === "seasonal" && comparisonType !== "single"}
+                  placeholder={reportType === "seasonal" && comparisonType === "single" ? "يجب اختيار سنة (Required)" : "اختر سنة"}
+                  color={reportType === "seasonal" && comparisonType === "single" && !filters.year ? "danger" : "neutral"}
                 >
-                  {reportType !== "seasonal" && <Option value="">-- اختر سنة --</Option>}
+                  {(reportType !== "seasonal" || comparisonType !== "single") && <Option value="">-- اختر سنة --</Option>}
                   {years.map((year) => (
                     <Option key={year} value={year.toString()}>
                       {year}
@@ -555,8 +593,57 @@ const ReportFilters = ({ filters, setFilters, reportType, hierarchy, loadingHier
               </FormControl>
             </Grid>
 
-            {/* Validation Warning for Seasonal Reports */}
-            {reportType === "seasonal" && (!filters.trimester || !filters.year) && (
+            {/* Quarter Selection Chips - Show only for seasonal comparison reports */}
+            {reportType === "seasonal" && comparisonType !== "single" && comparisonType !== undefined && availableQuarters && availableQuarters.length > 0 && (
+              <Grid xs={12}>
+                <Box sx={{ p: 2, background: "rgba(102, 126, 234, 0.05)", borderRadius: "8px" }}>
+                  <Typography level="body-sm" sx={{ mb: 1, fontWeight: 600 }}>
+                    اختر {getRequiredSeasonCount && getRequiredSeasonCount()} فصول (Select {getRequiredSeasonCount && getRequiredSeasonCount()} Quarters):
+                  </Typography>
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                    {availableQuarters.slice(0, Math.max(getRequiredSeasonCount ? getRequiredSeasonCount() : 1, 6)).map((quarter) => {
+                      const quarterId = quarter.season_id || quarter.SeasonID;
+                      const quarterName = quarter.name || quarter.SeasonName;
+                      const isSelected = selectedSeasons && selectedSeasons.includes(quarterId);
+                      const canSelect = comparisonType === "single" || (selectedSeasons && selectedSeasons.length < (getRequiredSeasonCount ? getRequiredSeasonCount() : 1)) || isSelected;
+                      
+                      return (
+                        <Chip
+                          key={quarterId}
+                          variant={isSelected ? "solid" : "outlined"}
+                          color={isSelected ? "primary" : "neutral"}
+                          onClick={() => {
+                            if (!setSelectedSeasons) return;
+                            
+                            if (comparisonType === "single") {
+                              setSelectedSeasons([quarterId]);
+                            } else {
+                              if (isSelected) {
+                                setSelectedSeasons(selectedSeasons.filter(id => id !== quarterId));
+                              } else if (canSelect) {
+                                setSelectedSeasons([...selectedSeasons, quarterId]);
+                              }
+                            }
+                          }}
+                          sx={{ cursor: canSelect ? "pointer" : "not-allowed", opacity: canSelect ? 1 : 0.5 }}
+                        >
+                          {quarterName}
+                        </Chip>
+                      );
+                    })}
+                  </Box>
+                  
+                  {selectedSeasons && selectedSeasons.length > 0 && getSelectedQuarterNames && (
+                    <Typography level="body-sm" sx={{ mt: 1, color: "success.500" }}>
+                      ✓ محدد (Selected): {getSelectedQuarterNames()}
+                    </Typography>
+                  )}
+                </Box>
+              </Grid>
+            )}
+
+            {/* Validation Warning for Single Seasonal Reports */}
+            {reportType === "seasonal" && comparisonType === "single" && (!filters.trimester || !filters.year) && (
               <Grid xs={12}>
                 <Alert
                   color="warning"

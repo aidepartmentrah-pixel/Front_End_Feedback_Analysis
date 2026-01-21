@@ -3,47 +3,54 @@
 // 1. Incident Explanations (Tab 1): Department explains what happened in a single incident
 // 2. Seasonal Explanations (Tab 2): Department explains why performance exceeded thresholds
 import React, { useState, useEffect, useMemo } from "react";
-import { Box, Typography, Alert, Modal, ModalDialog, ModalClose, DialogTitle, DialogContent, Divider, Grid } from "@mui/joy";
+import { Box, Typography, Alert, Modal, ModalDialog, ModalClose, DialogTitle, DialogContent, Divider, Grid, Card, Chip } from "@mui/joy";
 import MainLayout from "../components/common/MainLayout";
 import DepartmentFeedbackFilters from "../components/departmentFeedback/DepartmentFeedbackFilters";
 import OpenRecordsTable from "../components/departmentFeedback/OpenRecordsTable";
 import ComplaintSummary from "../components/departmentFeedback/ComplaintSummary";
-import DepartmentFeedbackForm from "../components/departmentFeedback/DepartmentFeedbackForm";
+import RedFlagFeedbackForm from "../components/departmentFeedback/RedFlagFeedbackForm";
+import OrdinaryFeedbackForm from "../components/departmentFeedback/OrdinaryFeedbackForm";
 import FeedbackActions from "../components/departmentFeedback/FeedbackActions";
 import ExplanationTypeSwitch from "../components/departmentFeedback/ExplanationTypeSwitch";
-import { syncActionItemsToFollowUp } from "../utils/actionItemsHelper";
 import * as ExplanationsAPI from "../api/explanations";
 // import axios from "axios";
 
 const DepartmentFeedbackPage = () => {
   // Helper function to map API response to UI data structure
   const mapApiCaseToUIRecord = (apiCase) => {
-    const dateReceived = new Date(apiCase.date_submitted);
+    const dateReceived = new Date(apiCase.feedback_received_date || apiCase.FeedbackRecievedDate || apiCase.date_submitted);
     const today = new Date();
     const daysSinceReceived = Math.floor((today - dateReceived) / (1000 * 60 * 60 * 24));
     const isDelayed = daysSinceReceived > delayThreshold;
     
     return {
-      id: apiCase.case_id.toString(),
-      complaintID: apiCase.case_number,
-      dateReceived: apiCase.date_submitted,
-      patientName: apiCase.patient_name || "N/A",
-      patientFullName: apiCase.patient_name || "N/A",
-      targetDepartment: apiCase.department_name,
-      severity: apiCase.case_type === "Red Flag" ? "HIGH" : apiCase.case_type === "Never Event" ? "HIGH" : "MEDIUM",
+      id: (apiCase.incident_request_case_id || apiCase.IncidentRequestCaseID || apiCase.case_id).toString(),
+      complaintID: apiCase.ComplaintCaseNumber || apiCase.case_number || `CASE-${apiCase.incident_request_case_id || apiCase.IncidentRequestCaseID || apiCase.case_id}`,
+      dateReceived: apiCase.feedback_received_date || apiCase.FeedbackRecievedDate || apiCase.date_submitted,
+      patientName: apiCase.patient_name || apiCase.PatientName || "N/A",
+      patientFullName: apiCase.patient_name || apiCase.PatientName || "N/A",
+      targetDepartment: apiCase.IssuingOrgUnitName || apiCase.department_name || "N/A",
+      severity: (apiCase.clinical_risk_type_name === "Red Flag" || apiCase.ClinicalRiskType === "Red Flag" || apiCase.case_type === "Red Flag") ? "HIGH" : 
+                (apiCase.clinical_risk_type_name === "Never Event" || apiCase.ClinicalRiskType === "Never Event" || apiCase.case_type === "Never Event") ? "HIGH" : "MEDIUM",
       status: isDelayed ? "OVERDUE" : "OPEN",
       daysSinceReceived,
       isDelayed,
-      qism: apiCase.department_name, // Will be populated from department lookup if available
-      problemDomain: apiCase.problem_domain || "N/A",
-      problemCategory: apiCase.problem_category || "N/A",
-      subCategory: apiCase.sub_category || "N/A",
-      classificationAr: apiCase.classification_ar || "N/A",
-      rawContent: apiCase.raw_content || "N/A",
-      immediateAction: apiCase.immediate_action || "N/A",
-      isRedFlag: apiCase.case_type === "Red Flag",
-      explanation_status: apiCase.explanation_status,
-      case_status: apiCase.case_status,
+      qism: apiCase.IssuingOrgUnitName || apiCase.department_name || "N/A",
+      issuingOrgUnitId: apiCase.issuing_org_unit_id || apiCase.IssuingOrgUnitID,
+      problemDomain: apiCase.ProblemDomain || apiCase.problem_domain || "N/A",
+      problemCategory: apiCase.ProblemCategory || apiCase.problem_category || "N/A",
+      subCategory: apiCase.SubCategory || apiCase.sub_category || "N/A",
+      classificationAr: apiCase.ClassificationAr || apiCase.classification_ar || "N/A",
+      rawContent: apiCase.complaint_text || apiCase.ComplaintText || apiCase.raw_content || "N/A",
+      immediateAction: apiCase.ImmediateAction || apiCase.immediate_action || "N/A",
+      isRedFlag: (apiCase.clinical_risk_type_name === "Red Flag" || apiCase.ClinicalRiskType === "Red Flag" || apiCase.case_type === "Red Flag"),
+      isNeverEvent: (apiCase.clinical_risk_type_name === "Never Event" || apiCase.ClinicalRiskType === "Never Event" || apiCase.case_type === "Never Event"),
+      explanation_status: apiCase.explanation_status_name || apiCase.ExplanationStatusName || apiCase.explanation_status,
+      case_status: apiCase.case_status_name || apiCase.CaseStatusName || apiCase.case_status,
+      requires_explanation: apiCase.requires_explanation !== undefined ? apiCase.requires_explanation : apiCase.RequiresExplanation,
+      explanation_type: apiCase.explanation_type || (apiCase.clinical_risk_type_id === 2 || apiCase.clinical_risk_type_id === 3 ? "red_flag" : "ordinary"),
+      explanation_endpoint: apiCase.explanation_endpoint,
+      clinical_risk_type_id: apiCase.clinical_risk_type_id || apiCase.ClinicalRiskTypeID,
     };
   };
 
@@ -196,10 +203,68 @@ const DepartmentFeedbackPage = () => {
     },
   ];
 
-  const [seasonalViolations, setSeasonalViolations] = useState(mockSeasonalViolations);
+  const [seasonalViolations, setSeasonalViolations] = useState([]);
   const [selectedViolation, setSelectedViolation] = useState(null);
   const [seasonalDialogOpen, setSeasonalDialogOpen] = useState(false);
   const [seasonalFormData, setSeasonalFormData] = useState({});
+  const [loadingSeasonalReports, setLoadingSeasonalReports] = useState(false);
+
+  // Fetch seasonal reports
+  useEffect(() => {
+    if (activeTab === 1) {
+      fetchSeasonalReports();
+    }
+  }, [activeTab]);
+
+  const fetchSeasonalReports = async () => {
+    setLoadingSeasonalReports(true);
+    try {
+      const response = await ExplanationsAPI.getPendingSeasonalReports({
+        non_compliant_only: true, // Only show reports needing explanation
+      });
+      
+      console.log('[DEBUG] Seasonal reports raw response:', response);
+      
+      if (response.success && response.data) {
+        // Map API response to UI structure with rich violation details
+        const mappedReports = response.data.map(report => {
+          const violatedRulesArray = Array.isArray(report.violated_rules) ? report.violated_rules : [];
+          
+          return {
+            id: report.seasonal_report_id.toString(),
+            season: report.season_id,
+            seasonLabel: report.season_name,
+            seasonStartDate: report.season_start_date,
+            seasonEndDate: report.season_end_date,
+            department: report.org_unit_name_en || `Unit ${report.org_unit_id}`,
+            departmentEn: report.org_unit_name_en,
+            qism: report.org_unit_name_ar || report.org_unit_name_en || `وحدة ${report.org_unit_id}`,
+            orgUnitName: report.org_unit_name_en || report.org_unit_name_ar || "N/A",
+            orgUnitId: report.org_unit_id,
+            orgUnitType: report.org_unit_type,
+            totalCases: report.total_cases || 0,
+            lowSeverityCount: report.low_severity_count || 0,
+            mediumSeverityCount: report.medium_severity_count || 0,
+            highSeverityCount: report.high_severity_count || 0,
+            clinicalDomainCount: report.clinical_domain_count || 0,
+            managementDomainCount: report.management_domain_count || 0,
+            relationalDomainCount: report.relational_domain_count || 0,
+            status: report.has_explanation || report.explanation_status_id === 2 ? "SUBMITTED" : "PENDING",
+            violatedRules: violatedRulesArray,
+            isCompliant: report.is_compliant,
+            evaluatedAt: report.evaluated_at,
+          };
+        });
+        
+        setSeasonalViolations(mappedReports);
+      }
+      
+      setLoadingSeasonalReports(false);
+    } catch (err) {
+      console.error('[ERROR] Failed to fetch seasonal reports:', err);
+      setLoadingSeasonalReports(false);
+    }
+  };
 
   // Calculate days since received and determine status
   const processRecords = (records) => {
@@ -220,6 +285,12 @@ const DepartmentFeedbackPage = () => {
     setLoadingStats(true);
     try {
       const response = await ExplanationsAPI.getExplanationStatistics();
+      
+      if (!response.success) {
+        console.error('Statistics fetch failed:', response.error);
+        return;
+      }
+      
       setStatistics(response.statistics);
     } catch (err) {
       console.error("Failed to fetch statistics", err);
@@ -268,14 +339,39 @@ const DepartmentFeedbackPage = () => {
       // Fetch from API
       const response = await ExplanationsAPI.getPendingExplanations(apiParams);
       
+      console.log('[DEBUG] Full response:', response);
+      console.log('[DEBUG] Response.data type:', typeof response.data);
+      console.log('[DEBUG] Is array?', Array.isArray(response.data));
+      
+      if (!response.success) {
+        setError(response.error || 'Failed to load records');
+        setOpenRecords([]);
+        setLoading(false);
+        return;
+      }
+      
+      if (!Array.isArray(response.data)) {
+        setError('Invalid response format from server');
+        setOpenRecords([]);
+        setLoading(false);
+        return;
+      }
+      
       // Map API response to UI data structure
       const mappedRecords = response.data.map(mapApiCaseToUIRecord);
       
       setOpenRecords(mappedRecords);
+      
+      // Update statistics if included in response
+      if (response.statistics) {
+        setStatistics(response.statistics);
+      }
+      
       setLoading(false);
     } catch (err) {
-      console.error("Error fetching open records:", err);
-      setError("فشل تحميل السجلات. حاول مرة أخرى.");
+      console.error('[ERROR] Failed to fetch records:', err);
+      setError(err.message || "فشل تحميل السجلات. حاول مرة أخرى.");
+      setOpenRecords([]);
       setLoading(false);
     }
   };
@@ -293,7 +389,7 @@ const DepartmentFeedbackPage = () => {
       );
     }
     if (filters.department) {
-      filtered = filtered.filter(r => r.targetDepartment === filters.department);
+      filtered = filtered.filter(r => r.issuingOrgUnitId && r.issuingOrgUnitId.toString() === filters.department);
     }
     if (filters.severity) {
       filtered = filtered.filter(r => r.severity === filters.severity);
@@ -320,54 +416,159 @@ const DepartmentFeedbackPage = () => {
 
   // Open dialog with complaint details
   const handleOpenDialog = async (record) => {
-    try {
-      setLoading(true);
+    console.log('[DEBUG] handleOpenDialog called with record:', record);
+    console.log('[DEBUG] record.id:', record.id);
+    console.log('[DEBUG] explanation_type:', record.explanation_type);
+    console.log('[DEBUG] explanation_status:', record.explanation_status);
+    
+    // Open modal immediately (don't wait for API)
+    setSelectedComplaint(record);
+    setFormData({});
+    setDialogOpen(true);
+    setError(null);
+    
+    // Determine if the case type is Red Flag/Never Event
+    const isRedFlagOrNeverEvent = record.explanation_type === 'red_flag' || 
+                                   record.explanation_type === 'never_event' || 
+                                   record.isRedFlag || 
+                                   record.isNeverEvent;
+    
+    // Check ExplanationStatus:
+    // "Waiting" (or ID=1) → No feedback submitted yet, show empty form
+    // "Responded" (or ID=2) → Feedback exists, fetch it
+    const explanationStatus = record.explanation_status?.toLowerCase();
+    const shouldFetchExisting = explanationStatus === 'responded' || 
+                                explanationStatus === 'responded' ||
+                                record.explanation_status === 'Responded';
+    
+    if (!shouldFetchExisting) {
+      // No feedback submitted yet - initialize empty form
+      console.log('[DEBUG] ExplanationStatus is "Waiting" - showing empty form');
       
-      // Fetch full case details from API
-      const response = await ExplanationsAPI.getCaseDetails(record.id);
-      
-      // Map API response to UI structure
-      const caseDetails = {
-        ...record, // Keep the original record data
-        // Override with API response data
-        id: response.case.case_id.toString(),
-        complaintID: response.case.case_number,
-        targetDepartment: response.case.department_name,
-        qism: response.case.department_name,
-        case_status: response.case.case_status,
-        explanation_status: response.case.explanation_status,
-        requires_explanation: response.case.requires_explanation,
-        // Validation info
-        can_submit_explanation: response.validation.can_submit_explanation,
-        has_existing_explanation: response.validation.has_existing_explanation,
-        is_case_closed: response.validation.is_case_closed,
-        // Existing explanation data (if any)
-        existing_explanation_text: response.case.explanation_text,
-        explanation_submitted_date: response.case.explanation_submitted_date,
-        explanation_submitted_by: response.case.explanation_submitted_by,
-        // Action items
-        action_items: response.action_items || [],
-      };
-      
-      setSelectedComplaint(caseDetails);
-      
-      // Pre-populate form if explanation exists
-      if (response.case.explanation_text) {
+      if (isRedFlagOrNeverEvent) {
         setFormData({
-          explanation_text: response.case.explanation_text,
-          corrective_actions: response.case.corrective_actions || "",
-          contributing_factors: response.case.contributing_factors || "",
-          action_items: response.action_items || [],
+          explanation_text: "",
+          causes_staff: {},
+          causes_process: {},
+          causes_equipment: {},
+          causes_environment: {},
+          preventive_actions: {},
         });
       } else {
-        setFormData({});
+        setFormData({
+          explanation_text: "",
+        });
       }
       
-      setDialogOpen(true);
+      setLoading(false);
+      return;
+    }
+    
+    // Feedback exists - fetch it from API
+    console.log('[DEBUG] ExplanationStatus is "Responded" - fetching existing feedback');
+    setLoading(true);
+    
+    try {
+      let response;
+      
+      if (isRedFlagOrNeverEvent) {
+        // Red Flag/Never Event: Load comprehensive feedback
+        response = await ExplanationsAPI.getRedFlagFeedback(record.id);
+        console.log('[DEBUG] Red Flag feedback response:', response);
+        
+        if (response.feedback) {
+          // Pre-populate form with existing feedback
+          setFormData({
+            explanation_text: response.feedback.DepartmentExplanationText || "",
+            causes_staff: {
+              training: response.feedback.Cause_Staff_Training === 1,
+              incentives: response.feedback.Cause_Staff_Incentives === 1,
+              competency: response.feedback.Cause_Staff_Competency === 1,
+              understaffed: response.feedback.Cause_Staff_Understaffed === 1,
+              non_compliance: response.feedback.Cause_Staff_NonCompliance === 1,
+              no_coordination: response.feedback.Cause_Staff_NoCoordination === 1,
+              other: response.feedback.Cause_Staff_Other === 1,
+              other_text: response.feedback.Cause_Staff_OtherText || null,
+            },
+            causes_process: {
+              not_comprehensive: response.feedback.Cause_Process_NotComprehensive === 1,
+              unclear: response.feedback.Cause_Process_Unclear === 1,
+              missing_protocol: response.feedback.Cause_Process_MissingProtocol === 1,
+              other: response.feedback.Cause_Process_Other === 1,
+              other_text: response.feedback.Cause_Process_OtherText || null,
+            },
+            causes_equipment: {
+              not_available: response.feedback.Cause_Equipment_NotAvailable === 1,
+              system_incomplete: response.feedback.Cause_Equipment_SystemIncomplete === 1,
+              hard_to_apply: response.feedback.Cause_Equipment_HardToApply === 1,
+              other: response.feedback.Cause_Equipment_Other === 1,
+              other_text: response.feedback.Cause_Equipment_OtherText || null,
+            },
+            causes_environment: {
+              place_nature: response.feedback.Cause_Environment_PlaceNature === 1,
+              surroundings: response.feedback.Cause_Environment_Surroundings === 1,
+              work_conditions: response.feedback.Cause_Environment_WorkConditions === 1,
+              other: response.feedback.Cause_Environment_Other === 1,
+              other_text: response.feedback.Cause_Environment_OtherText || null,
+            },
+            preventive_actions: {
+              monthly_meetings: response.feedback.Preventive_MonthlyMeetings === 1,
+              training_programs: response.feedback.Preventive_TrainingPrograms === 1,
+              increase_staff: response.feedback.Preventive_IncreaseStaff === 1,
+              mm_committee_actions: response.feedback.Preventive_MMCommitteeActions === 1,
+              other: response.feedback.Preventive_Other === 1,
+              other_text: response.feedback.Preventive_OtherText || null,
+            },
+          });
+        } else {
+          // No feedback data in response - initialize empty form
+          setFormData({
+            explanation_text: "",
+            causes_staff: {},
+            causes_process: {},
+            causes_equipment: {},
+            causes_environment: {},
+            preventive_actions: {},
+          });
+        }
+      } else {
+        // Ordinary case: Load simple explanation
+        response = await ExplanationsAPI.getOrdinaryExplanation(record.id);
+        console.log('[DEBUG] Ordinary explanation response:', response);
+        
+        setFormData({
+          explanation_text: response.data?.taken_action || response.taken_action || "",
+        });
+      }
+      
       setLoading(false);
     } catch (err) {
-      console.error("Error loading case details:", err);
-      setError("فشل تحميل تفاصيل الشكوى. حاول مرة أخرى.");
+      console.error("[ERROR] Failed to load case details:", err);
+      
+      // Handle 404 gracefully (feedback doesn't exist yet)
+      if (err.response?.status === 404) {
+        console.log('[DEBUG] 404 - No feedback exists yet, showing empty form');
+        setError(null); // Clear error - this is expected
+      } else {
+        setError("تعذر تحميل البيانات. يمكنك المتابعة بإدخال توضيح جديد.");
+      }
+      
+      // Initialize empty form based on type
+      if (isRedFlagOrNeverEvent) {
+        setFormData({
+          explanation_text: "",
+          causes_staff: {},
+          causes_process: {},
+          causes_equipment: {},
+          causes_environment: {},
+          preventive_actions: {},
+        });
+      } else {
+        setFormData({
+          explanation_text: "",
+        });
+      }
+      
       setLoading(false);
     }
   };
@@ -392,167 +593,55 @@ const DepartmentFeedbackPage = () => {
     setError(null);
 
     try {
-      // Step 1: Validate the explanation before submitting
-      const validationPayload = {
-        explanation_text: formData.explanation_text,
-        action_items: (formData.action_items || []).map(item => ({
-          title: item.title,
-          description: item.description || null,
-          due_date: item.due_date || null,
-        })),
-      };
-
-      const validationResult = await ExplanationsAPI.validateExplanation(
-        selectedComplaint.id,
-        validationPayload
-      );
-
-      // Check validation result
-      if (!validationResult.valid) {
-        setValidationErrors(validationResult.errors || []);
-        setValidationWarnings(validationResult.warnings || []);
-        setError(`Validation failed: ${validationResult.errors.join(', ')}`);
-        setSaving(false);
-        return;
-      }
-
-      // Show warnings if any (but continue)
-      if (validationResult.warnings && validationResult.warnings.length > 0) {
-        setValidationWarnings(validationResult.warnings);
-      }
-
-      // Step 2: Submit the explanation
-      // TODO: Get actual user_id from auth context
-      const submissionPayload = {
-        explanation_text: formData.explanation_text,
-        action_items: (formData.action_items || []).map(item => ({
-          title: item.title,
-          description: item.description || null,
-          due_date: item.due_date || null,
-        })),
-        user_id: 1, // TODO: Replace with actual user ID from authentication
-      };
-
-      const response = await ExplanationsAPI.submitExplanation(
-        selectedComplaint.id,
-        submissionPayload
-      );
-
-      // Success!
-      const actionItemsCount = response.action_items_created?.length || 0;
-      alert(
-        `تم حفظ التوضيح بنجاح!\n` +
-        `Case Status: ${response.case.case_status}\n` +
-        `Explanation Status: ${response.case.explanation_status}` +
-        (actionItemsCount > 0 ? `\n✓ تم إضافة ${actionItemsCount} إجراء إلى نظام المتابعة` : '')
-      );
-
-      // Update the selected complaint with new data
-      setSelectedComplaint(prev => ({
-        ...prev,
-        case_status: response.case.case_status,
-        explanation_status: response.case.explanation_status,
-        has_existing_explanation: true,
-        explanation_submitted_date: response.case.explanation_submitted_date,
-        explanation_submitted_by: response.case.explanation_submitted_by,
-      }));
-
-      setSaving(false);
+      let response;
       
-      // Refresh the cases list and statistics
-      fetchOpenRecords();
-      fetchStatistics();
-    } catch (err) {
-      console.error('Error saving explanation:', err);
-      const errorMessage = err.response?.data?.detail || "فشل حفظ التوضيح. حاول مرة أخرى.";
-      setError(errorMessage);
-      setSaving(false);
-    }
-  };
-
-  // Save and close feedback
-  const handleSaveAndClose = async () => {
-    if (!canSave) return;
-
-    setSaving(true);
-    setValidationErrors([]);
-    setValidationWarnings([]);
-    setError(null);
-
-    try {
-      // Step 1: Validate the explanation before submitting
-      const validationPayload = {
-        explanation_text: formData.explanation_text,
-        action_items: (formData.action_items || []).map(item => ({
-          title: item.title,
-          description: item.description || null,
-          due_date: item.due_date || null,
-        })),
-      };
-
-      const validationResult = await ExplanationsAPI.validateExplanation(
-        selectedComplaint.id,
-        validationPayload
-      );
-
-      // Check validation result
-      if (!validationResult.valid) {
-        setValidationErrors(validationResult.errors || []);
-        setValidationWarnings(validationResult.warnings || []);
-        setError(`Validation failed: ${validationResult.errors.join(', ')}`);
-        setSaving(false);
-        return;
-      }
-
-      // Show warnings if any (but continue)
-      if (validationResult.warnings && validationResult.warnings.length > 0) {
-        setValidationWarnings(validationResult.warnings);
-      }
-
-      // Step 2: Submit the explanation
-      // TODO: Get actual user_id from auth context
-      const submissionPayload = {
-        explanation_text: formData.explanation_text,
-        action_items: (formData.action_items || []).map(item => ({
-          title: item.title,
-          description: item.description || null,
-          due_date: item.due_date || null,
-        })),
-        user_id: 1, // TODO: Replace with actual user ID from authentication
-      };
-
-      const submitResponse = await ExplanationsAPI.submitExplanation(
-        selectedComplaint.id,
-        submissionPayload
-      );
-
-      const actionItemsCount = submitResponse.action_items_created?.length || 0;
-
-      // Step 3: Check if case can be closed
-      const closureCheckResponse = await ExplanationsAPI.checkCaseClosure(
-        selectedComplaint.id,
-        1 // TODO: Replace with actual user ID
-      );
-
-      // Prepare success message
-      let successMessage = `تم حفظ التوضيح بنجاح!\n`;
-      successMessage += `Case Status: ${closureCheckResponse.case_closed ? 'Closed' : submitResponse.case.case_status}\n`;
-      successMessage += `Explanation Status: ${submitResponse.case.explanation_status}\n`;
-      
-      if (actionItemsCount > 0) {
-        successMessage += `✓ تم إضافة ${actionItemsCount} إجراء إلى نظام المتابعة\n`;
-      }
-
-      if (closureCheckResponse.case_closed) {
-        successMessage += `\n✅ Case automatically closed - all action items complete!`;
-      } else if (closureCheckResponse.can_close) {
-        successMessage += `\n✓ Case can be closed manually`;
+      // Submit to appropriate endpoint based on explanation type
+      if (selectedComplaint.explanation_type === 'red_flag' || selectedComplaint.explanation_type === 'never_event' || selectedComplaint.isRedFlag || selectedComplaint.isNeverEvent) {
+        // Red Flag/Never Event submission
+        const payload = {
+          explanation_text: formData.explanation_text,
+          causes_staff: formData.causes_staff || {},
+          causes_process: formData.causes_process || {},
+          causes_equipment: formData.causes_equipment || {},
+          causes_environment: formData.causes_environment || {},
+          preventive_actions: formData.preventive_actions || {},
+          action_items: formData.action_items || [],
+          user_id: 1, // TODO: Replace with actual user ID from authentication
+        };
+        
+        console.log('[DEBUG] Submitting Red Flag feedback:', payload);
+        response = await ExplanationsAPI.submitRedFlagFeedback(selectedComplaint.id, payload);
+        
+        const actionItemsInfo = response.action_items_created 
+          ? `\n\nAction Items Created: ${response.action_items_count}\n${response.action_items_created.map(a => `- ${a.title}`).join('\n')}`
+          : '';
+        
+        alert(
+          `تم حفظ التوضيح بنجاح!\n` +
+          `${response.message}\n` +
+          `FSM Transition: ${response.fsm_transition || 'N/A'}${actionItemsInfo}`
+        );
       } else {
-        const completion = closureCheckResponse.completion;
-        successMessage += `\n⏳ Case remains open: ${completion.completed_action_items}/${completion.total_action_items} action items complete (${completion.percent_complete}%)`;
+        // Ordinary case submission
+        const payload = {
+          explanation_text: formData.explanation_text,
+          action_items: formData.action_items || [],
+          user_id: 1, // TODO: Replace with actual user ID from authentication
+        };
+        
+        console.log('[DEBUG] Submitting Ordinary explanation:', payload);
+        response = await ExplanationsAPI.submitOrdinaryExplanation(selectedComplaint.id, payload);
+        
+        const actionItemsInfo = response.action_items_created 
+          ? `\n\nAction Items Created: ${response.action_items_count}\n${response.action_items_created.map(a => `- ${a.title}`).join('\n')}`
+          : '';
+        
+        alert(
+          `تم حفظ التوضيح بنجاح!\n` +
+          `${response.message}\n` +
+          `FSM Transition: ${response.fsm_transition || 'N/A'}${actionItemsInfo}`
+        );
       }
-
-      alert(successMessage);
 
       setSaving(false);
       handleCloseDialog();
@@ -561,28 +650,51 @@ const DepartmentFeedbackPage = () => {
       fetchOpenRecords();
       fetchStatistics();
     } catch (err) {
-      console.error('Error saving and closing explanation:', err);
-      const errorMessage = err.response?.data?.detail || "فشل حفظ وإغلاق السجل. حاول مرة أخرى.";
+      console.error('[ERROR] Failed to save explanation:', err);
+      const errorMessage = err.response?.data?.message || err.message || "فشل حفظ التوضيح. حاول مرة أخرى.";
       setError(errorMessage);
+      
+      if (err.response?.data?.error) {
+        setValidationErrors([`Error: ${err.response.data.error}${err.response.data.hint ? ' - ' + err.response.data.hint : ''}`]);
+      }
+      
       setSaving(false);
     }
   };
 
   // Check if form can be saved
   const canSave = useMemo(() => {
-    // Check if required fields are filled
-    const hasRequiredFields = (
-      formData.explanation_text &&
-      formData.explanation_text.trim() !== "" &&
-      formData.corrective_actions &&
-      formData.corrective_actions.trim() !== ""
-    );
+    // Check minimum character requirements based on type
+    const isRedFlagOrNeverEvent = selectedComplaint?.explanation_type === 'red_flag' || 
+                                   selectedComplaint?.explanation_type === 'never_event' || 
+                                   selectedComplaint?.isRedFlag || 
+                                   selectedComplaint?.isNeverEvent;
     
-    // Check API validation if complaint is loaded
-    const canSubmitPerAPI = selectedComplaint?.can_submit_explanation !== false;
-    const isCaseClosed = selectedComplaint?.is_case_closed === true;
+    const hasValidExplanation = isRedFlagOrNeverEvent
+      ? formData.explanation_text && formData.explanation_text.trim().length >= 50
+      : formData.explanation_text && formData.explanation_text.trim().length >= 20;
     
-    return hasRequiredFields && canSubmitPerAPI && !isCaseClosed;
+    // For Red Flag/Never Event: At least 1 action item is REQUIRED
+    if (isRedFlagOrNeverEvent) {
+      const hasActionItems = formData.action_items && formData.action_items.length > 0;
+      if (!hasActionItems) return false;
+      
+      // Validate all action items have title and due date
+      const allItemsValid = formData.action_items.every(item => 
+        item.action_title?.trim() && item.due_date
+      );
+      if (!allItemsValid) return false;
+    }
+    
+    // For Ordinary: Action items are optional, but if present, must be valid
+    if (formData.action_items && formData.action_items.length > 0) {
+      const allItemsValid = formData.action_items.every(item => 
+        item.action_title?.trim() && item.due_date
+      );
+      if (!allItemsValid) return false;
+    }
+    
+    return hasValidExplanation;
   }, [formData, selectedComplaint]);
 
   return (
@@ -725,112 +837,160 @@ const DepartmentFeedbackPage = () => {
               هذه الصفحة لتوضيح لماذا تجاوزت نسبة الأداء العتبة المحددة في الفصل.
             </Typography>
             
-            {/* Seasonal Violations Table */}
-            <Box
-              sx={{
-                borderRadius: "8px",
-                border: "1px solid rgba(102, 126, 234, 0.2)",
-                overflow: "hidden",
-              }}
-            >
+            {loadingSeasonalReports ? (
+              <Box sx={{ p: 5, textAlign: "center", border: "1px solid #e0e0e0", borderRadius: "8px" }}>
+                <Typography level="body-sm" sx={{ color: "#666" }}>
+                  جاري تحميل التقارير الفصلية...
+                </Typography>
+              </Box>
+            ) : seasonalViolations.length === 0 ? (
+              <Box sx={{ p: 5, textAlign: "center", border: "1px solid #e0e0e0", borderRadius: "8px" }}>
+                <Typography level="h6" sx={{ color: "#2ed573", mb: 1 }}>
+                  ✅ جميع التقارير الفصلية متوافقة
+                </Typography>
+                <Typography level="body-sm" sx={{ color: "#666" }}>
+                  لا توجد انتهاكات للقواعد المحددة
+                </Typography>
+              </Box>
+            ) : (
               <Box
                 sx={{
-                  p: 2,
-                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                  color: "white",
+                  borderRadius: "8px",
+                  border: "1px solid rgba(102, 126, 234, 0.2)",
+                  overflow: "hidden",
                 }}
               >
-                <Typography level="h6" sx={{ fontWeight: 700 }}>
-                  🚨 Seasonal Threshold Violations
-                </Typography>
-                <Typography level="body-xs" sx={{ opacity: 0.9, mt: 0.5 }}>
-                  Departments that exceeded performance thresholds this season
-                </Typography>
-              </Box>
-              
-              <Box sx={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ background: "#f9fafb", borderBottom: "1px solid #e0e0e0" }}>
-                      <th style={{ padding: "12px", textAlign: "center", fontWeight: 600 }}>Season</th>
-                      <th style={{ padding: "12px", textAlign: "center", fontWeight: 600 }}>Department</th>
-                      <th style={{ padding: "12px", textAlign: "center", fontWeight: 600 }}>Metric</th>
-                      <th style={{ padding: "12px", textAlign: "center", fontWeight: 600 }}>Threshold</th>
-                      <th style={{ padding: "12px", textAlign: "center", fontWeight: 600 }}>Actual</th>
-                      <th style={{ padding: "12px", textAlign: "center", fontWeight: 600 }}>Status</th>
-                      <th style={{ padding: "12px", textAlign: "center", fontWeight: 600 }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {seasonalViolations.map((violation) => (
-                      <tr key={violation.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                        <td style={{ padding: "12px", textAlign: "center" }}>
-                          <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-                            {violation.seasonLabel}
-                          </Typography>
-                        </td>
-                        <td style={{ padding: "12px", textAlign: "center" }}>
-                          <Typography level="body-sm">{violation.department}</Typography>
-                          <Typography level="body-xs" sx={{ color: "#999", dir: "rtl" }}>
-                            {violation.qism}
-                          </Typography>
-                        </td>
-                        <td style={{ padding: "12px", textAlign: "center" }}>
-                          <Typography level="body-sm">{violation.metricLabel}</Typography>
-                        </td>
-                        <td style={{ padding: "12px", textAlign: "center" }}>
-                          <Typography level="body-sm" sx={{ color: "#2ed573", fontWeight: 600 }}>
-                            {violation.metricType === "HCAT_violations" ? `${violation.thresholdValue}%` : `${violation.thresholdValue} days`}
-                          </Typography>
-                        </td>
-                        <td style={{ padding: "12px", textAlign: "center" }}>
-                          <Typography level="body-sm" sx={{ color: "#ff4757", fontWeight: 700 }}>
-                            {violation.metricType === "HCAT_violations" ? `${violation.actualValue}%` : `${violation.actualValue} days`}
-                          </Typography>
-                        </td>
-                        <td style={{ padding: "12px", textAlign: "center" }}>
-                          <Box
-                            sx={{
-                              display: "inline-flex",
-                              padding: "4px 12px",
-                              borderRadius: "4px",
-                              fontSize: "12px",
-                              fontWeight: 600,
-                              background: violation.status === "SUBMITTED" ? "#2ed573" : "#ffa502",
-                              color: "white",
-                            }}
-                          >
-                            {violation.status === "SUBMITTED" ? "✅ Submitted" : "⏳ Pending"}
-                          </Box>
-                        </td>
-                        <td style={{ padding: "12px", textAlign: "center" }}>
-                          <button
-                            onClick={() => {
-                              setSelectedViolation(violation);
-                              setSeasonalFormData({});
-                              setSeasonalDialogOpen(true);
-                            }}
-                            disabled={violation.status === "SUBMITTED"}
-                            style={{
-                              padding: "8px 16px",
-                              borderRadius: "4px",
-                              border: "none",
-                              background: violation.status === "SUBMITTED" ? "#ccc" : "#667eea",
-                              color: "white",
-                              fontWeight: 600,
-                              cursor: violation.status === "SUBMITTED" ? "not-allowed" : "pointer",
-                              opacity: violation.status === "SUBMITTED" ? 0.6 : 1,
-                            }}
-                          >
-                            {violation.status === "SUBMITTED" ? "View" : "Explain"}
-                          </button>
-                        </td>
+                <Box
+                  sx={{
+                    p: 2,
+                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    color: "white",
+                  }}
+                >
+                  <Typography level="h6" sx={{ fontWeight: 700 }}>
+                    🚨 Seasonal Threshold Violations
+                  </Typography>
+                  <Typography level="body-xs" sx={{ opacity: 0.9, mt: 0.5 }}>
+                    Reports requiring explanation for exceeding performance thresholds
+                  </Typography>
+                </Box>
+                
+                <Box sx={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "#f9fafb", borderBottom: "2px solid #e0e0e0" }}>
+                        <th style={{ padding: "12px", textAlign: "left", fontWeight: 600, fontSize: "13px" }}>Season</th>
+                        <th style={{ padding: "12px", textAlign: "left", fontWeight: 600, fontSize: "13px" }}>Org Unit</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontWeight: 600, fontSize: "13px" }}>Cases</th>
+                        <th style={{ padding: "12px", textAlign: "left", fontWeight: 600, fontSize: "13px" }}>Violated Rules</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontWeight: 600, fontSize: "13px" }}>Status</th>
+                        <th style={{ padding: "12px", textAlign: "center", fontWeight: 600, fontSize: "13px" }}>Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {seasonalViolations.map((violation) => (
+                        <tr key={violation.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                          <td style={{ padding: "12px" }}>
+                            <Typography level="body-sm" sx={{ fontWeight: 700, color: "#667eea" }}>
+                              {violation.seasonLabel}
+                            </Typography>
+                            <Typography level="body-xs" sx={{ color: "#999" }}>
+                              {new Date(violation.seasonStartDate).toLocaleDateString()} - {new Date(violation.seasonEndDate).toLocaleDateString()}
+                            </Typography>
+                          </td>
+                          <td style={{ padding: "12px" }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                              {/* Unit Type Badge */}
+                              <Chip
+                                size="sm"
+                                sx={{
+                                  fontSize: "10px",
+                                  fontWeight: 700,
+                                  px: 1,
+                                  background: violation.orgUnitType === 1 ? "#e3f2fd" : violation.orgUnitType === 2 ? "#f3e5f5" : "#e8f5e9",
+                                  color: violation.orgUnitType === 1 ? "#1976d2" : violation.orgUnitType === 2 ? "#7b1fa2" : "#388e3c",
+                                  border: "none",
+                                }}
+                              >
+                                {violation.orgUnitType === 0 ? "Hospital" : violation.orgUnitType === 1 ? "Admin" : violation.orgUnitType === 2 ? "Dept" : "Section"}
+                              </Chip>
+                            </Box>
+                            <Typography level="body-sm" sx={{ fontWeight: 600, mt: 0.5 }}>
+                              {violation.department}
+                            </Typography>
+                            <Typography level="body-xs" sx={{ color: "#999", dir: "rtl" }}>
+                              {violation.qism}
+                            </Typography>
+                          </td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>
+                            <Typography level="body-sm" sx={{ fontWeight: 700 }}>
+                              {violation.totalCases}
+                            </Typography>
+                            <Typography level="body-xs" sx={{ color: "#999" }}>
+                              L:{violation.lowSeverityCount} M:{violation.mediumSeverityCount} H:{violation.highSeverityCount}
+                            </Typography>
+                          </td>
+                          <td style={{ padding: "12px" }}>
+                            {Array.isArray(violation.violatedRules) && violation.violatedRules.length > 0 ? (
+                              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                                {violation.violatedRules.map((rule, idx) => (
+                                  <Box key={idx} sx={{ fontSize: "12px" }}>
+                                    <Typography level="body-xs" sx={{ fontWeight: 600, color: "#ff4757", dir: "rtl" }}>
+                                      {rule.rule_name_ar || rule.rule_name_en}
+                                    </Typography>
+                                    <Typography level="body-xs" sx={{ color: "#666" }}>
+                                      Actual: <strong>{rule.actual}{rule.actual_unit}</strong> | Limit: <strong>{rule.threshold}{rule.threshold_unit}</strong>
+                                    </Typography>
+                                  </Box>
+                                ))}
+                              </Box>
+                            ) : (
+                              <Typography level="body-xs" sx={{ color: "#999" }}>No violations</Typography>
+                            )}
+                          </td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>
+                            <Chip
+                              sx={{
+                                background: violation.status === "SUBMITTED" ? "#2ed573" : "#ffa502",
+                                color: "white",
+                                fontWeight: 600,
+                                fontSize: "11px",
+                                px: 1.5,
+                              }}
+                            >
+                              {violation.status === "SUBMITTED" ? "✅ Done" : "⏳ Pending"}
+                            </Chip>
+                          </td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>
+                            <button
+                              onClick={() => {
+                                setSelectedViolation(violation);
+                                setSeasonalFormData({});
+                                setSeasonalDialogOpen(true);
+                              }}
+                              disabled={violation.status === "SUBMITTED"}
+                              style={{
+                                padding: "6px 14px",
+                                borderRadius: "4px",
+                                border: "none",
+                                background: violation.status === "SUBMITTED" ? "#ccc" : "#667eea",
+                                color: "white",
+                                fontWeight: 600,
+                                fontSize: "12px",
+                                cursor: violation.status === "SUBMITTED" ? "not-allowed" : "pointer",
+                                opacity: violation.status === "SUBMITTED" ? 0.6 : 1,
+                              }}
+                            >
+                              {violation.status === "SUBMITTED" ? "View" : "Explain"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </Box>
               </Box>
-            </Box>
+            )}
           </Box>
         )}
 
@@ -850,9 +1010,19 @@ const DepartmentFeedbackPage = () => {
                 <DialogTitle sx={{ p: 3, pb: 2 }}>
                   <Grid container spacing={2} sx={{ alignItems: "center" }}>
                     <Grid xs={12} md={6}>
-                      <Typography level="h4" sx={{ fontWeight: 700, color: "#667eea", mb: 0.5 }}>
-                        ملء توضيح الحالة (Fill Incident Explanation)
-                      </Typography>
+                      {selectedComplaint.isNeverEvent || selectedComplaint.explanation_type === 'never_event' ? (
+                        <Typography level="h4" sx={{ fontWeight: 700, color: "#6a1b9a", mb: 0.5 }}>
+                          🏴 ملء توضيح Never Event
+                        </Typography>
+                      ) : selectedComplaint.isRedFlag || selectedComplaint.explanation_type === 'red_flag' ? (
+                        <Typography level="h4" sx={{ fontWeight: 700, color: "#d32f2f", mb: 0.5 }}>
+                          🚩 ملء توضيح Red Flag
+                        </Typography>
+                      ) : (
+                        <Typography level="h4" sx={{ fontWeight: 700, color: "#667eea", mb: 0.5 }}>
+                          ملء توضيح الحالة (Fill Incident Explanation)
+                        </Typography>
+                      )}
                       <Typography level="body-sm" sx={{ color: "#666" }}>
                         {selectedComplaint.complaintID} - {selectedComplaint.patientFullName}
                       </Typography>
@@ -928,7 +1098,50 @@ const DepartmentFeedbackPage = () => {
                     </Grid>
 
                     <Grid xs={12}>
-                      <DepartmentFeedbackForm formData={formData} setFormData={setFormData} />
+                      {/* Render appropriate form based on explanation type */}
+                      {selectedComplaint.explanation_type === 'red_flag' || selectedComplaint.explanation_type === 'never_event' || selectedComplaint.isRedFlag || selectedComplaint.isNeverEvent ? (
+                        <>
+                          {selectedComplaint.isNeverEvent || selectedComplaint.explanation_type === 'never_event' ? (
+                            <Alert 
+                              sx={{ 
+                                mb: 2,
+                                background: "linear-gradient(135deg, rgba(106, 27, 154, 0.1) 0%, rgba(74, 20, 140, 0.1) 100%)",
+                                border: "1px solid #6a1b9a",
+                                color: "#4a148c"
+                              }}
+                            >
+                              <Typography level="body-sm" sx={{ fontWeight: 600, dir: "rtl", color: "#4a148c" }}>
+                                🏴 نموذج Never Event - حدث لا يجب أن يحدث أبداً
+                              </Typography>
+                              <Typography level="body-xs" sx={{ color: "#6a1b9a", mt: 0.5, dir: "rtl" }}>
+                                يتطلب تحليل جذري شامل لجميع الأسباب والإجراءات الوقائية المتخذة
+                              </Typography>
+                            </Alert>
+                          ) : (
+                            <Alert color="danger" variant="soft" sx={{ mb: 2 }}>
+                              <Typography level="body-sm" sx={{ fontWeight: 600, dir: "rtl" }}>
+                                🚩 نموذج Red Flag - يتطلب تحليل شامل
+                              </Typography>
+                              <Typography level="body-xs" sx={{ color: "#666", mt: 0.5, dir: "rtl" }}>
+                                يرجى ملء جميع الأسباب والإجراءات الوقائية ذات الصلة
+                              </Typography>
+                            </Alert>
+                          )}
+                          <RedFlagFeedbackForm formData={formData} setFormData={setFormData} />
+                        </>
+                      ) : (
+                        <>
+                          <Alert color="primary" variant="soft" sx={{ mb: 2 }}>
+                            <Typography level="body-sm" sx={{ fontWeight: 600, dir: "rtl" }}>
+                              📝 نموذج الشكوى العادية - توضيح مبسط
+                            </Typography>
+                            <Typography level="body-xs" sx={{ color: "#666", mt: 0.5, dir: "rtl" }}>
+                              يتطلب فقط توضيح الإجراء المتخذ (20 حرف على الأقل)
+                            </Typography>
+                          </Alert>
+                          <OrdinaryFeedbackForm formData={formData} setFormData={setFormData} />
+                        </>
+                      )}
                     </Grid>
                   </Grid>
                 </DialogContent>
@@ -936,13 +1149,39 @@ const DepartmentFeedbackPage = () => {
                 <Divider />
 
                 <Box sx={{ p: 2.5 }}>
-                  <FeedbackActions
-                    onSave={handleSave}
-                    onSaveAndClose={handleSaveAndClose}
-                    onCancel={handleCloseDialog}
-                    saving={saving}
-                    canSave={canSave}
-                  />
+                  <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
+                    <button
+                      onClick={handleCloseDialog}
+                      disabled={saving}
+                      style={{
+                        padding: "10px 24px",
+                        borderRadius: "6px",
+                        border: "1px solid #ccc",
+                        background: "white",
+                        color: "#333",
+                        fontWeight: 600,
+                        cursor: saving ? "not-allowed" : "pointer",
+                        opacity: saving ? 0.6 : 1,
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSave}
+                      disabled={!canSave || saving}
+                      style={{
+                        padding: "10px 24px",
+                        borderRadius: "6px",
+                        border: "none",
+                        background: (!canSave || saving) ? "#ccc" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                        color: "white",
+                        fontWeight: 600,
+                        cursor: (!canSave || saving) ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {saving ? "جاري الحفظ..." : "حفظ التوضيح (Save)"}
+                    </button>
+                  </Box>
                 </Box>
               </>
             )}
@@ -987,55 +1226,77 @@ const DepartmentFeedbackPage = () => {
                       mb: 3,
                       p: 2.5,
                       borderRadius: "8px",
-                      background: "linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)",
-                      border: "1px solid rgba(102, 126, 234, 0.3)",
+                      background: "linear-gradient(135deg, rgba(255, 71, 87, 0.1) 0%, rgba(255, 165, 2, 0.1) 100%)",
+                      border: "1px solid rgba(255, 71, 87, 0.3)",
                     }}
                   >
                     <Grid container spacing={2}>
-                      <Grid xs={6}>
-                        <Typography level="body-xs" sx={{ color: "#666", mb: 0.5 }}>Season</Typography>
-                        <Typography level="body-md" sx={{ fontWeight: 700 }}>{selectedViolation.seasonLabel}</Typography>
+                      <Grid xs={12}>
+                        <Typography level="h6" sx={{ fontWeight: 700, color: "#ff4757", mb: 2 }}>
+                          📊 {selectedViolation.seasonLabel} - Performance Report
+                        </Typography>
                       </Grid>
                       <Grid xs={6}>
-                        <Typography level="body-xs" sx={{ color: "#666", mb: 0.5 }}>Department</Typography>
+                        <Typography level="body-xs" sx={{ color: "#666", mb: 0.5 }}>Organization Unit</Typography>
                         <Typography level="body-md" sx={{ fontWeight: 700 }}>{selectedViolation.department}</Typography>
-                        <Typography level="body-xs" sx={{ color: "#999", dir: "rtl" }}>{selectedViolation.qism}</Typography>
+                        <Typography level="body-xs" sx={{ color: "#999", dir: "rtl", mt: 0.5 }}>{selectedViolation.qism}</Typography>
                       </Grid>
                       <Grid xs={6}>
-                        <Typography level="body-xs" sx={{ color: "#666", mb: 0.5 }}>Metric</Typography>
-                        <Typography level="body-md" sx={{ fontWeight: 700 }}>{selectedViolation.metricLabel}</Typography>
-                      </Grid>
-                      <Grid xs={6}>
-                        <Typography level="body-xs" sx={{ color: "#666", mb: 0.5 }}>Performance</Typography>
+                        <Typography level="body-xs" sx={{ color: "#666", mb: 0.5 }}>Period</Typography>
                         <Typography level="body-md" sx={{ fontWeight: 700 }}>
-                          <span style={{ color: "#2ed573" }}>
-                            Threshold: {selectedViolation.metricType === "HCAT_violations" ? `${selectedViolation.thresholdValue}%` : `${selectedViolation.thresholdValue} days`}
-                          </span>
-                          {" → "}
-                          <span style={{ color: "#ff4757" }}>
-                            Actual: {selectedViolation.metricType === "HCAT_violations" ? `${selectedViolation.actualValue}%` : `${selectedViolation.actualValue} days`}
-                          </span>
+                          {new Date(selectedViolation.seasonStartDate).toLocaleDateString()} - {new Date(selectedViolation.seasonEndDate).toLocaleDateString()}
+                        </Typography>
+                      </Grid>
+                      <Grid xs={6}>
+                        <Typography level="body-xs" sx={{ color: "#666", mb: 0.5 }}>Total Cases Processed</Typography>
+                        <Typography level="body-md" sx={{ fontWeight: 700 }}>{selectedViolation.totalCases} cases</Typography>
+                      </Grid>
+                      <Grid xs={6}>
+                        <Typography level="body-xs" sx={{ color: "#666", mb: 0.5 }}>Rules Violated</Typography>
+                        <Typography level="body-md" sx={{ fontWeight: 700, color: "#ff4757" }}>
+                          {selectedViolation.violatedRules.length} rules
                         </Typography>
                       </Grid>
                     </Grid>
+                    
+                    {/* Violated Rules Detail */}
+                    {Array.isArray(selectedViolation.violatedRules) && selectedViolation.violatedRules.length > 0 && (
+                      <Box sx={{ mt: 2, pt: 2, borderTop: "1px solid rgba(255, 71, 87, 0.2)" }}>
+                        <Typography level="body-sm" sx={{ fontWeight: 700, color: "#ff4757", mb: 1, dir: "rtl" }}>
+                          القواعد المنتهكة:
+                        </Typography>
+                        {selectedViolation.violatedRules.map((rule, idx) => (
+                          <Box key={idx} sx={{ mb: 1, p: 1.5, background: "white", borderRadius: "6px", border: "1px solid #ffe0e0" }}>
+                            <Typography level="body-sm" sx={{ fontWeight: 700, dir: "rtl" }}>
+                              {rule.rule_name_ar || rule.rule_name_en}
+                            </Typography>
+                            <Typography level="body-xs" sx={{ color: "#666", mt: 0.5 }}>
+                              Actual: <strong style={{ color: "#ff4757" }}>{rule.actual}{rule.actual_unit}</strong> | 
+                              Limit: <strong style={{ color: "#2ed573" }}>{rule.threshold}{rule.threshold_unit}</strong> | 
+                              Exceeded by: <strong style={{ color: "#ff4757" }}>+{(parseFloat(rule.actual) - parseFloat(rule.threshold)).toFixed(1)}{rule.actual_unit}</strong>
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    )}
                   </Box>
 
                   {/* Seasonal Explanation Form */}
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
                     <Box>
                       <Typography level="title-md" sx={{ mb: 1, fontWeight: 700, dir: "rtl" }}>
-                        التحليل الجذري (Root Cause Analysis) <span style={{ color: "red" }}>*</span>
+                        التوضيح الفصلي (Seasonal Explanation) <span style={{ color: "red" }}>*</span>
                       </Typography>
                       <Typography level="body-sm" sx={{ mb: 1.5, color: "#666", dir: "rtl" }}>
-                        ما هي الأسباب الجذرية التي أدت إلى تجاوز العتبة في هذا الفصل؟
+                        ما هي الأسباب التي أدت إلى انتهاك القواعد في هذا الفصل؟ (50 حرف على الأقل)
                       </Typography>
                       <textarea
-                        value={seasonalFormData.root_cause_analysis || ""}
-                        onChange={(e) => setSeasonalFormData({ ...seasonalFormData, root_cause_analysis: e.target.value })}
-                        placeholder="اشرح الأسباب الجذرية والعوامل النظامية التي ساهمت في تجاوز العتبة..."
+                        value={seasonalFormData.explanation_text || ""}
+                        onChange={(e) => setSeasonalFormData({ ...seasonalFormData, explanation_text: e.target.value })}
+                        placeholder="اشرح الأسباب والعوامل التي ساهمت في عدم الامتثال للقواعد..."
                         style={{
                           width: "100%",
-                          minHeight: "120px",
+                          minHeight: "150px",
                           padding: "12px",
                           borderRadius: "6px",
                           border: "1px solid #ccc",
@@ -1045,82 +1306,26 @@ const DepartmentFeedbackPage = () => {
                           direction: "rtl",
                         }}
                       />
+                      <Typography level="body-xs" sx={{ mt: 0.5, color: "#999" }}>
+                        {seasonalFormData.explanation_text?.length || 0} / 5000 characters (minimum 50)
+                      </Typography>
                     </Box>
 
-                    <Box>
-                      <Typography level="title-md" sx={{ mb: 1, fontWeight: 700, dir: "rtl" }}>
-                        الإجراءات التصحيحية (Corrective Actions) <span style={{ color: "red" }}>*</span>
+                    <Box
+                      sx={{
+                        p: 2,
+                        borderRadius: "6px",
+                        background: "#f0f4ff",
+                        border: "1px solid #667eea",
+                      }}
+                    >
+                      <Typography level="body-sm" sx={{ fontWeight: 600, color: "#667eea", dir: "rtl" }}>
+                        ℹ️ القواعد المنتهكة:
                       </Typography>
-                      <Typography level="body-sm" sx={{ mb: 1.5, color: "#666", dir: "rtl" }}>
-                        ما هي الإجراءات التصحيحية طويلة المدى لمنع تكرار هذا الأداء؟
+                      <Typography level="body-xs" sx={{ color: "#666", mt: 0.5, dir: "rtl" }}>
+                        {selectedViolation.violatedRules}
                       </Typography>
-                      <textarea
-                        value={seasonalFormData.corrective_actions || ""}
-                        onChange={(e) => setSeasonalFormData({ ...seasonalFormData, corrective_actions: e.target.value })}
-                        placeholder="اذكر الإجراءات النظامية والتحسينات المخطط لها لتحسين الأداء..."
-                        style={{
-                          width: "100%",
-                          minHeight: "120px",
-                          padding: "12px",
-                          borderRadius: "6px",
-                          border: "1px solid #ccc",
-                          fontFamily: "inherit",
-                          fontSize: "14px",
-                          resize: "vertical",
-                          direction: "rtl",
-                        }}
-                      />
                     </Box>
-
-                    {/* Use the same DepartmentFeedbackForm component for action items */}
-                    <DepartmentFeedbackForm 
-                      formData={seasonalFormData} 
-                      setFormData={setSeasonalFormData}
-                      hideExplanation={true}
-                      hideFactors={true}
-                      hideCorrectiveActions={true}
-                    />
-
-                    <Grid container spacing={2}>
-                      <Grid xs={6}>
-                        <Typography level="title-sm" sx={{ mb: 1, fontWeight: 600, dir: "rtl" }}>
-                          تاريخ الإنجاز المتوقع
-                        </Typography>
-                        <input
-                          type="date"
-                          value={seasonalFormData.expected_completion_date || ""}
-                          onChange={(e) => setSeasonalFormData({ ...seasonalFormData, expected_completion_date: e.target.value })}
-                          style={{
-                            width: "100%",
-                            padding: "10px",
-                            borderRadius: "6px",
-                            border: "1px solid #ccc",
-                            fontFamily: "inherit",
-                            fontSize: "14px",
-                          }}
-                        />
-                      </Grid>
-                      <Grid xs={6}>
-                        <Typography level="title-sm" sx={{ mb: 1, fontWeight: 600, dir: "rtl" }}>
-                          الشخص المسؤول
-                        </Typography>
-                        <input
-                          type="text"
-                          value={seasonalFormData.responsible_person || ""}
-                          onChange={(e) => setSeasonalFormData({ ...seasonalFormData, responsible_person: e.target.value })}
-                          placeholder="اسم المسؤول عن التنفيذ"
-                          style={{
-                            width: "100%",
-                            padding: "10px",
-                            borderRadius: "6px",
-                            border: "1px solid #ccc",
-                            fontFamily: "inherit",
-                            fontSize: "14px",
-                            direction: "rtl",
-                          }}
-                        />
-                      </Grid>
-                    </Grid>
                   </Box>
                 </DialogContent>
 
@@ -1143,28 +1348,38 @@ const DepartmentFeedbackPage = () => {
                   </button>
                   <button
                     onClick={async () => {
-                      if (!seasonalFormData.root_cause_analysis || !seasonalFormData.corrective_actions) {
-                        alert("Please fill in all required fields");
+                      if (!seasonalFormData.explanation_text || seasonalFormData.explanation_text.trim().length < 50) {
+                        alert("يرجى إدخال توضيح لا يقل عن 50 حرفًا");
                         return;
                       }
-                      // TODO: Save to API
-                      await new Promise(resolve => setTimeout(resolve, 1000));
-                      alert("Seasonal explanation submitted successfully!");
-                      setSeasonalDialogOpen(false);
-                      // Update violation status
-                      setSeasonalViolations(prev => 
-                        prev.map(v => v.id === selectedViolation.id ? { ...v, status: "SUBMITTED" } : v)
-                      );
+                      
+                      try {
+                        const payload = {
+                          explanation_text: seasonalFormData.explanation_text,
+                          user_id: 1, // TODO: Replace with actual user ID
+                        };
+                        
+                        const response = await ExplanationsAPI.submitSeasonalExplanation(selectedViolation.id, payload);
+                        
+                        alert(`تم تقديم التوضيح الفصلي بنجاح!\n${response.message}`);
+                        setSeasonalDialogOpen(false);
+                        
+                        // Refresh seasonal reports
+                        fetchSeasonalReports();
+                      } catch (err) {
+                        console.error('[ERROR] Failed to submit seasonal explanation:', err);
+                        alert(`فشل تقديم التوضيح: ${err.message}`);
+                      }
                     }}
-                    disabled={!seasonalFormData.root_cause_analysis || !seasonalFormData.corrective_actions}
+                    disabled={!seasonalFormData.explanation_text || seasonalFormData.explanation_text.trim().length < 50}
                     style={{
                       padding: "10px 24px",
                       borderRadius: "6px",
                       border: "none",
-                      background: (!seasonalFormData.root_cause_analysis || !seasonalFormData.corrective_actions) ? "#ccc" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                      background: (!seasonalFormData.explanation_text || seasonalFormData.explanation_text.trim().length < 50) ? "#ccc" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                       color: "white",
                       fontWeight: 600,
-                      cursor: (!seasonalFormData.root_cause_analysis || !seasonalFormData.corrective_actions) ? "not-allowed" : "pointer",
+                      cursor: (!seasonalFormData.explanation_text || seasonalFormData.explanation_text.trim().length < 50) ? "not-allowed" : "pointer",
                     }}
                   >
                     Submit Explanation

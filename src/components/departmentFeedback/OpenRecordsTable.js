@@ -94,20 +94,39 @@ const OpenRecordsTable = ({ records, loading, onOpenDrawer, delayThreshold }) =>
               </tr>
             </thead>
             <tbody>
-              {records.map((record) => (
+              {records.map((record) => {
+                // Determine visual styling based on case type
+                const isNeverEvent = record.isNeverEvent || record.explanation_type === 'never_event';
+                const isRedFlag = record.isRedFlag || record.explanation_type === 'red_flag';
+                
+                const rowBackground = isNeverEvent 
+                  ? "rgba(106, 27, 154, 0.08)" 
+                  : isRedFlag 
+                  ? "rgba(211, 47, 47, 0.08)" 
+                  : record.status === "OVERDUE" 
+                  ? "rgba(255, 71, 87, 0.03)" 
+                  : "white";
+                  
+                const borderColor = isNeverEvent 
+                  ? "4px solid #6a1b9a" 
+                  : isRedFlag 
+                  ? "4px solid #d32f2f" 
+                  : "none";
+                
+                return (
                 <tr
                   key={record.id}
                   style={{
-                    background: record.isRedFlag 
-                      ? "rgba(211, 47, 47, 0.08)" 
-                      : record.status === "OVERDUE" 
-                      ? "rgba(255, 71, 87, 0.03)" 
-                      : "white",
-                    borderLeft: record.isRedFlag ? "4px solid #d32f2f" : "none",
+                    background: rowBackground,
+                    borderLeft: borderColor,
                   }}
                 >
                   <td>
-                    {record.isRedFlag ? (
+                    {isNeverEvent ? (
+                      <Typography level="h6" sx={{ fontSize: "20px", color: "#6a1b9a" }}>
+                        🏴
+                      </Typography>
+                    ) : isRedFlag ? (
                       <Typography level="h6" sx={{ fontSize: "20px", color: "#d32f2f" }}>
                         🚩
                       </Typography>
@@ -118,8 +137,8 @@ const OpenRecordsTable = ({ records, loading, onOpenDrawer, delayThreshold }) =>
                     )}
                   </td>
                   <td>
-                    <Typography level="body-sm" sx={{ fontWeight: 700, color: record.isRedFlag ? "#d32f2f" : "inherit" }}>
-                      {record.isRedFlag && "🚩 "}{record.complaintID}
+                    <Typography level="body-sm" sx={{ fontWeight: 700, color: isNeverEvent ? "#6a1b9a" : isRedFlag ? "#d32f2f" : "inherit" }}>
+                      {isNeverEvent && "🏴 "}{isRedFlag && "🚩 "}{record.complaintID}
                     </Typography>
                   </td>
                   <td>
@@ -194,7 +213,7 @@ const OpenRecordsTable = ({ records, loading, onOpenDrawer, delayThreshold }) =>
                     </Button>
                   </td>
                 </tr>
-              ))}
+              );})}
             </tbody>
           </Table>
         </Box>
@@ -212,9 +231,12 @@ const OpenRecordsTable = ({ records, loading, onOpenDrawer, delayThreshold }) =>
           <Typography level="body-sm" sx={{ color: "#666" }}>
             إجمالي السجلات: {records.length}
           </Typography>
-          <Box sx={{ display: "flex", gap: 2 }}>
+          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+            <Typography level="body-xs" sx={{ color: "#6a1b9a", fontWeight: 700 }}>
+              🏴 Never Events: {records.filter(r => r.isNeverEvent || r.explanation_type === 'never_event').length}
+            </Typography>
             <Typography level="body-xs" sx={{ color: "#d32f2f", fontWeight: 700 }}>
-              🚩 Red Flags: {records.filter(r => r.isRedFlag).length}
+              🚩 Red Flags: {records.filter(r => (r.isRedFlag || r.explanation_type === 'red_flag') && !r.isNeverEvent).length}
             </Typography>
             <Typography level="body-xs" sx={{ color: "#ff4757" }}>
               ● متأخرة: {records.filter(r => r.isDelayed).length}
