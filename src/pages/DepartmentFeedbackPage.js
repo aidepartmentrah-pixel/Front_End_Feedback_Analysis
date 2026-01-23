@@ -16,6 +16,23 @@ import * as ExplanationsAPI from "../api/explanations";
 // import axios from "axios";
 
 const DepartmentFeedbackPage = () => {
+  // Helper function to clean category objects for submission
+  const cleanCategoryObject = (categoryObj) => {
+    if (!categoryObj) return {};
+    
+    const cleaned = {};
+    Object.keys(categoryObj).forEach(key => {
+      if (key === 'other_text') {
+        // Convert empty strings to null for other_text fields
+        cleaned[key] = categoryObj[key] && categoryObj[key].trim() !== '' ? categoryObj[key] : null;
+      } else {
+        // Keep boolean values as is
+        cleaned[key] = categoryObj[key];
+      }
+    });
+    return cleaned;
+  };
+
   // Helper function to map API response to UI data structure
   const mapApiCaseToUIRecord = (apiCase) => {
     const dateReceived = new Date(apiCase.feedback_received_date || apiCase.FeedbackRecievedDate || apiCase.date_submitted);
@@ -230,6 +247,15 @@ const DepartmentFeedbackPage = () => {
         const mappedReports = response.data.map(report => {
           const violatedRulesArray = Array.isArray(report.violated_rules) ? report.violated_rules : [];
           
+          console.log('[DEBUG] Mapping report:', {
+            seasonal_report_id: report.seasonal_report_id,
+            org_unit_id: report.org_unit_id,
+            org_unit_type: report.org_unit_type,
+            org_unit_name_en: report.org_unit_name_en,
+            org_unit_name_ar: report.org_unit_name_ar,
+            season_name: report.season_name
+          });
+          
           return {
             id: report.seasonal_report_id.toString(),
             season: report.season_id,
@@ -238,8 +264,8 @@ const DepartmentFeedbackPage = () => {
             seasonEndDate: report.season_end_date,
             department: report.org_unit_name_en || `Unit ${report.org_unit_id}`,
             departmentEn: report.org_unit_name_en,
-            qism: report.org_unit_name_ar || report.org_unit_name_en || `وحدة ${report.org_unit_id}`,
-            orgUnitName: report.org_unit_name_en || report.org_unit_name_ar || "N/A",
+            qism: report.org_unit_name_ar || `وحدة ${report.org_unit_id}`,
+            orgUnitName: report.org_unit_name_en || "N/A",
             orgUnitId: report.org_unit_id,
             orgUnitType: report.org_unit_type,
             totalCases: report.total_cases || 0,
@@ -433,6 +459,19 @@ const DepartmentFeedbackPage = () => {
                                    record.isRedFlag || 
                                    record.isNeverEvent;
     
+    console.log('[DEBUG] ========================================');
+    console.log('[DEBUG] OPENING CASE FOR EXPLANATION');
+    console.log('[DEBUG] Case ID:', record.id);
+    console.log('[DEBUG] Case Number:', record.complaintID);
+    console.log('[DEBUG] Explanation Type:', record.explanation_type);
+    console.log('[DEBUG] Clinical Risk Type ID:', record.clinical_risk_type_id);
+    console.log('[DEBUG] Is Red Flag:', record.isRedFlag);
+    console.log('[DEBUG] Is Never Event:', record.isNeverEvent);
+    console.log('[DEBUG] Explanation Status:', record.explanation_status);
+    console.log('[DEBUG] Case Status:', record.case_status);
+    console.log('[DEBUG] Determined as Red Flag/Never Event:', isRedFlagOrNeverEvent);
+    console.log('[DEBUG] ========================================');
+    
     // Check ExplanationStatus:
     // "Waiting" (or ID=1) → No feedback submitted yet, show empty form
     // "Responded" (or ID=2) → Feedback exists, fetch it
@@ -448,15 +487,51 @@ const DepartmentFeedbackPage = () => {
       if (isRedFlagOrNeverEvent) {
         setFormData({
           explanation_text: "",
-          causes_staff: {},
-          causes_process: {},
-          causes_equipment: {},
-          causes_environment: {},
-          preventive_actions: {},
+          causes_staff: {
+            training: false,
+            incentives: false,
+            competency: false,
+            understaffed: false,
+            non_compliance: false,
+            no_coordination: false,
+            other: false,
+            other_text: ""
+          },
+          causes_process: {
+            not_comprehensive: false,
+            unclear: false,
+            missing_protocol: false,
+            other: false,
+            other_text: ""
+          },
+          causes_equipment: {
+            not_available: false,
+            system_incomplete: false,
+            hard_to_apply: false,
+            other: false,
+            other_text: ""
+          },
+          causes_environment: {
+            place_nature: false,
+            surroundings: false,
+            work_conditions: false,
+            other: false,
+            other_text: ""
+          },
+          preventive_actions: {
+            monthly_meetings: false,
+            training_programs: false,
+            increase_staff: false,
+            mm_committee_actions: false,
+            other: false,
+            other_text: ""
+          },
+          action_items: []
         });
       } else {
         setFormData({
           explanation_text: "",
+          action_items: []
         });
       }
       
@@ -521,14 +596,49 @@ const DepartmentFeedbackPage = () => {
             },
           });
         } else {
-          // No feedback data in response - initialize empty form
+          // No feedback data in response - initialize empty form with all fields set to false
           setFormData({
             explanation_text: "",
-            causes_staff: {},
-            causes_process: {},
-            causes_equipment: {},
-            causes_environment: {},
-            preventive_actions: {},
+            causes_staff: {
+              training: false,
+              incentives: false,
+              competency: false,
+              understaffed: false,
+              non_compliance: false,
+              no_coordination: false,
+              other: false,
+              other_text: ""
+            },
+            causes_process: {
+              not_comprehensive: false,
+              unclear: false,
+              missing_protocol: false,
+              other: false,
+              other_text: ""
+            },
+            causes_equipment: {
+              not_available: false,
+              system_incomplete: false,
+              hard_to_apply: false,
+              other: false,
+              other_text: ""
+            },
+            causes_environment: {
+              place_nature: false,
+              surroundings: false,
+              work_conditions: false,
+              other: false,
+              other_text: ""
+            },
+            preventive_actions: {
+              monthly_meetings: false,
+              training_programs: false,
+              increase_staff: false,
+              mm_committee_actions: false,
+              other: false,
+              other_text: ""
+            },
+            action_items: []
           });
         }
       } else {
@@ -557,15 +667,51 @@ const DepartmentFeedbackPage = () => {
       if (isRedFlagOrNeverEvent) {
         setFormData({
           explanation_text: "",
-          causes_staff: {},
-          causes_process: {},
-          causes_equipment: {},
-          causes_environment: {},
-          preventive_actions: {},
+          causes_staff: {
+            training: false,
+            incentives: false,
+            competency: false,
+            understaffed: false,
+            non_compliance: false,
+            no_coordination: false,
+            other: false,
+            other_text: ""
+          },
+          causes_process: {
+            not_comprehensive: false,
+            unclear: false,
+            missing_protocol: false,
+            other: false,
+            other_text: ""
+          },
+          causes_equipment: {
+            not_available: false,
+            system_incomplete: false,
+            hard_to_apply: false,
+            other: false,
+            other_text: ""
+          },
+          causes_environment: {
+            place_nature: false,
+            surroundings: false,
+            work_conditions: false,
+            other: false,
+            other_text: ""
+          },
+          preventive_actions: {
+            monthly_meetings: false,
+            training_programs: false,
+            increase_staff: false,
+            mm_committee_actions: false,
+            other: false,
+            other_text: ""
+          },
+          action_items: []
         });
       } else {
         setFormData({
           explanation_text: "",
+          action_items: []
         });
       }
       
@@ -585,7 +731,10 @@ const DepartmentFeedbackPage = () => {
 
   // Save feedback
   const handleSave = async () => {
-    if (!canSave) return;
+    if (!canSave) {
+      alert('⚠️ Cannot save: Form validation failed. Please check all required fields.');
+      return;
+    }
 
     setSaving(true);
     setValidationErrors([]);
@@ -597,19 +746,37 @@ const DepartmentFeedbackPage = () => {
       
       // Submit to appropriate endpoint based on explanation type
       if (selectedComplaint.explanation_type === 'red_flag' || selectedComplaint.explanation_type === 'never_event' || selectedComplaint.isRedFlag || selectedComplaint.isNeverEvent) {
+        // Pre-submission validation
+        console.log('[DEBUG] ========================================');
+        console.log('[DEBUG] PRE-SUBMISSION VALIDATION');
+        console.log('[DEBUG] Case ID:', selectedComplaint.id);
+        console.log('[DEBUG] Explanation Type:', selectedComplaint.explanation_type);
+        console.log('[DEBUG] Clinical Risk Type ID:', selectedComplaint.clinical_risk_type_id);
+        console.log('[DEBUG] Is Red Flag:', selectedComplaint.isRedFlag);
+        console.log('[DEBUG] Is Never Event:', selectedComplaint.isNeverEvent);
+        console.log('[DEBUG] Explanation Length:', formData.explanation_text?.length, 'chars (min: 50)');
+        console.log('[DEBUG] Action Items Count:', formData.action_items?.length, '(min: 1)');
+        console.log('[DEBUG] ========================================');
+        
         // Red Flag/Never Event submission
         const payload = {
           explanation_text: formData.explanation_text,
-          causes_staff: formData.causes_staff || {},
-          causes_process: formData.causes_process || {},
-          causes_equipment: formData.causes_equipment || {},
-          causes_environment: formData.causes_environment || {},
-          preventive_actions: formData.preventive_actions || {},
+          causes_staff: cleanCategoryObject(formData.causes_staff),
+          causes_process: cleanCategoryObject(formData.causes_process),
+          causes_equipment: cleanCategoryObject(formData.causes_equipment),
+          causes_environment: cleanCategoryObject(formData.causes_environment),
+          preventive_actions: cleanCategoryObject(formData.preventive_actions),
           action_items: formData.action_items || [],
           user_id: 1, // TODO: Replace with actual user ID from authentication
         };
         
-        console.log('[DEBUG] Submitting Red Flag feedback:', payload);
+        console.log('[DEBUG] ========================================');
+        console.log('[DEBUG] RED FLAG SUBMISSION PAYLOAD:');
+        console.log('[DEBUG] Case ID:', selectedComplaint.id);
+        console.log('[DEBUG] Explanation Length:', payload.explanation_text?.length, 'chars');
+        console.log('[DEBUG] Payload:', JSON.stringify(payload, null, 2));
+        console.log('[DEBUG] ========================================');
+        
         response = await ExplanationsAPI.submitRedFlagFeedback(selectedComplaint.id, payload);
         
         const actionItemsInfo = response.action_items_created 
@@ -650,12 +817,23 @@ const DepartmentFeedbackPage = () => {
       fetchOpenRecords();
       fetchStatistics();
     } catch (err) {
+      console.error('[ERROR] ========================================');
       console.error('[ERROR] Failed to save explanation:', err);
-      const errorMessage = err.response?.data?.message || err.message || "فشل حفظ التوضيح. حاول مرة أخرى.";
+      console.error('[ERROR] Response Status:', err.response?.status);
+      console.error('[ERROR] Response Data:', err.response?.data);
+      console.error('[ERROR] Full Error:', JSON.stringify(err.response?.data, null, 2));
+      console.error('[ERROR] ========================================');
+      
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || "فشل حفظ التوضيح. حاول مرة أخرى.";
       setError(errorMessage);
       
       if (err.response?.data?.error) {
         setValidationErrors([`Error: ${err.response.data.error}${err.response.data.hint ? ' - ' + err.response.data.hint : ''}`]);
+      }
+      
+      if (err.response?.data?.detail) {
+        console.error('[ERROR] Detail:', err.response.data.detail);
+        setValidationErrors(prev => [...prev, `Detail: ${JSON.stringify(err.response.data.detail)}`]);
       }
       
       setSaving(false);
@@ -965,7 +1143,10 @@ const DepartmentFeedbackPage = () => {
                             <button
                               onClick={() => {
                                 setSelectedViolation(violation);
-                                setSeasonalFormData({});
+                                setSeasonalFormData({
+                                  explanation_text: "",
+                                  action_items: []
+                                });
                                 setSeasonalDialogOpen(true);
                               }}
                               disabled={violation.status === "SUBMITTED"}
@@ -1322,9 +1503,162 @@ const DepartmentFeedbackPage = () => {
                       <Typography level="body-sm" sx={{ fontWeight: 600, color: "#667eea", dir: "rtl" }}>
                         ℹ️ القواعد المنتهكة:
                       </Typography>
-                      <Typography level="body-xs" sx={{ color: "#666", mt: 0.5, dir: "rtl" }}>
-                        {selectedViolation.violatedRules}
+                      <Box sx={{ mt: 1, display: "flex", flexDirection: "column", gap: 0.5 }}>
+                        {Array.isArray(selectedViolation.violatedRules) && selectedViolation.violatedRules.length > 0 ? (
+                          selectedViolation.violatedRules.map((rule, idx) => (
+                            <Typography key={idx} level="body-xs" sx={{ color: "#666", dir: "rtl" }}>
+                              • {rule.rule_name_ar || rule.rule_name_en} (المسموح: {rule.threshold}{rule.threshold_unit}, الفعلي: {rule.actual}{rule.actual_unit})
+                            </Typography>
+                          ))
+                        ) : (
+                          <Typography level="body-xs" sx={{ color: "#666", dir: "rtl" }}>
+                            {selectedViolation.violatedRules?.length || 0} قاعدة منتهكة
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+
+                    {/* Action Items (REQUIRED - Min 1) */}
+                    <Box sx={{ p: 2.5, borderRadius: "8px", background: "#fff3e0", border: "2px solid #ff9800" }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                        <Typography level="title-md" sx={{ fontWeight: 700, color: "#e65100", dir: "rtl" }}>
+                          📋 خطة العمل (Action Items) <span style={{ color: "red" }}>*</span>
+                        </Typography>
+                        <button
+                          onClick={() => {
+                            const newActionItems = [...(seasonalFormData.action_items || []), { action_title: "", action_description: "", due_date: "" }];
+                            setSeasonalFormData({ ...seasonalFormData, action_items: newActionItems });
+                          }}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: "6px",
+                            border: "none",
+                            background: "#ff9800",
+                            color: "white",
+                            fontWeight: 600,
+                            fontSize: "12px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          + Add Action Item
+                        </button>
+                      </Box>
+                      <Typography level="body-sm" sx={{ mb: 2, color: "#666", dir: "rtl" }}>
+                        يجب إضافة خطة عمل واحدة على الأقل مع موعد محدد للتنفيذ (Required: Minimum 1 action item)
                       </Typography>
+
+                      {(!seasonalFormData.action_items || seasonalFormData.action_items.length === 0) && (
+                        <Box sx={{ p: 2, background: "#ffebee", borderRadius: "6px", border: "1px dashed #f44336", textAlign: "center" }}>
+                          <Typography level="body-sm" sx={{ color: "#d32f2f", fontWeight: 600 }}>
+                            ⚠️ يجب إضافة خطة عمل واحدة على الأقل
+                          </Typography>
+                        </Box>
+                      )}
+
+                      {seasonalFormData.action_items && seasonalFormData.action_items.map((item, index) => (
+                        <Box
+                          key={index}
+                          sx={{
+                            p: 2,
+                            mb: 2,
+                            borderRadius: "8px",
+                            background: "white",
+                            border: "1px solid #e0e0e0",
+                          }}
+                        >
+                          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+                            <Typography level="body-sm" sx={{ fontWeight: 700, color: "#ff9800" }}>
+                              Action Item #{index + 1}
+                            </Typography>
+                            <button
+                              onClick={() => {
+                                const newActionItems = seasonalFormData.action_items.filter((_, i) => i !== index);
+                                setSeasonalFormData({ ...seasonalFormData, action_items: newActionItems });
+                              }}
+                              style={{
+                                padding: "4px 8px",
+                                borderRadius: "4px",
+                                border: "1px solid #f44336",
+                                background: "white",
+                                color: "#f44336",
+                                fontWeight: 600,
+                                fontSize: "11px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </Box>
+
+                          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                            <Box>
+                              <Typography level="body-xs" sx={{ mb: 0.5, fontWeight: 600 }}>Action Title *</Typography>
+                              <input
+                                type="text"
+                                value={item.action_title || ""}
+                                onChange={(e) => {
+                                  const newActionItems = [...seasonalFormData.action_items];
+                                  newActionItems[index].action_title = e.target.value;
+                                  setSeasonalFormData({ ...seasonalFormData, action_items: newActionItems });
+                                }}
+                                placeholder="e.g., Implement monthly review meetings"
+                                style={{
+                                  width: "100%",
+                                  padding: "8px",
+                                  borderRadius: "4px",
+                                  border: "1px solid #ccc",
+                                  fontFamily: "inherit",
+                                  fontSize: "13px",
+                                }}
+                              />
+                            </Box>
+
+                            <Box>
+                              <Typography level="body-xs" sx={{ mb: 0.5, fontWeight: 600 }}>Description</Typography>
+                              <textarea
+                                value={item.action_description || ""}
+                                onChange={(e) => {
+                                  const newActionItems = [...seasonalFormData.action_items];
+                                  newActionItems[index].action_description = e.target.value;
+                                  setSeasonalFormData({ ...seasonalFormData, action_items: newActionItems });
+                                }}
+                                placeholder="Detailed description of the action..."
+                                style={{
+                                  width: "100%",
+                                  minHeight: "60px",
+                                  padding: "8px",
+                                  borderRadius: "4px",
+                                  border: "1px solid #ccc",
+                                  fontFamily: "inherit",
+                                  fontSize: "13px",
+                                  resize: "vertical",
+                                }}
+                              />
+                            </Box>
+
+                            <Box>
+                              <Typography level="body-xs" sx={{ mb: 0.5, fontWeight: 600 }}>Due Date *</Typography>
+                              <input
+                                type="date"
+                                value={item.due_date || ""}
+                                onChange={(e) => {
+                                  const newActionItems = [...seasonalFormData.action_items];
+                                  newActionItems[index].due_date = e.target.value;
+                                  setSeasonalFormData({ ...seasonalFormData, action_items: newActionItems });
+                                }}
+                                style={{
+                                  width: "100%",
+                                  padding: "8px",
+                                  borderRadius: "4px",
+                                  border: "1px solid #ccc",
+                                  fontFamily: "inherit",
+                                  fontSize: "13px",
+                                }}
+                              />
+                            </Box>
+                          </Box>
+                        </Box>
+                      ))}
                     </Box>
                   </Box>
                 </DialogContent>
@@ -1348,38 +1682,57 @@ const DepartmentFeedbackPage = () => {
                   </button>
                   <button
                     onClick={async () => {
+                      // Validation
                       if (!seasonalFormData.explanation_text || seasonalFormData.explanation_text.trim().length < 50) {
-                        alert("يرجى إدخال توضيح لا يقل عن 50 حرفًا");
+                        alert("⚠️ يرجى إدخال توضيح لا يقل عن 50 حرفًا\nPlease enter an explanation of at least 50 characters");
+                        return;
+                      }
+                      
+                      if (!seasonalFormData.action_items || seasonalFormData.action_items.length === 0) {
+                        alert("⚠️ يجب إضافة خطة عمل واحدة على الأقل\nAt least one action item is required");
+                        return;
+                      }
+                      
+                      // Validate all action items have required fields
+                      const invalidItems = seasonalFormData.action_items.filter(item => 
+                        !item.action_title?.trim() || !item.due_date
+                      );
+                      if (invalidItems.length > 0) {
+                        alert("⚠️ يرجى ملء العنوان والموعد لجميع خطط العمل\nPlease fill in title and due date for all action items");
                         return;
                       }
                       
                       try {
                         const payload = {
                           explanation_text: seasonalFormData.explanation_text,
+                          action_items: seasonalFormData.action_items || [],
                           user_id: 1, // TODO: Replace with actual user ID
                         };
                         
+                        console.log('[DEBUG] Submitting seasonal explanation:', payload);
+                        
                         const response = await ExplanationsAPI.submitSeasonalExplanation(selectedViolation.id, payload);
                         
-                        alert(`تم تقديم التوضيح الفصلي بنجاح!\n${response.message}`);
+                        alert(`✅ تم تقديم التوضيح الفصلي بنجاح!\n${response.message}`);
                         setSeasonalDialogOpen(false);
+                        setSeasonalFormData({});
                         
                         // Refresh seasonal reports
                         fetchSeasonalReports();
                       } catch (err) {
                         console.error('[ERROR] Failed to submit seasonal explanation:', err);
-                        alert(`فشل تقديم التوضيح: ${err.message}`);
+                        alert(`❌ فشل تقديم التوضيح: ${err.response?.data?.message || err.message}`);
                       }
                     }}
-                    disabled={!seasonalFormData.explanation_text || seasonalFormData.explanation_text.trim().length < 50}
+                    disabled={!seasonalFormData.explanation_text || seasonalFormData.explanation_text.trim().length < 50 || !seasonalFormData.action_items || seasonalFormData.action_items.length === 0}
                     style={{
                       padding: "10px 24px",
                       borderRadius: "6px",
                       border: "none",
-                      background: (!seasonalFormData.explanation_text || seasonalFormData.explanation_text.trim().length < 50) ? "#ccc" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                      background: (!seasonalFormData.explanation_text || seasonalFormData.explanation_text.trim().length < 50 || !seasonalFormData.action_items || seasonalFormData.action_items.length === 0) ? "#ccc" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                       color: "white",
                       fontWeight: 600,
-                      cursor: (!seasonalFormData.explanation_text || seasonalFormData.explanation_text.trim().length < 50) ? "not-allowed" : "pointer",
+                      cursor: (!seasonalFormData.explanation_text || seasonalFormData.explanation_text.trim().length < 50 || !seasonalFormData.action_items || seasonalFormData.action_items.length === 0) ? "not-allowed" : "pointer",
                     }}
                   >
                     Submit Explanation

@@ -32,44 +32,44 @@ import {
 const InsertRecord = () => {
   // State for all form fields with proper ID-based structure
   const [formData, setFormData] = useState({
-    // Step 1: Text blocks
+    // Step 1: Text blocks (REQUIRED by backend)
     complaint_text: "",
     immediate_action: "",
     taken_action: "",
 
-    // Step 2: Metadata
+    // Step 2: Metadata (REQUIRED by backend)
     feedback_received_date: new Date().toISOString().split("T")[0],
     issuing_department_id: null,
-    target_department_ids: [], // Multiple departments
+    target_department_ids: [], // Multiple departments (OPTIONAL)
     source_id: null,
-    is_inpatient: null, // true = Inpatient, false = Outpatient
-    building: null, // RAH or BIC
-    worker_type: null, // Doctor, Clerk, Nurse, etc.
-    explanation_status_id: null, // NEW field
-    requires_explanation: false, // Boolean: Does this case require explanation?
+    is_inpatient: true, // REQUIRED: true = Inpatient, false = Outpatient (default: true)
+    building: null, // REQUIRED: RAH or BIC
+    worker_type: null, // OPTIONAL: Doctor, Clerk, Nurse, etc.
+    explanation_status_id: null, // OPTIONAL
+    requires_explanation: false, // REQUIRED: Boolean: Does this case require explanation? (default: false)
 
     // Step 3: NER Outputs
-    patient_name: "", // Patient name from NER
+    patient_name: "", // REQUIRED: Patient name from NER
     patient_admission_id: null, // Single patient ID (OPTIONAL)
     doctor_ids: [], // Multiple doctor IDs (OPTIONAL)
     doctor_names: [], // Doctor names for payload
     employee_ids: [], // Multiple employee IDs (OPTIONAL)
     employee_names: [], // Employee names for payload
 
-    // Step 4: Classification (Domain first!)
+    // Step 4: Classification (REQUIRED: Domain first!)
     domain_id: null,
     category_id: null,
     subcategory_id: null,
     classification_id: null,
 
-    // Step 5: Additional attributes
+    // Step 5: Additional attributes (REQUIRED)
     severity_id: null,
     stage_id: null,
     harm_id: null,
     feedback_intent_type_id: null,
     clinical_risk_type_id: null,
 
-    // ⭐ NEW ML Training fields
+    // ⭐ ML Training fields (OPTIONAL)
     classification_ar: null, // 0.0-10.0
     classification_en: null, // >= 0
   });
@@ -259,6 +259,7 @@ const InsertRecord = () => {
 
   // Update form data
   const handleInputChange = (field, value) => {
+    console.log(`🔧 Field update: ${field} =`, value, `(type: ${typeof value})`);
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -342,6 +343,17 @@ const InsertRecord = () => {
       // ✅ Run centralized validation
       const validation = validateIncidentCase(formData);
       
+      console.log("📋 Validation result:", validation);
+      console.log("📋 FormData before submit:", {
+        requires_explanation: formData.requires_explanation,
+        is_inpatient: formData.is_inpatient,
+        building: formData.building,
+        source_id: formData.source_id,
+        patient_name: formData.patient_name,
+        immediate_action: formData.immediate_action,
+        taken_action: formData.taken_action,
+      });
+      
       if (!validation.isValid) {
         // Show validation errors
         setValidationErrors(validation.errors);
@@ -362,30 +374,48 @@ const InsertRecord = () => {
         return;
       }
 
-      // ✅ BUILD PAYLOAD per new endpoint spec - ALL 12 REQUIRED FIELDS
+      // ✅ BUILD PAYLOAD per backend API spec - ALL 18 REQUIRED FIELDS
       const payload = {
-        // REQUIRED FIELDS (all 12 must be present)
+        // REQUIRED: Text content (3 fields)
         complaint_text: formData.complaint_text,
+        immediate_action: formData.immediate_action,
+        taken_action: formData.taken_action,
+        
+        // REQUIRED: Metadata (4 fields)
         feedback_received_date: formData.feedback_received_date,
         issuing_department_id: Number(formData.issuing_department_id),
+        source_id: Number(formData.source_id),
+        patient_name: formData.patient_name,
+        
+        // REQUIRED: Classification hierarchy (4 fields)
         domain_id: Number(formData.domain_id),
         category_id: Number(formData.category_id),
         subcategory_id: Number(formData.subcategory_id),
         classification_id: Number(formData.classification_id),
+        
+        // REQUIRED: Additional attributes (5 fields)
         severity_id: Number(formData.severity_id),
         stage_id: Number(formData.stage_id),
         harm_id: Number(formData.harm_id),
         clinical_risk_type_id: Number(formData.clinical_risk_type_id),
         feedback_intent_type_id: Number(formData.feedback_intent_type_id),
+        
+        // REQUIRED: Boolean fields (2 fields)
+        is_inpatient: formData.is_inpatient,
+        requires_explanation: formData.requires_explanation,
       };
+      
+      console.log("📦 Payload being sent:", JSON.stringify(payload, null, 2));
+      console.log("📦 requires_explanation in payload:", payload.requires_explanation, `(type: ${typeof payload.requires_explanation})`);
+      console.log("📦 is_inpatient in payload:", payload.is_inpatient, `(type: ${typeof payload.is_inpatient})`);
+
+      // REQUIRED: Building (map to building_id)
+      if (formData.building) {
+        const buildingIdMap = { "RAH": 1, "BIC": 2 };
+        payload.building_id = buildingIdMap[formData.building] || 1;
+      }
 
       // OPTIONAL FIELDS
-      // Text content
-      if (formData.immediate_action) payload.immediate_action = formData.immediate_action;
-      if (formData.taken_action) payload.taken_action = formData.taken_action;
-
-      // Patient/Entity information
-      if (formData.patient_name) payload.patient_name = formData.patient_name;
       
       // Map doctors - keep as array of objects with doctor_id and doctor_name
       if (formData.doctor_ids && formData.doctor_ids.length > 0) {
@@ -403,31 +433,12 @@ const InsertRecord = () => {
         }));
       }
 
-      // OPTIONAL: Department targets & metadata
+      // OPTIONAL: Department targets
       if (formData.target_department_ids && formData.target_department_ids.length > 0) {
         payload.target_department_ids = formData.target_department_ids.map(id => Number(id));
       }
-      if (formData.source_id && formData.source_id > 0) payload.source_id = Number(formData.source_id);
       
-      // Map building to building_id (OPTIONAL)
-      if (formData.building) {
-        const buildingIdMap = { "RAH": 1, "BIC": 2 };
-        payload.building_id = buildingIdMap[formData.building] || 1;
-      }
-      
-      // Send is_inpatient as boolean (OPTIONAL, default: true)
-      if (formData.is_inpatient !== null && formData.is_inpatient !== undefined) {
-        payload.is_inpatient = formData.is_inpatient;
-        console.log("Submitting is_inpatient:", payload.is_inpatient);
-      }
-      
-      // Send requires_explanation as boolean (OPTIONAL, default: false)
-      if (formData.requires_explanation !== null && formData.requires_explanation !== undefined) {
-        payload.requires_explanation = formData.requires_explanation;
-        console.log("Submitting requires_explanation:", payload.requires_explanation);
-      }
-      
-      // OPTIONAL: Additional metadata
+      // OPTIONAL: Worker type and explanation status
       if (formData.explanation_status_id && formData.explanation_status_id > 0) {
         payload.explanation_status_id = Number(formData.explanation_status_id);
       }
@@ -470,11 +481,11 @@ const InsertRecord = () => {
           issuing_department_id: null,
           target_department_ids: [],
           source_id: null,
-          is_inpatient: null,
+          is_inpatient: true, // Reset to default: true
           building: null,
           worker_type: null,
           explanation_status_id: null,
-          requires_explanation: false,
+          requires_explanation: false, // Reset to default: false
           patient_name: "",
           patient_admission_id: null,
           doctor_ids: [],

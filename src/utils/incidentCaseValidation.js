@@ -24,27 +24,31 @@ const isEmpty = (value) => {
 export const validateIncidentCase = (formData) => {
   const errors = {};
 
-  // Required field definitions (matching DB NOT NULL constraints)
+  // Required field definitions (matching backend API requirements - 18 fields)
   const requiredFields = [
+    // Text content (3 fields)
     { key: "complaint_text", label: "Complaint Text" },
-    { key: "issuing_org_unit_id", label: "Issuing Organization Unit" },
-    { key: "clinical_risk_type_id", label: "Clinical Risk Type" },
-    { key: "feedback_intent_type_id", label: "Feedback Intent Type" },
+    { key: "immediate_action", label: "Immediate Action" },
+    { key: "taken_action", label: "Taken Action" },
+    
+    // Metadata (5 fields)
+    { key: "feedback_received_date", label: "Feedback Received Date" },
+    { key: "issuing_department_id", label: "Issuing Department" },
+    { key: "source_id", label: "Source" },
+    { key: "patient_name", label: "Patient Name" },
+    
+    // Classification hierarchy (4 fields)
     { key: "domain_id", label: "Domain" },
     { key: "category_id", label: "Category" },
     { key: "subcategory_id", label: "Subcategory" },
     { key: "classification_id", label: "Classification" },
+    
+    // Additional attributes (5 fields)
     { key: "severity_id", label: "Severity Level" },
     { key: "stage_id", label: "Stage" },
-    { key: "harm_level_id", label: "Harm Level" },
-    { key: "case_status_id", label: "Case Status" },
-    { key: "source_id", label: "Source" },
-    { key: "explanation_status_id", label: "Explanation Status" },
-    { key: "is_inpatient", label: "Patient Type (Inpatient/Outpatient)" },
-    { key: "patient_name", label: "Patient Name" },
-    { key: "feedback_received_date", label: "Feedback Received Date" },
-    { key: "immediate_action", label: "Immediate Action" },
-    { key: "taken_action", label: "Taken Action" },
+    { key: "harm_id", label: "Harm Level" },
+    { key: "clinical_risk_type_id", label: "Clinical Risk Type" },
+    { key: "feedback_intent_type_id", label: "Feedback Intent Type" },
   ];
 
   // Validate each required field
@@ -54,9 +58,18 @@ export const validateIncidentCase = (formData) => {
     }
   });
 
-  // Special validation for boolean field (must be true or false, not null)
+  // Special validation for boolean fields (must be true or false, not null)
   if (formData.is_inpatient !== true && formData.is_inpatient !== false) {
     errors.is_inpatient = "Patient Type (Inpatient/Outpatient) is required";
+  }
+  
+  if (typeof formData.requires_explanation !== 'boolean') {
+    errors.requires_explanation = "Requires Explanation (Yes/No) is required";
+  }
+
+  // Special validation for building (either building_id or building must be set)
+  if (!formData.building && !formData.building_id) {
+    errors.building = "Building (RAH/BIC) is required";
   }
 
   // Determine overall validity

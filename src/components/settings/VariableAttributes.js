@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Box, Card, Typography, FormControl, FormLabel, Input, Button, Grid, Alert } from "@mui/joy";
 import SaveIcon from "@mui/icons-material/Save";
 import RefreshIcon from "@mui/icons-material/Refresh";
-// import axios from "axios";
+import { getComplaintDelayDays, updateComplaintDelayDays } from "../../api/systemSettings";
 
 const VariableAttributes = () => {
   const [delayThreshold, setDelayThreshold] = useState(14);
@@ -22,26 +22,20 @@ const VariableAttributes = () => {
     setLoading(true);
     setError(null);
     try {
-      // TODO: Replace with actual API call
-      // const response = await axios.get('/api/settings/feedback-delay');
-      // setDelayThreshold(response.data.delay_threshold_days);
-      // setOriginalThreshold(response.data.delay_threshold_days);
-      
-      // Mock data
-      setTimeout(() => {
-        setDelayThreshold(14);
-        setOriginalThreshold(14);
-        setLoading(false);
-      }, 500);
+      const delayDays = await getComplaintDelayDays();
+      setDelayThreshold(delayDays);
+      setOriginalThreshold(delayDays);
     } catch (err) {
-      setError("فشل تحميل الإعدادات. حاول مرة أخرى.");
+      console.error("Error fetching delay threshold:", err);
+      setError("فشل تحميل الإعدادات. حاول مرة أخرى. / Failed to load settings. Please try again.");
+    } finally {
       setLoading(false);
     }
   };
 
   const handleSave = async () => {
     if (!delayThreshold || delayThreshold < 1) {
-      setError("يجب أن تكون مدة التأخير رقم صحيح أكبر من 0");
+      setError("يجب أن تكون مدة التأخير رقم صحيح أكبر من 0 / Delay threshold must be a positive number");
       return;
     }
 
@@ -49,17 +43,17 @@ const VariableAttributes = () => {
     setError(null);
     setSuccess(null);
     try {
-      // TODO: Replace with actual API call
-      // await axios.put('/api/settings/feedback-delay', { delay_threshold_days: delayThreshold });
+      // Update the setting via API
+      // TODO: Replace userId with actual logged-in user ID when auth is implemented
+      const updatedSetting = await updateComplaintDelayDays(delayThreshold, 1);
       
-      // Mock delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setOriginalThreshold(delayThreshold);
-      setSuccess("✅ تم حفظ الإعدادات بنجاح!");
+      setOriginalThreshold(updatedSetting.parsed_value);
+      setSuccess("✅ تم حفظ الإعدادات بنجاح! / Settings saved successfully!");
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError("فشل حفظ الإعدادات. حاول مرة أخرى.");
+      console.error("Error saving settings:", err);
+      const errorMessage = err.response?.data?.detail || "فشل حفظ الإعدادات. حاول مرة أخرى. / Failed to save settings. Please try again.";
+      setError(errorMessage);
     } finally {
       setSaving(false);
     }

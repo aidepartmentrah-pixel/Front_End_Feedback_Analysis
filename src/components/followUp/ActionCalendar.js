@@ -8,6 +8,7 @@ import WarningIcon from "@mui/icons-material/Warning";
 import ErrorIcon from "@mui/icons-material/Error";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ScheduleIcon from "@mui/icons-material/Schedule";
+import CloseIcon from "@mui/icons-material/Close";
 
 const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -252,7 +253,7 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction 
         {calendarDays}
       </Box>
 
-      {/* Hover Tooltip */}
+      {/* Hover Tooltip with Horizontal Scroll */}
       {hoveredDay !== null && (
         <Sheet
           sx={{
@@ -260,7 +261,7 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction 
             left: tooltipPosition.x,
             top: tooltipPosition.y + 5,
             zIndex: 10000,
-            maxWidth: "400px",
+            maxWidth: "80vw",
             p: 2,
             borderRadius: "8px",
             boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
@@ -273,7 +274,26 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction 
           <Typography level="body-sm" sx={{ fontWeight: 700, mb: 1.5, color: "#667eea" }}>
             إجراءات يوم {hoveredDay}
           </Typography>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <Box sx={{ 
+            display: "flex",
+            gap: 2,
+            overflowX: "auto",
+            pb: 1,
+            '&::-webkit-scrollbar': {
+              height: '8px',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: '#f1f1f1',
+              borderRadius: '4px',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: '#888',
+              borderRadius: '4px',
+            },
+            '&::-webkit-scrollbar-thumb:hover': {
+              background: '#555',
+            }
+          }}>
             {getActionsForDate(hoveredDay).map((action) => {
               const timingColor = getTimingColor(action);
               const style = {
@@ -286,14 +306,25 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction 
               };
 
               return (
-                <Box
+                <Card
                   key={action.id}
+                  variant="outlined"
                   sx={{
-                    p: 1.5,
-                    borderRadius: "6px",
+                    minWidth: "300px",
+                    maxWidth: "300px",
+                    p: 2,
+                    borderRadius: "8px",
                     background: style.bg,
-                    borderLeft: `3px solid ${style.color}`
+                    borderLeft: `4px solid ${style.color}`,
+                    cursor: "pointer",
+                    flexShrink: 0,
+                    transition: "all 0.2s",
+                    "&:hover": {
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      transform: "translateY(-2px)"
+                    }
                   }}
+                  onClick={() => onActionClick(action)}
                 >
                   <Typography level="body-sm" sx={{ fontWeight: 700, mb: 0.5 }}>
                     {action.actionTitle}
@@ -301,19 +332,19 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction 
                   <Typography level="body-xs" sx={{ color: "#666", mb: 0.5 }}>
                     📍 {action.department} • 👤 {action.assignedTo}
                   </Typography>
-                  <Typography level="body-xs" sx={{ color: "#666", mb: 1 }}>
-                    {action.description?.substring(0, 80)}...
+                  <Typography level="body-xs" sx={{ color: "#666", mb: 1.5, minHeight: "40px" }}>
+                    {action.description?.substring(0, 60)}{action.description?.length > 60 ? '...' : ''}
                   </Typography>
                   <Box sx={{ display: "flex", gap: 1 }}>
                     <Button
                       size="sm"
-                      color="danger"
+                      color="success"
                       variant="soft"
-                      startDecorator={<DeleteIcon />}
+                      startDecorator={<CheckCircleIcon />}
                       onClick={(e) => handleDelete(action.id, e)}
                       sx={{ flex: 1, fontSize: "0.7rem" }}
                     >
-                      حذف
+                      إتمام
                     </Button>
                     <Button
                       size="sm"
@@ -323,10 +354,10 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction 
                       onClick={(e) => handleDelay(action.id, e)}
                       sx={{ flex: 1, fontSize: "0.7rem" }}
                     >
-                      تأجيل أسبوع
+                      تأجيل
                     </Button>
                   </Box>
-                </Box>
+                </Card>
               );
             })}
           </Box>

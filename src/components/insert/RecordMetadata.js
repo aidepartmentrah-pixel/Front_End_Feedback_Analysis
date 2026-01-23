@@ -156,9 +156,9 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
 
         {/* Building */}
         <Grid xs={12} sm={6} md={3}>
-          <FormControl fullWidth>
+          <FormControl fullWidth error={!!validationErrors.building}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              🏢 Building
+              🏢 Building *
             </FormLabel>
             <Select
               value={formData.building || ""}
@@ -167,10 +167,21 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
               slotProps={{
                 listbox: { sx: { maxHeight: 250, overflowY: "auto" } },
               }}
+              sx={{
+                borderColor:
+                  validationErrors.building || errorField === "building"
+                    ? "#ff4757"
+                    : undefined,
+              }}
             >
               <Option value="RAH">RAH</Option>
-              <Option value="BCI">BCI</Option>
+              <Option value="BIC">BIC</Option>
             </Select>
+            {validationErrors.building && (
+              <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
+                {validationErrors.building}
+              </Typography>
+            )}
           </FormControl>
         </Grid>
 
@@ -225,19 +236,28 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
 
         {/* Requires Explanation */}
         <Grid xs={12} sm={6} md={6}>
-          <FormControl fullWidth>
+          <FormControl fullWidth error={!!validationErrors.requires_explanation}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              📝 Requires Explanation?
+              📝 Requires Explanation? *
             </FormLabel>
             <RadioGroup
-              value={formData.requires_explanation === true ? "yes" : "no"}
-              onChange={(e) => onInputChange("requires_explanation", e.target.value === "yes")}
+              value={formData.requires_explanation === true ? "yes" : formData.requires_explanation === false ? "no" : ""}
+              onChange={(e) => {
+                const boolValue = e.target.value === "yes";
+                console.log("🔘 Requires Explanation changed to:", e.target.value, "→ boolean:", boolValue);
+                onInputChange("requires_explanation", boolValue);
+              }}
               orientation="horizontal"
               sx={{ gap: 2, mt: 0.5 }}
             >
               <Radio value="yes" label="Yes" size="sm" />
               <Radio value="no" label="No" size="sm" />
             </RadioGroup>
+            {validationErrors.requires_explanation && (
+              <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
+                {validationErrors.requires_explanation}
+              </Typography>
+            )}
           </FormControl>
         </Grid>
 

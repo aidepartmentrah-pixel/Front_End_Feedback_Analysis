@@ -1,7 +1,7 @@
 // src/services/api.js
 // API service for all backend calls
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000/api";
 
 // Helper function for API calls
 const apiCall = async (endpoint, options = {}) => {
@@ -14,12 +14,19 @@ const apiCall = async (endpoint, options = {}) => {
       ...options,
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "API request failed");
+      // Create error with backend message structure
+      const error = new Error(data.message || "API request failed");
+      error.code = data.error;
+      error.field = data.field;
+      error.message_ar = data.message_ar;
+      error.status = response.status;
+      throw error;
     }
 
-    return await response.json();
+    return data;
   } catch (error) {
     console.error(`API Error [${endpoint}]:`, error);
     throw error;
@@ -78,32 +85,25 @@ const api = {
     // });
   },
 
-  // Get doctors
-  getDoctors: async () => {
-    // Placeholder: replace with actual API call
-    return {
-      data: [
-        { id: 1, name: "Dr. Sarah Johnson", specialty: "Cardiology", department_id: 2 },
-        { id: 2, name: "Dr. Michael Chen", specialty: "Emergency Medicine", department_id: 1 },
-        { id: 3, name: "Dr. Emily Davis", specialty: "Pediatrics", department_id: 3 },
-      ],
-    };
-    // return apiCall("/settings/doctors");
+  // Get reserve doctors only (for settings page)
+  getDoctors: async (limit = 100) => {
+    return apiCall(`/doctors/reserve?limit=${limit}`);
   },
 
   // Add new doctor
   addDoctor: async (data) => {
-    // Placeholder: replace with actual API call
-    return {
-      data: {
-        id: Date.now(),
-        ...data,
-      },
+    // Transform frontend data to match backend API spec
+    const requestBody = {
+      doctor_name: data.doctor_name || data.name,
+      specialty: data.specialty || "",
+      is_active: data.is_active !== undefined ? data.is_active : true,
+      source_system: data.source_system || "MANUAL",
     };
-    // return apiCall("/settings/doctors", {
-    //   method: "POST",
-    //   body: JSON.stringify(data),
-    // });
+    
+    return apiCall("/doctors", {
+      method: "POST",
+      body: JSON.stringify(requestBody),
+    });
   },
 
   // Update doctor
@@ -124,6 +124,66 @@ const api = {
     //   method: "DELETE",
     // });
   },
+
+  // ==================== PATIENTS API ====================
+
+  // Get reserve patients only (for settings page)
+  getPatients: async (limit = 100, offset = 0, orderBy = "created_at") => {
+    return apiCall(`/patients/reserve?limit=${limit}&offset=${offset}&order_by=${orderBy}`);
+  },
+
+  // Add new patient
+  addPatient: async (data) => {
+    // Transform frontend data to match backend API spec
+    const requestBody = {
+      first_name: data.first_name,
+      middle_name: data.middle_name || undefined,
+      last_name: data.last_name || undefined,
+      mother_name: data.mother_name || undefined,
+      phone_number: data.phone_number || undefined,
+      phone_number2: data.phone_number2 || undefined,
+      birth_date: data.birth_date || undefined,
+      sex: data.sex || undefined,
+      document_number: data.document_number || undefined,
+      medical_file_number: data.medical_file_number || undefined,
+      spouse: data.spouse || undefined,
+      address_line1: data.address_line1 || undefined,
+      address_line2: data.address_line2 || undefined,
+    };
+
+    // Remove undefined values
+    Object.keys(requestBody).forEach((key) => {
+      if (requestBody[key] === undefined) {
+        delete requestBody[key];
+      }
+    });
+
+    return apiCall("/patients/create", {
+      method: "POST",
+      body: JSON.stringify(requestBody),
+    });
+  },
+
+  // Update patient
+  updatePatient: async (id, data) => {
+    // Placeholder: replace with actual API call when backend supports it
+    return { data: { id, ...data } };
+    // return apiCall(`/patients/${id}`, {
+    //   method: "PUT",
+    //   body: JSON.stringify(data),
+    // });
+  },
+
+  // Delete patient
+  deletePatient: async (id) => {
+    // Placeholder: replace with actual API call when backend supports it
+    return { success: true };
+    // return apiCall(`/patients/${id}`, {
+    //   method: "DELETE",
+    // });
+  },
+
+  // ==================== CONFIGURATION API ====================
 
   // Save configuration
   saveConfiguration: async (data) => {

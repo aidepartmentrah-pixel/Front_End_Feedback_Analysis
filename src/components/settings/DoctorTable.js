@@ -17,21 +17,12 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
 
-const DoctorTable = ({ doctors, departments, onEdit, onDelete, loading }) => {
+const DoctorTable = ({ doctors, onEdit, onDelete, loading }) => {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
-  const [sortConfig, setSortConfig] = useState({ key: "name", direction: "asc" });
+  const [sortConfig, setSortConfig] = useState({ key: "name_en", direction: "asc" });
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterDept, setFilterDept] = useState("all");
-
-  // Build department map
-  const departmentMap = useMemo(() => {
-    const map = {};
-    departments.forEach((dept) => {
-      map[dept.id] = dept.name;
-    });
-    return map;
-  }, [departments]);
+  const [filterStatus, setFilterStatus] = useState("all");
 
   // Sort doctors
   const sortedDoctors = useMemo(() => {
@@ -52,13 +43,13 @@ const DoctorTable = ({ doctors, departments, onEdit, onDelete, loading }) => {
   const filteredDoctors = useMemo(() => {
     return sortedDoctors.filter((doc) => {
       const matchesSearch =
-        doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        doc.name_en?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         doc.specialty?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesDept =
-        filterDept === "all" || doc.department_id === parseInt(filterDept);
-      return matchesSearch && matchesDept;
+      const matchesStatus =
+        filterStatus === "all" || doc.status === filterStatus;
+      return matchesSearch && matchesStatus;
     });
-  }, [sortedDoctors, searchTerm, filterDept]);
+  }, [sortedDoctors, searchTerm, filterStatus]);
 
   // Handle sort
   const handleSort = (key) => {
@@ -72,9 +63,9 @@ const DoctorTable = ({ doctors, departments, onEdit, onDelete, loading }) => {
   const handleStartEdit = (doctor) => {
     setEditingId(doctor.id);
     setEditForm({
-      name: doctor.name,
+      doctor_name: doctor.name_en,
       specialty: doctor.specialty,
-      department_id: doctor.department_id,
+      is_active: doctor.status === "active",
     });
   };
 
@@ -145,16 +136,13 @@ const DoctorTable = ({ doctors, departments, onEdit, onDelete, loading }) => {
           sx={{ flex: 1, minWidth: "200px" }}
         />
         <Select
-          value={filterDept}
-          onChange={(e, value) => setFilterDept(value)}
+          value={filterStatus}
+          onChange={(e, value) => setFilterStatus(value)}
           sx={{ minWidth: "200px" }}
         >
-          <Option value="all">All Departments</Option>
-          {departments.map((dept) => (
-            <Option key={dept.id} value={dept.id}>
-              {dept.name}
-            </Option>
-          ))}
+          <Option value="all">All Statuses</Option>
+          <Option value="active">Active</Option>
+          <Option value="inactive">Inactive</Option>
         </Select>
       </Box>
 
@@ -170,21 +158,24 @@ const DoctorTable = ({ doctors, departments, onEdit, onDelete, loading }) => {
             <tr>
               <th style={{ width: "50px" }}>ID</th>
               <th>
-                <SortableHeader label="Doctor Name" sortKey="name" />
+                <SortableHeader label="Doctor Name" sortKey="name_en" />
               </th>
               <th>
                 <SortableHeader label="Specialty" sortKey="specialty" />
               </th>
-              <th>Department</th>
+              <th style={{ width: "100px" }}>Status</th>
+              <th style={{ width: "150px" }}>Created At</th>
               <th style={{ width: "120px", textAlign: "center" }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredDoctors.length === 0 ? (
               <tr>
-                <td colSpan="5" style={{ textAlign: "center", padding: "40px" }}>
+                <td colSpan="6" style={{ textAlign: "center", padding: "40px" }}>
                   <Typography level="body-md" sx={{ color: "#999" }}>
-                    No doctors found
+                    {searchTerm || filterStatus !== "all" 
+                      ? "No doctors found matching your filters" 
+                      : "No reserve doctors found. Add one using the form above."}
                   </Typography>
                 </td>
               </tr>
@@ -195,51 +186,65 @@ const DoctorTable = ({ doctors, departments, onEdit, onDelete, loading }) => {
                   <td>
                     {editingId === doctor.id ? (
                       <Input
-                        value={editForm.name}
+                        value={editForm.doctor_name}
                         onChange={(e) =>
-                          setEditForm({ ...editForm, name: e.target.value })
+                          setEditForm({ ...editForm, doctor_name: e.target.value })
                         }
                         size="sm"
                       />
                     ) : (
                       <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-                        {doctor.name}
+                        {doctor.name_en}
                       </Typography>
                     )}
                   </td>
                   <td>
                     {editingId === doctor.id ? (
                       <Input
-                        value={editForm.specialty}
+                        value={editForm.specialty || ""}
                         onChange={(e) =>
                           setEditForm({ ...editForm, specialty: e.target.value })
                         }
                         size="sm"
                       />
                     ) : (
-                      <Typography level="body-sm">{doctor.specialty}</Typography>
+                      <Typography level="body-sm">{doctor.specialty || "N/A"}</Typography>
                     )}
                   </td>
                   <td>
                     {editingId === doctor.id ? (
                       <Select
-                        value={editForm.department_id}
+                        value={editForm.is_active}
                         onChange={(e, value) =>
-                          setEditForm({ ...editForm, department_id: value })
+                          setEditForm({ ...editForm, is_active: value })
                         }
                         size="sm"
                       >
-                        {departments.map((dept) => (
-                          <Option key={dept.id} value={dept.id}>
-                            {dept.name}
-                          </Option>
-                        ))}
+                        <Option value={true}>Active</Option>
+                        <Option value={false}>Inactive</Option>
                       </Select>
                     ) : (
-                      <Typography level="body-xs" sx={{ color: "#666" }}>
-                        {departmentMap[doctor.department_id] || "N/A"}
-                      </Typography>
+                      <Box
+                        sx={{
+                          display: "inline-block",
+                          px: 1.5,
+                          py: 0.5,
+                          borderRadius: "12px",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          backgroundColor: doctor.status === "active" ? "#d4edda" : "#e0e0e0",
+                          color: doctor.status === "active" ? "#155724" : "#666",
+                        }}
+                      >
+                        {doctor.status}
+                      </Box>
                     )}
+                  </td>
+                  <td>
+                    <Typography level="body-xs" sx={{ color: "#666" }}>
+                      {doctor.last_synced_at || "N/A"}
+                    </Typography>
                   </td>
                   <td>
                     <Box

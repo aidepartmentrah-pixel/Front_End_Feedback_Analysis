@@ -14,11 +14,12 @@ import {
 } from "@mui/joy";
 import AddIcon from "@mui/icons-material/Add";
 
-const AddDoctorForm = ({ onAdd, departments }) => {
+const AddDoctorForm = ({ onAdd }) => {
   const [formData, setFormData] = useState({
-    name: "",
+    doctor_name: "",
     specialty: "",
-    department_id: "",
+    is_active: true,
+    source_system: "MANUAL",
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -27,16 +28,16 @@ const AddDoctorForm = ({ onAdd, departments }) => {
   const validate = () => {
     const newErrors = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = "Doctor name is required";
+    if (!formData.doctor_name.trim()) {
+      newErrors.doctor_name = "Doctor name is required (min 3 characters)";
+    } else if (formData.doctor_name.trim().length < 3) {
+      newErrors.doctor_name = "Doctor name must be at least 3 characters";
+    } else if (formData.doctor_name.trim().length > 200) {
+      newErrors.doctor_name = "Doctor name must not exceed 200 characters";
     }
 
-    if (!formData.specialty.trim()) {
-      newErrors.specialty = "Specialty is required";
-    }
-
-    if (!formData.department_id) {
-      newErrors.department_id = "Department is required";
+    if (formData.specialty && formData.specialty.length > 200) {
+      newErrors.specialty = "Specialty must not exceed 200 characters";
     }
 
     setErrors(newErrors);
@@ -52,7 +53,7 @@ const AddDoctorForm = ({ onAdd, departments }) => {
     const success = await onAdd(formData);
 
     if (success) {
-      setFormData({ name: "", specialty: "", department_id: "" });
+      setFormData({ doctor_name: "", specialty: "", is_active: true, source_system: "MANUAL" });
       setErrors({});
     }
     setIsSubmitting(false);
@@ -82,22 +83,23 @@ const AddDoctorForm = ({ onAdd, departments }) => {
       <form onSubmit={handleSubmit}>
         <Box sx={{ display: "grid", gap: 2 }}>
           {/* Doctor Name */}
-          <FormControl error={!!errors.name}>
+          <FormControl error={!!errors.doctor_name}>
             <FormLabel>Doctor Name *</FormLabel>
             <Input
               placeholder="e.g., Dr. Sarah Johnson"
-              value={formData.name}
-              onChange={(e) => handleChange("name", e.target.value)}
+              value={formData.doctor_name}
+              onChange={(e) => handleChange("doctor_name", e.target.value)}
               disabled={isSubmitting}
             />
-            {errors.name && <FormHelperText>{errors.name}</FormHelperText>}
+            {errors.doctor_name && <FormHelperText>{errors.doctor_name}</FormHelperText>}
+            <FormHelperText>Minimum 3 characters, maximum 200</FormHelperText>
           </FormControl>
 
           {/* Specialty */}
           <FormControl error={!!errors.specialty}>
-            <FormLabel>Specialty *</FormLabel>
+            <FormLabel>Specialty</FormLabel>
             <Input
-              placeholder="e.g., Cardiology"
+              placeholder="e.g., Interventional Cardiology"
               value={formData.specialty}
               onChange={(e) => handleChange("specialty", e.target.value)}
               disabled={isSubmitting}
@@ -105,26 +107,21 @@ const AddDoctorForm = ({ onAdd, departments }) => {
             {errors.specialty && (
               <FormHelperText>{errors.specialty}</FormHelperText>
             )}
+            <FormHelperText>Optional, maximum 200 characters</FormHelperText>
           </FormControl>
 
-          {/* Department */}
-          <FormControl error={!!errors.department_id}>
-            <FormLabel>Department *</FormLabel>
+          {/* Active Status */}
+          <FormControl>
+            <FormLabel>Status</FormLabel>
             <Select
-              placeholder="Select department..."
-              value={formData.department_id}
-              onChange={(e, value) => handleChange("department_id", value)}
+              value={formData.is_active}
+              onChange={(e, value) => handleChange("is_active", value)}
               disabled={isSubmitting}
             >
-              {departments.map((dept) => (
-                <Option key={dept.id} value={dept.id}>
-                  {dept.name}
-                </Option>
-              ))}
+              <Option value={true}>Active</Option>
+              <Option value={false}>Inactive</Option>
             </Select>
-            {errors.department_id && (
-              <FormHelperText>{errors.department_id}</FormHelperText>
-            )}
+            <FormHelperText>Set doctor's active status</FormHelperText>
           </FormControl>
 
           {/* Submit Button */}

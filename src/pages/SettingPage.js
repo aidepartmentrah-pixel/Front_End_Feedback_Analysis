@@ -5,6 +5,10 @@ import MainLayout from "../components/common/MainLayout";
 import DepartmentTable from "../components/settings/DepartmentTable";
 import AddDepartmentForm from "../components/settings/AddDepartmentForm";
 import DepartmentMappingToggle from "../components/settings/DepartmentMappingToggle";
+import DoctorTable from "../components/settings/DoctorTable";
+import AddDoctorForm from "../components/settings/AddDoctorForm";
+import PatientTable from "../components/settings/PatientTable";
+import AddPatientForm from "../components/settings/AddPatientForm";
 import SettingActions from "../components/settings/SettingActions";
 import VariableAttributes from "../components/settings/VariableAttributes";
 import PolicyConfiguration from "../components/settings/PolicyConfiguration";
@@ -14,6 +18,9 @@ import api from "../services/api";
 const SettingPage = () => {
   // State Management
   const [departments, setDepartments] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [patients, setPatients] = useState([]);
+  const [totalPatients, setTotalPatients] = useState(0);
   const [viewMode, setViewMode] = useState("internal"); // "internal" or "external"
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -24,6 +31,16 @@ const SettingPage = () => {
   useEffect(() => {
     fetchDepartments();
   }, [viewMode]);
+
+  // Fetch doctors on mount
+  useEffect(() => {
+    fetchDoctors();
+  }, []);
+
+  // Fetch patients on mount
+  useEffect(() => {
+    fetchPatients();
+  }, []);
 
   // Fetch departments from API
   const fetchDepartments = async () => {
@@ -88,6 +105,164 @@ const SettingPage = () => {
     } catch (err) {
       setError(err.response?.data?.message || "Failed to delete department");
       console.error("Error deleting department:", err);
+    }
+  };
+
+  // Fetch doctors from API (reserve doctors only)
+  const fetchDoctors = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await api.getDoctors();
+      // Response structure: { doctors: [], total: number, message: string }
+      setDoctors(response.doctors || []);
+    } catch (err) {
+      setError("Failed to fetch reserve doctors. Please try again.");
+      console.error("Error fetching reserve doctors:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add new doctor
+  const handleAddDoctor = async (newDoctor) => {
+    try {
+      setError(null);
+      const response = await api.addDoctor(newDoctor);
+      
+      // Handle success response from API
+      if (response.success) {
+        // Refresh doctors list to get updated data
+        await fetchDoctors();
+        setSuccess(response.message || "Doctor added successfully!");
+        setTimeout(() => setSuccess(null), 3000);
+        return true;
+      }
+    } catch (err) {
+      const errorMsg = err.message || "Failed to add doctor";
+      setError(errorMsg);
+      console.error("Error adding doctor:", err);
+      return false;
+    }
+  };
+
+  // Edit doctor
+  const handleEditDoctor = async (id, updatedData) => {
+    try {
+      setError(null);
+      const response = await api.updateDoctor(id, updatedData);
+      setDoctors(
+        doctors.map((doc) => (doc.id === id ? response.data : doc))
+      );
+      setSuccess("Doctor updated successfully!");
+      setTimeout(() => setSuccess(null), 3000);
+      return true;
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to update doctor");
+      console.error("Error updating doctor:", err);
+      return false;
+    }
+  };
+
+  // Delete doctor
+  const handleDeleteDoctor = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this doctor?")) {
+      return;
+    }
+    try {
+      setError(null);
+      await api.deleteDoctor(id);
+      setDoctors(doctors.filter((doc) => doc.id !== id));
+      setSuccess("Doctor deleted successfully!");
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to delete doctor");
+      console.error("Error deleting doctor:", err);
+    }
+  };
+
+  // Fetch patients from API (reserve patients only)
+  const fetchPatients = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await api.getPatients(100, 0, "created_at");
+      // Response structure: { patients: [], total: number, count: number }
+      setPatients(response.patients || []);
+      setTotalPatients(response.total || 0);
+    } catch (err) {
+      setError("Failed to fetch reserve patients. Please try again.");
+      console.error("Error fetching reserve patients:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add new patient
+  const handleAddPatient = async (newPatient) => {
+    try {
+      setError(null);
+      const response = await api.addPatient(newPatient);
+      
+      // Handle success response from API
+      if (response.success) {
+        // Refresh patients list to get updated data
+        await fetchPatients();
+        setSuccess(response.message || "Patient added successfully!");
+        setTimeout(() => setSuccess(null), 3000);
+        return true;
+      }
+    } catch (err) {
+      // Handle different error types from backend
+      let errorMsg = "Failed to add patient";
+      
+      if (err.code === "VALIDATION_ERROR") {
+        errorMsg = err.message || "Validation error occurred";
+      } else if (err.code === "DUPLICATE_PATIENT") {
+        errorMsg = err.message || "Patient already exists";
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      
+      setError(errorMsg);
+      console.error("Error adding patient:", err);
+      return false;
+    }
+  };
+
+  // Edit patient
+  const handleEditPatient = async (id, updatedData) => {
+    try {
+      setError(null);
+      const response = await api.updatePatient(id, updatedData);
+      setPatients(
+        patients.map((patient) => (patient.patient_admission_id === id ? response.data : patient))
+      );
+      setSuccess("Patient updated successfully!");
+      setTimeout(() => setSuccess(null), 3000);
+      return true;
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to update patient");
+      console.error("Error updating patient:", err);
+      return false;
+    }
+  };
+
+  // Delete patient
+  const handleDeletePatient = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this patient?")) {
+      return;
+    }
+    try {
+      setError(null);
+      await api.deletePatient(id);
+      setPatients(patients.filter((patient) => patient.patient_admission_id !== id));
+      setTotalPatients(totalPatients - 1);
+      setSuccess("Patient deleted successfully!");
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to delete patient");
+      console.error("Error deleting patient:", err);
     }
   };
 
@@ -196,6 +371,8 @@ const SettingPage = () => {
       <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
         <TabList>
           <Tab>🏥 Departments</Tab>
+          <Tab>👨‍⚕️ Doctors</Tab>
+          <Tab>🧑‍🤝‍🧑 Patients</Tab>
           <Tab>⚙️ Variable Attributes</Tab>
           <Tab>📋 Policy Configuration</Tab>
           <Tab>🚦 Training</Tab>
@@ -221,18 +398,55 @@ const SettingPage = () => {
           </Box>
         </TabPanel>
 
-        {/* Variable Attributes Tab */}
+        {/* Doctors Management Tab */}
         <TabPanel value={1} sx={{ p: 3 }}>
+          <Box sx={{ display: "grid", gap: 3 }}>
+            {/* Add Doctor Form */}
+            <AddDoctorForm
+              onAdd={handleAddDoctor}
+            />
+
+            {/* Doctor Table */}
+            <DoctorTable
+              doctors={doctors}
+              onEdit={handleEditDoctor}
+              onDelete={handleDeleteDoctor}
+              loading={loading}
+            />
+          </Box>
+        </TabPanel>
+
+        {/* Patients Management Tab */}
+        <TabPanel value={2} sx={{ p: 3 }}>
+          <Box sx={{ display: "grid", gap: 3 }}>
+            {/* Add Patient Form */}
+            <AddPatientForm
+              onAdd={handleAddPatient}
+            />
+
+            {/* Patient Table */}
+            <PatientTable
+              patients={patients}
+              onEdit={handleEditPatient}
+              onDelete={handleDeletePatient}
+              loading={loading}
+              totalCount={totalPatients}
+            />
+          </Box>
+        </TabPanel>
+
+        {/* Variable Attributes Tab */}
+        <TabPanel value={3} sx={{ p: 3 }}>
           <VariableAttributes />
         </TabPanel>
 
         {/* Policy Configuration Tab */}
-        <TabPanel value={2} sx={{ p: 3 }}>
+        <TabPanel value={4} sx={{ p: 3 }}>
           <PolicyConfiguration />
         </TabPanel>
 
         {/* Training Tab */}
-        <TabPanel value={3} sx={{ p: 3 }}>
+        <TabPanel value={5} sx={{ p: 3 }}>
           <Training />
         </TabPanel>
       </Tabs>
