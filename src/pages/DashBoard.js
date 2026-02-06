@@ -1,6 +1,7 @@
 // src/pages/DashboardPage.js
 import React, { useEffect, useState } from "react";
 import { fetchDashboardHierarchy, fetchDashboardStats } from "../api/dashboard";
+import theme from '../theme';
 
 import { Box, Card, Typography, Select, Option, FormControl, FormLabel } from "@mui/joy";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
@@ -315,14 +316,14 @@ const DashboardPage = () => {
           >
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <Box>
-                <Typography level="h5" sx={{ fontWeight: 700, color: "#667eea", mb: 0.5 }}>
+                <Typography level="h5" sx={{ fontWeight: 700, color: theme.colors.primary, mb: 0.5 }}>
                   📊 عرض تحليل الاتجاهات (View Trend Analysis)
                 </Typography>
                 <Typography level="body-sm" sx={{ color: "#666" }}>
                   تتبع الاتجاهات الشهرية لاكتشاف أنماط التدهور والتحسين
                 </Typography>
               </Box>
-              <ArrowForwardIcon sx={{ fontSize: "32px", color: "#667eea" }} />
+              <ArrowForwardIcon sx={{ fontSize: "32px", color: theme.colors.primary }} />
             </Box>
           </Card>
         </Box>

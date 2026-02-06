@@ -1,6 +1,7 @@
 // src/pages/DoctorHistoryPage.js
 import React, { useState } from "react";
 import { Box, Typography, Alert } from "@mui/joy";
+import theme from '../theme';
 import MainLayout from "../components/common/MainLayout";
 import SearchDoctor from "../components/doctorHistory/SearchDoctor";
 import DoctorProfileCard from "../components/doctorHistory/DoctorProfileCard";
@@ -231,7 +232,7 @@ const DoctorHistoryPage = ({ embedded = false }) => {
             level="h2"
             sx={{
               fontWeight: 800,
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: theme.gradients.primary,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               mb: 1,
@@ -273,7 +274,7 @@ const DoctorHistoryPage = ({ embedded = false }) => {
             sx={{
               background: "linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)",
               borderColor: "rgba(102, 126, 234, 0.3)",
-              color: "#667eea",
+              color: theme.colors.primary,
             }}
           >
             👆 Please search and select a doctor to view their history and performance data
@@ -290,7 +291,7 @@ const DoctorHistoryPage = ({ embedded = false }) => {
             border: "1px solid rgba(102, 126, 234, 0.2)",
           }}
         >
-          <Typography level="body-sm" sx={{ fontWeight: 700, color: "#667eea", mb: 1 }}>
+          <Typography level="body-sm" sx={{ fontWeight: 700, color: theme.colors.primary, mb: 1 }}>
             💡 Development Mode
           </Typography>
           <Typography level="body-xs" sx={{ color: "#666" }}>

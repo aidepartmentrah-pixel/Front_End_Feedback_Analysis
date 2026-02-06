@@ -1,7 +1,7 @@
 // src/api/patientHistory.js
 // API service for Patient History page
 
-const API_BASE_URL = "http://0.0.0.0:8000/api/patients";
+import apiClient from "./apiClient";
 
 /**
  * Search for patients
@@ -16,14 +16,9 @@ export const searchPatients = async (query, options = {}) => {
     if (options.phone) params.append("phone", options.phone);
     params.append("limit", options.limit || 50);
     
-    const response = await fetch(`${API_BASE_URL}/search?${params.toString()}`);
+    const response = await apiClient.get(`/api/patients/search?${params.toString()}`);
     
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.detail?.message || `HTTP ${response.status}`);
-    }
-    
-    const data = await response.json();
+    const data = response.data;
     console.log("Patient search response:", data);
     return data;
   } catch (error) {
@@ -38,14 +33,9 @@ export const searchPatients = async (query, options = {}) => {
  */
 export const getPatientProfile = async (patientId) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/${patientId}/profile`);
+    const response = await apiClient.get(`/api/patients/${patientId}/profile`);
     
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.detail?.message || `HTTP ${response.status}`);
-    }
-    
-    const data = await response.json();
+    const data = response.data;
     console.log("Patient profile response:", data);
     return data;
   } catch (error) {
@@ -70,14 +60,9 @@ export const getPatientIncidents = async (patientId, filters = {}) => {
     params.append("limit", filters.limit || 100);
     params.append("offset", filters.offset || 0);
     
-    const response = await fetch(`${API_BASE_URL}/${patientId}/incidents?${params.toString()}`);
+    const response = await apiClient.get(`/api/patients/${patientId}/incidents?${params.toString()}`);
     
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.detail?.message || `HTTP ${response.status}`);
-    }
-    
-    const data = await response.json();
+    const data = response.data;
     console.log("Patient incidents response:", data);
     return data;
   } catch (error) {
@@ -92,14 +77,9 @@ export const getPatientIncidents = async (patientId, filters = {}) => {
  */
 export const getIncidentDetails = async (patientId, incidentId) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/${patientId}/incidents/${incidentId}`);
+    const response = await apiClient.get(`/api/patients/${patientId}/incidents/${incidentId}`);
     
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.detail?.message || `HTTP ${response.status}`);
-    }
-    
-    const data = await response.json();
+    const data = response.data;
     console.log("Incident details response:", data);
     return data;
   } catch (error) {
@@ -114,14 +94,9 @@ export const getIncidentDetails = async (patientId, incidentId) => {
  */
 export const getPatientFullHistory = async (patientId) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/${patientId}/full-history`);
+    const response = await apiClient.get(`/api/patients/${patientId}/full-history`);
     
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.detail?.message || `HTTP ${response.status}`);
-    }
-    
-    const data = await response.json();
+    const data = response.data;
     console.log("Patient full history response:", data);
     return data;
   } catch (error) {
@@ -136,20 +111,17 @@ export const getPatientFullHistory = async (patientId) => {
  */
 export const exportPatientHistory = async (patientId, format = "csv") => {
   try {
-    const response = await fetch(`${API_BASE_URL}/${patientId}/export?format=${format}`);
-    
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.detail?.message || `HTTP ${response.status}`);
-    }
+    const response = await apiClient.get(`/api/patients/${patientId}/export?format=${format}`, {
+      responseType: format === "csv" ? "blob" : "json"
+    });
     
     if (format === "csv") {
-      // For CSV, get blob and trigger download
-      const blob = await response.blob();
+      // For CSV, return blob from response
+      const blob = response.data;
       return blob;
     } else {
-      // For JSON, parse and return
-      const data = await response.json();
+      // For JSON, return data
+      const data = response.data;
       console.log("Export JSON response:", data);
       return data;
     }

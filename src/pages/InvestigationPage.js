@@ -10,6 +10,7 @@ import {
   FormLabel,
   CircularProgress,
 } from "@mui/joy";
+import theme from '../theme';
 import MainLayout from "../components/common/MainLayout";
 import IncidentCountTree from "../components/investigation/IncidentCountTree";
 import { fetchDashboardHierarchy } from "../api/dashboard";
@@ -172,7 +173,7 @@ const InvestigationPage = () => {
             level="h2"
             sx={{
               fontWeight: 800,
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: theme.gradients.primary,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               mb: 1,

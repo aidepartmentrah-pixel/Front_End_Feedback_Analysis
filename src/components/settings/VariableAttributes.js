@@ -4,6 +4,7 @@ import { Box, Card, Typography, FormControl, FormLabel, Input, Button, Grid, Ale
 import SaveIcon from "@mui/icons-material/Save";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { getComplaintDelayDays, updateComplaintDelayDays } from "../../api/systemSettings";
+import theme from '../../theme';
 
 const VariableAttributes = () => {
   const [delayThreshold, setDelayThreshold] = useState(14);
@@ -69,7 +70,7 @@ const VariableAttributes = () => {
 
   return (
     <Box>
-      <Typography level="h4" sx={{ mb: 3, fontWeight: 700, color: "#667eea" }}>
+      <Typography level="h4" sx={{ mb: 3, fontWeight: 700, color: theme.colors.primary }}>
         ⚙️ المتغيرات والإعدادات (Variable Attributes)
       </Typography>
 
@@ -88,8 +89,8 @@ const VariableAttributes = () => {
       <Card
         sx={{
           p: 4,
-          background: "linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)",
-          border: "2px solid rgba(102, 126, 234, 0.2)",
+          background: `linear-gradient(135deg, ${theme.colors.primary}0D 0%, ${theme.colors.secondary}0D 100%)`,
+          border: `2px solid ${theme.colors.primary}33`,
         }}
       >
         <Typography level="h5" sx={{ mb: 3, fontWeight: 700, color: "#333" }}>
@@ -143,11 +144,11 @@ const VariableAttributes = () => {
                 justifyContent: "center",
               }}
             >
-              <Typography level="body-sm" sx={{ fontWeight: 700, color: "#667eea", mb: 1 }}>
+              <Typography level="body-sm" sx={{ fontWeight: 700, color: theme.colors.primary, mb: 1 }}>
                 📊 معاينة (Preview)
               </Typography>
               <Typography level="body-sm" sx={{ color: "#333", mb: 2 }}>
-                الشكاوى التي مر عليها أكثر من <strong style={{ color: "#667eea" }}>{delayThreshold}</strong> يوم
+                الشكاوى التي مر عليها أكثر من <strong style={{ color: theme.colors.primary }}>{delayThreshold}</strong> يوم
                 ستظهر بحالة <strong style={{ color: "#ff4757" }}>متأخرة (Delayed)</strong>
               </Typography>
               <Typography level="body-xs" sx={{ color: "#666" }}>
@@ -178,7 +179,7 @@ const VariableAttributes = () => {
             disabled={!hasChanges || saving}
             loading={saving}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: theme.gradients.primary,
               color: "white",
               fontWeight: 700,
             }}
@@ -192,12 +193,12 @@ const VariableAttributes = () => {
         sx={{
           mt: 3,
           p: 3,
-          background: "rgba(102, 126, 234, 0.05)",
+          background: `${theme.colors.primary}0D`,
           borderRadius: "8px",
-          border: "1px solid rgba(102, 126, 234, 0.2)",
+          border: `1px solid ${theme.colors.primary}33`,
         }}
       >
-        <Typography level="body-sm" sx={{ fontWeight: 700, color: "#667eea", mb: 1 }}>
+        <Typography level="body-sm" sx={{ fontWeight: 700, color: theme.colors.primary, mb: 1 }}>
           💡 ملاحظات (Notes)
         </Typography>
         <Typography level="body-xs" sx={{ color: "#666", mb: 1 }}>

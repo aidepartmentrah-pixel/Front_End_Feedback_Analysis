@@ -7,6 +7,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
+import theme from '../../theme';
 
 // Predefined view configurations
 export const VIEW_CONFIGURATIONS = {
@@ -255,14 +256,14 @@ const ViewSelector = ({ selectedView, onViewChange }) => {
         sx={{
           mb: 2,
           p: 2.5,
-          background: "linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)",
-          border: "2px solid rgba(102, 126, 234, 0.2)",
+          background: `linear-gradient(135deg, ${theme.colors.primary}0D 0%, ${theme.colors.secondary}0D 100%)`,
+          border: `2px solid ${theme.colors.primary}33`,
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-          <ViewListIcon sx={{ fontSize: 28, color: "#667eea" }} />
+          <ViewListIcon sx={{ fontSize: 28, color: theme.colors.primary }} />
           <Box sx={{ flex: 1 }}>
-            <Typography level="h5" sx={{ fontWeight: 700, color: "#667eea", mb: 0.5 }}>
+            <Typography level="h5" sx={{ fontWeight: 700, color: theme.colors.primary, mb: 0.5 }}>
               Table View Configuration
             </Typography>
             <Typography level="body-sm" sx={{ color: "#666" }}>
@@ -294,7 +295,7 @@ const ViewSelector = ({ selectedView, onViewChange }) => {
                 fontSize: "14px",
               }}
             >
-              <Option disabled sx={{ fontWeight: 700, color: "#667eea" }}>
+              <Option disabled sx={{ fontWeight: 700, color: theme.colors.primary }}>
                 Predefined Views
               </Option>
               {Object.entries(VIEW_CONFIGURATIONS).map(([key, config]) => (
@@ -368,7 +369,7 @@ const ViewSelector = ({ selectedView, onViewChange }) => {
                   sx={{
                     px: 1,
                     py: 0.5,
-                    background: allViews[selectedView]?.isCustom ? "#5f27cd" : "#667eea",
+                    background: allViews[selectedView]?.isCustom ? theme.colors.secondary : theme.colors.primary,
                     color: "white",
                     borderRadius: "4px",
                     fontSize: "10px",
@@ -386,7 +387,7 @@ const ViewSelector = ({ selectedView, onViewChange }) => {
       <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
         <ModalDialog sx={{ maxWidth: 700, width: "90%", maxHeight: "90vh", overflow: "auto" }}>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-            <Typography level="h4" sx={{ fontWeight: 700, color: "#667eea" }}>
+            <Typography level="h4" sx={{ fontWeight: 700, color: theme.colors.primary }}>
               {editingView ? "✏️ Edit View" : "➕ Create New View"}
             </Typography>
             <IconButton onClick={() => setModalOpen(false)} size="sm">

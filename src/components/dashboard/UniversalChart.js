@@ -13,7 +13,19 @@ const UniversalChart = ({
 }) => {
   const [activeIndex, setActiveIndex] = React.useState(null);
 
-  const COLORS = ["#667eea", "#764ba2", "#f093fb", "#4facfe", "#00f2fe", "#43e97b", "#fa709a"];
+  // Vibrant, professional color palette
+  const COLORS = [
+    "#2BBCC4",  // Primary Teal - bright and clear
+    "#64A70B",  // Primary Green - vibrant
+    "#FF6B6B",  // Coral Red - warm accent
+    "#4ECDC4",  // Bright Cyan - fresh
+    "#95E1D3",  // Mint Green - soft
+    "#F38181",  // Salmon Pink - gentle
+    "#AA96DA",  // Lavender - elegant
+    "#FCBAD3",  // Rose Pink - playful
+    "#A8E6CF",  // Light Green - soothing
+    "#FFD93D",  // Golden Yellow - energetic
+  ];
 
   const handleClick = (data, index) => {
     setActiveIndex(index);

@@ -96,8 +96,8 @@ const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdTe
         mb: 3,
         p: 3,
         background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
-        border: "1px solid rgba(102, 126, 234, 0.1)",
-        boxShadow: "0 4px 12px rgba(102, 126, 234, 0.08)",
+        border: "1px solid rgba(43, 188, 196, 0.1)",
+        boxShadow: "0 4px 12px rgba(43, 188, 196, 0.08)",
       }}
     >
       <Typography level="h3" sx={{ color: "#1a1e3f", fontWeight: 700, mb: 2 }}>
@@ -115,7 +115,7 @@ const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdTe
         {textBlocks.map((block) => (
           <Grid xs={12} key={block.field}>
             <Box>
-              <Typography level="body-sm" sx={{ fontWeight: 600, mb: 1, color: "#667eea" }}>
+              <Typography level="body-sm" sx={{ fontWeight: 600, mb: 1, color: "#2BBCC4" }}>
                 {block.label} {block.required && "*"}
               </Typography>
               <Textarea
@@ -127,7 +127,7 @@ const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdTe
                   borderRadius: "8px",
                   borderColor: validationErrors[block.field] ? "#ff4757" : undefined,
                   "&:focus-within": {
-                    borderColor: validationErrors[block.field] ? "#ff4757" : "#667eea",
+                    borderColor: validationErrors[block.field] ? "#ff4757" : "#2BBCC4",
                   },
                 }}
                 slotProps={{

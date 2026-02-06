@@ -1,7 +1,7 @@
 // src/api/seasonalReports.js
 // API service for Seasonal Reports
 
-const API_BASE_URL = "http://127.0.0.1:8000";
+import apiClient from "./apiClient";
 
 /**
  * Generate or regenerate a seasonal report
@@ -13,20 +13,9 @@ export const generateSeasonalReport = async (params) => {
   try {
     console.log("🔄 Generating seasonal report:", params);
     
-    const response = await fetch(`${API_BASE_URL}/api/seasonal-reports/generate`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(params),
-    });
+    const response = await apiClient.post(`/api/seasonal-reports/generate`, params);
     
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail?.message || error.message || "Failed to generate seasonal report");
-    }
-    
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Seasonal report generated:", data);
     return data;
   } catch (error) {
@@ -52,23 +41,21 @@ export const getSeasonalReportBySeason = async (params) => {
       orgUnitType: orgUnitType.toString(),
     });
     
-    const response = await fetch(
-      `${API_BASE_URL}/api/seasonal-reports/by-season?${queryParams.toString()}`
-    );
-    
-    if (response.status === 404) {
-      console.log("ℹ️ No seasonal report found for this season/org unit");
-      return null;
+    try {
+      const response = await apiClient.get(
+        `/api/seasonal-reports/by-season?${queryParams.toString()}`
+      );
+      
+      const data = response.data;
+      console.log("✅ Seasonal report found:", data);
+      return data;
+    } catch (error) {
+      if (error.response?.status === 404) {
+        console.log("ℹ️ No seasonal report found for this season/org unit");
+        return null;
+      }
+      throw error;
     }
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail?.message || error.message || "Failed to fetch seasonal report");
-    }
-    
-    const data = await response.json();
-    console.log("✅ Seasonal report found:", data);
-    return data;
   } catch (error) {
     console.error("❌ Error fetching seasonal report by season:", error);
     throw error;
@@ -85,14 +72,9 @@ export const getSeasonalReportById = async (id) => {
   try {
     console.log("🔍 Fetching seasonal report by ID:", id);
     
-    const response = await fetch(`${API_BASE_URL}/api/seasonal-reports/${id}`);
+    const response = await apiClient.get(`/api/seasonal-reports/${id}`);
     
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail?.message || error.message || "Failed to fetch seasonal report");
-    }
-    
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Seasonal report fetched:", data);
     return data;
   } catch (error) {
@@ -112,27 +94,16 @@ export const saveSeasonalReportExplanation = async (reportId, payload) => {
   try {
     console.log("💾 Saving explanation for seasonal report:", reportId, payload);
     
-    const response = await fetch(
-      `${API_BASE_URL}/api/seasonal-reports/${reportId}/explanation`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      }
+    const response = await apiClient.post(
+      `/api/seasonal-reports/${reportId}/explanation`,
+      payload
     );
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail?.message || error.message || "Failed to save explanation");
-    }
     
     console.log("✅ Explanation saved successfully");
     
     // Return response data if backend sends any
     if (response.status !== 204) {
-      return await response.json();
+      return response.data;
     }
   } catch (error) {
     console.error("❌ Error saving explanation:", error);
@@ -150,16 +121,11 @@ export const getActionItemsBySeasonalReport = async (reportId) => {
   try {
     console.log("🔍 Fetching action items for seasonal report:", reportId);
     
-    const response = await fetch(
-      `${API_BASE_URL}/api/action-items?seasonalReportId=${reportId}`
+    const response = await apiClient.get(
+      `/api/action-items?seasonalReportId=${reportId}`
     );
     
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail?.message || error.message || "Failed to fetch action items");
-    }
-    
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Action items fetched:", data);
     
     // Handle both array response and object with items array
@@ -181,16 +147,12 @@ export const exportSeasonalReport = async (reportId, format = "pdf") => {
   try {
     console.log(`📄 Exporting seasonal report ${reportId} as ${format}`);
     
-    const response = await fetch(
-      `${API_BASE_URL}/api/seasonal-reports/${reportId}/export?format=${format}`
+    const response = await apiClient.get(
+      `/api/seasonal-reports/${reportId}/export?format=${format}`,
+      { responseType: 'blob' }
     );
     
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail?.message || error.message || "Failed to export report");
-    }
-    
-    const blob = await response.blob();
+    const blob = response.data;
     console.log("✅ Report exported successfully");
     
     return blob;
@@ -216,23 +178,11 @@ export const getAvailableQuarters = async (orgunitId = 1, orgunitType = 0) => {
       orgunit_type: orgunitType.toString()
     });
     
-    const response = await fetch(
-      `${API_BASE_URL}/api/seasonal-comparison/available-quarters?${queryParams.toString()}`
+    const response = await apiClient.get(
+      `/api/seasonal-comparison/available-quarters?${queryParams.toString()}`
     );
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ Backend error response:", errorText);
-      let error;
-      try {
-        error = JSON.parse(errorText);
-      } catch {
-        error = { message: errorText };
-      }
-      throw new Error(error.detail?.message || error.message || "Failed to fetch available quarters");
-    }
-    
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Available quarters fetched:", data);
     return data.available_seasons || data.seasons || data || [];
   } catch (error) {
@@ -251,20 +201,9 @@ export const viewSeasonalReport = async (params) => {
   try {
     console.log("📄 Viewing seasonal report:", params);
     
-    const response = await fetch(`${API_BASE_URL}/api/reports/seasonal/view`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(params),
-    });
+    const response = await apiClient.post(`/api/reports/seasonal/view`, params);
     
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail?.message || error.message || "Failed to generate seasonal report");
-    }
-    
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Seasonal report generated successfully:", data);
     return data;
   } catch (error) {
@@ -283,25 +222,17 @@ export const exportSingleSeasonalReport = async (params) => {
   try {
     console.log("📄 Exporting single seasonal report:", params);
     
-    const response = await fetch(`${API_BASE_URL}/api/reports/seasonal/export`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(params),
+    const isFileFormat = ["docx", "pdf", "xlsx", "csv"].includes(params.format);
+    const response = await apiClient.post(`/api/reports/seasonal/export`, params, {
+      responseType: isFileFormat ? 'blob' : 'json'
     });
     
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail?.message || error.message || "Failed to export report");
-    }
-    
-    if (params.format === "docx" || params.format === "pdf" || params.format === "xlsx" || params.format === "csv") {
-      const blob = await response.blob();
+    if (isFileFormat) {
+      const blob = response.data;
       console.log("✅ Report exported successfully as", params.format);
-      return { blob, contentType: response.headers.get("Content-Type"), contentDisposition: response.headers.get("Content-Disposition") };
+      return { blob, contentType: response.headers['content-type'], contentDisposition: response.headers['content-disposition'] };
     } else {
-      const data = await response.json();
+      const data = response.data;
       console.log("✅ JSON report exported successfully");
       return data;
     }
@@ -321,25 +252,17 @@ export const generate2QuarterComparison = async (params) => {
   try {
     console.log("📊 Generating 2-quarter comparison:", params);
     
-    const response = await fetch(`${API_BASE_URL}/api/seasonal-comparison/2-quarters`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(params),
+    const isDocx = params.format === "docx";
+    const response = await apiClient.post(`/api/seasonal-comparison/2-quarters`, params, {
+      responseType: isDocx ? 'blob' : 'json'
     });
     
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail?.message || error.message || "Failed to generate 2-quarter comparison");
-    }
-    
-    if (params.format === "docx") {
-      const blob = await response.blob();
+    if (isDocx) {
+      const blob = response.data;
       console.log("✅ 2-quarter DOCX comparison generated successfully");
-      return { blob, contentType: response.headers.get("Content-Type"), contentDisposition: response.headers.get("Content-Disposition") };
+      return { blob, contentType: response.headers['content-type'], contentDisposition: response.headers['content-disposition'] };
     } else {
-      const data = await response.json();
+      const data = response.data;
       console.log("✅ 2-quarter JSON comparison generated successfully");
       return data;
     }
@@ -359,25 +282,17 @@ export const generate3QuarterComparison = async (params) => {
   try {
     console.log("📊 Generating 3-quarter comparison:", params);
     
-    const response = await fetch(`${API_BASE_URL}/api/seasonal-comparison/3-quarters`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(params),
+    const isDocx = params.format === "docx";
+    const response = await apiClient.post(`/api/seasonal-comparison/3-quarters`, params, {
+      responseType: isDocx ? 'blob' : 'json'
     });
     
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail?.message || error.message || "Failed to generate 3-quarter comparison");
-    }
-    
-    if (params.format === "docx") {
-      const blob = await response.blob();
+    if (isDocx) {
+      const blob = response.data;
       console.log("✅ 3-quarter DOCX comparison generated successfully");
-      return { blob, contentType: response.headers.get("Content-Type"), contentDisposition: response.headers.get("Content-Disposition") };
+      return { blob, contentType: response.headers['content-type'], contentDisposition: response.headers['content-disposition'] };
     } else {
-      const data = await response.json();
+      const data = response.data;
       console.log("✅ 3-quarter JSON comparison generated successfully");
       return data;
     }
@@ -397,25 +312,17 @@ export const generate4QuarterComparison = async (params) => {
   try {
     console.log("📊 Generating 4-quarter comparison:", params);
     
-    const response = await fetch(`${API_BASE_URL}/api/seasonal-comparison/4-quarters`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(params),
+    const isDocx = params.format === "docx";
+    const response = await apiClient.post(`/api/seasonal-comparison/4-quarters`, params, {
+      responseType: isDocx ? 'blob' : 'json'
     });
     
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail?.message || error.message || "Failed to generate 4-quarter comparison");
-    }
-    
-    if (params.format === "docx") {
-      const blob = await response.blob();
+    if (isDocx) {
+      const blob = response.data;
       console.log("✅ 4-quarter DOCX comparison generated successfully");
-      return { blob, contentType: response.headers.get("Content-Type"), contentDisposition: response.headers.get("Content-Disposition") };
+      return { blob, contentType: response.headers['content-type'], contentDisposition: response.headers['content-disposition'] };
     } else {
-      const data = await response.json();
+      const data = response.data;
       console.log("✅ 4-quarter JSON comparison generated successfully");
       return data;
     }

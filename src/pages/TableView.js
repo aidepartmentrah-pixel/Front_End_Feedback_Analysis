@@ -1,6 +1,7 @@
 // src/pages/TableView.js
 import React, { useState, useEffect, useCallback } from "react";
 import { Box, Typography, Card, CircularProgress, Button, Chip, Modal, ModalDialog, ModalClose, DialogTitle, DialogContent, DialogActions, Divider } from "@mui/joy";
+import theme from '../theme';
 import { useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -393,7 +394,7 @@ const TableView = () => {
               level="h2"
               sx={{
                 fontWeight: 800,
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: theme.gradients.primary,
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 mb: 1,
@@ -490,8 +491,8 @@ const TableView = () => {
             background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
             border: "1px solid rgba(102, 126, 234, 0.1)",
           }}>
-            <CircularProgress size="lg" sx={{ "--CircularProgress-color": "#667eea" }} />
-            <Typography level="body-md" sx={{ mt: 2, color: "#667eea", fontWeight: 600 }}>
+            <CircularProgress size="lg" sx={{ "--CircularProgress-color": theme.colors.primary }} />
+            <Typography level="body-md" sx={{ mt: 2, color: theme.colors.primary, fontWeight: 600 }}>
               Loading complaints...
             </Typography>
           </Card>
@@ -542,7 +543,7 @@ const TableView = () => {
                 background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
                 border: "1px solid rgba(102, 126, 234, 0.1)",
               }}>
-                <Typography level="h4" sx={{ mb: 1, color: "#667eea" }}>
+                <Typography level="h4" sx={{ mb: 1, color: theme.colors.primary }}>
                   📭 No complaints found
                 </Typography>
                 <Typography level="body-sm" sx={{ color: "#666" }}>

@@ -1,5 +1,5 @@
 // src/api/neverEvents.js
-const BASE_URL = "http://127.0.0.1:8000/api/never-events";
+import apiClient from "./apiClient";
 
 /**
  * Fetch never events list with filters and pagination
@@ -20,22 +20,13 @@ export async function fetchNeverEvents(filters = {}) {
   if (filters.limit) queryParams.append("limit", filters.limit);
   if (filters.offset) queryParams.append("offset", filters.offset);
 
-  const url = `${BASE_URL}?${queryParams.toString()}`;
+  const url = `/api/never-events?${queryParams.toString()}`;
   console.log("⚠️ Request URL:", url);
 
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
-    });
+    const response = await apiClient.get(url);
 
-    if (!response.ok) {
-      throw new Error(`فشل في جلب الأحداث التي لا يجب أن تحدث: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Never events loaded:", data.total, "total records");
     return data;
   } catch (error) {
@@ -56,21 +47,12 @@ export async function fetchNeverEventsStatistics(filters = {}) {
   if (filters.from_date) queryParams.append("from_date", filters.from_date);
   if (filters.to_date) queryParams.append("to_date", filters.to_date);
 
-  const url = `${BASE_URL}/statistics?${queryParams.toString()}`;
+  const url = `/api/never-events/statistics?${queryParams.toString()}`;
 
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
-    });
+    const response = await apiClient.get(url);
 
-    if (!response.ok) {
-      throw new Error(`فشل في جلب الإحصائيات: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Statistics loaded:", data);
     return data;
   } catch (error) {
@@ -93,21 +75,12 @@ export async function fetchNeverEventsTrends(params = {}) {
   if (params.granularity) queryParams.append("granularity", params.granularity);
   if (params.group_by) queryParams.append("group_by", params.group_by);
 
-  const url = `${BASE_URL}/trends?${queryParams.toString()}`;
+  const url = `/api/never-events/trends?${queryParams.toString()}`;
 
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
-    });
+    const response = await apiClient.get(url);
 
-    if (!response.ok) {
-      throw new Error(`فشل في جلب بيانات الاتجاهات: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Trends loaded:", data);
     return data;
   } catch (error) {
@@ -124,21 +97,12 @@ export async function fetchNeverEventsTrends(params = {}) {
 export async function fetchNeverEventDetails(id) {
   console.log("🔍 Fetching never event details for ID:", id);
 
-  const url = `${BASE_URL}/${id}`;
+  const url = `/api/never-events/${id}`;
 
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
-    });
+    const response = await apiClient.get(url);
 
-    if (!response.ok) {
-      throw new Error(`فشل في جلب تفاصيل الحدث: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Never event details loaded:", data);
     return data;
   } catch (error) {
@@ -159,21 +123,12 @@ export async function fetchNeverEventsCategoryBreakdown(filters = {}) {
   if (filters.from_date) queryParams.append("from_date", filters.from_date);
   if (filters.to_date) queryParams.append("to_date", filters.to_date);
 
-  const url = `${BASE_URL}/category-breakdown?${queryParams.toString()}`;
+  const url = `/api/never-events/category-breakdown?${queryParams.toString()}`;
 
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
-    });
+    const response = await apiClient.get(url);
 
-    if (!response.ok) {
-      throw new Error(`فشل في جلب تفصيل الفئات: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Category breakdown loaded:", data);
     return data;
   } catch (error) {
@@ -193,21 +148,12 @@ export async function fetchNeverEventsTimelineComparison(period = 'month') {
   const queryParams = new URLSearchParams();
   if (period) queryParams.append("period", period);
 
-  const url = `${BASE_URL}/timeline-comparison?${queryParams.toString()}`;
+  const url = `/api/never-events/timeline-comparison?${queryParams.toString()}`;
 
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
-    });
+    const response = await apiClient.get(url);
 
-    if (!response.ok) {
-      throw new Error(`فشل في جلب مقارنة الفترات: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Timeline comparison loaded:", data);
     return data;
   } catch (error) {

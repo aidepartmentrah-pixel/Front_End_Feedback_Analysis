@@ -3,6 +3,7 @@ import React, { useState, useMemo } from "react";
 import { Box, Button, Card, Typography, Dropdown, MenuButton, Menu, MenuItem } from "@mui/joy";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import theme from '../../theme';
 
 const YearPicker = ({ value, onChange, availableYears = [] }) => {
   const [startYear, setStartYear] = useState(() => {
@@ -51,7 +52,7 @@ const YearPicker = ({ value, onChange, availableYears = [] }) => {
         sx={{
           p: 2,
           background: "#fff",
-          border: "1px solid rgba(102, 126, 234, 0.2)",
+          border: `1px solid ${theme.colors.primary}33`,
           boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)",
           zIndex: 1400,
           minWidth: "280px",
@@ -76,7 +77,7 @@ const YearPicker = ({ value, onChange, availableYears = [] }) => {
           >
             <ChevronLeftIcon />
           </Button>
-          <Typography level="body-sm" sx={{ fontWeight: 600, color: "#667eea" }}>
+          <Typography level="body-sm" sx={{ fontWeight: 600, color: theme.colors.primary }}>
             {startYear - 11} - {startYear}
           </Typography>
           <Button

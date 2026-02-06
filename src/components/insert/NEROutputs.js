@@ -422,7 +422,7 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, va
                     <Chip
                       key={doctor.doctor_id}
                       variant="soft"
-                      color="primary"
+                      color="success"
                       endDecorator={
                         <CloseIcon
                           sx={{ 

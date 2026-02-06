@@ -2,6 +2,13 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
+// Auth
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+
+// Dev Helpers (DEV-ONLY)
+import AuthDebugPanel from "./dev/AuthDebugPanel";
+
 // Pages
 import DashBoard from "./pages/DashBoard";
 import TableView from "./pages/TableView";
@@ -16,31 +23,171 @@ import TrendMonitoringPage from "./pages/TrendMonitoringPage";
 import HistoryPage from "./pages/HistoryPage";
 import CriticalIssuesPage from "./pages/CriticalIssuesPage";
 import InvestigationPage from "./pages/InvestigationPage";
+import InsightPage from "./pages/InsightPage";
+import WorkflowInboxPage from "./pages/WorkflowInboxPage";
 import SeasonalReportsPage from "./pages/SeasonalReportsPage";
 import SeasonalReportDetailPage from "./pages/SeasonalReportDetailPage";
 
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/" element={<DashBoard />} />
-        <Route path="/dashBoard" element={<DashBoard />} />
-        <Route path="/table-view" element={<TableView />} />
-        <Route path="/insert" element={<InsertRecord />} />
-        <Route path="/edit/:id" element={<EditRecord />} />
-        <Route path="/edit-record/:id" element={<EditRecord />} />
-        <Route path="/reporting" element={<ReportingPage />} />
-        <Route path="/settings" element={<SettingPage />} />
-        <Route path="/history" element={<HistoryPage />} />
-        <Route path="/department-feedback" element={<DepartmentFeedbackPage />} />
-        <Route path="/critical-issues" element={<CriticalIssuesPage />} />
-        <Route path="/trend-monitoring" element={<TrendMonitoringPage />} />
-        <Route path="/follow-up" element={<FollowUpPage />} />
-        <Route path="/investigation" element={<InvestigationPage />} />
-        <Route path="/seasonal-reports" element={<SeasonalReportsPage />} />
-        <Route path="/seasonal-reports/:id" element={<SeasonalReportDetailPage />} />
-      </Routes>
+      <AuthProvider>
+        {/* DEV-ONLY: Auth Debug Panel */}
+        {process.env.NODE_ENV === "development" && <AuthDebugPanel />}
+
+        <Routes>
+          {/* Public Route */}
+          <Route path="/login" element={<Login />} />
+
+          {/* Protected Routes */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <DashBoard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashBoard"
+            element={
+              <ProtectedRoute>
+                <DashBoard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/table-view"
+            element={
+              <ProtectedRoute>
+                <TableView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/insert"
+            element={
+              <ProtectedRoute>
+                <InsertRecord />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/edit/:id"
+            element={
+              <ProtectedRoute>
+                <EditRecord />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/edit-record/:id"
+            element={
+              <ProtectedRoute>
+                <EditRecord />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reporting"
+            element={
+              <ProtectedRoute>
+                <ReportingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/history"
+            element={
+              <ProtectedRoute>
+                <HistoryPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* HIDDEN: Department Feedback page - moved to Reporting page */}
+          {/* <Route
+            path="/department-feedback"
+            element={
+              <ProtectedRoute>
+                <DepartmentFeedbackPage />
+              </ProtectedRoute>
+            }
+          /> */}
+          <Route
+            path="/critical-issues"
+            element={
+              <ProtectedRoute>
+                <CriticalIssuesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/trend-monitoring"
+            element={
+              <ProtectedRoute>
+                <TrendMonitoringPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/follow-up"
+            element={
+              <ProtectedRoute>
+                <FollowUpPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/investigation"
+            element={
+              <ProtectedRoute>
+                <InvestigationPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inbox"
+            element={
+              <ProtectedRoute>
+                <WorkflowInboxPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/insight"
+            element={
+              <ProtectedRoute>
+                <InsightPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* HIDDEN: Seasonal Reports pages - reports generated through /reporting page */}
+          {/* <Route
+            path="/seasonal-reports"
+            element={
+              <ProtectedRoute>
+                <SeasonalReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seasonal-reports/:id"
+            element={
+              <ProtectedRoute>
+                <SeasonalReportDetailPage />
+              </ProtectedRoute>
+            }
+          /> */}
+        </Routes>
+      </AuthProvider>
     </Router>
   );
 }

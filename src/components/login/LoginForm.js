@@ -2,13 +2,17 @@
 import React, { useState } from "react";
 import { Box, FormControl, FormLabel, Input, Button, Alert, Typography } from "@mui/joy";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import PersonIcon from "@mui/icons-material/Person";
 import LockIcon from "@mui/icons-material/Lock";
 import LoginIcon from "@mui/icons-material/Login";
-// import axios from "axios";
+import theme from "../../theme";
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
 const LoginForm = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,27 +24,35 @@ const LoginForm = () => {
     setLoading(true);
 
     try {
-      // TODO: Replace with actual API call
-      // const response = await axios.post("/api/auth/login", { username, password });
-      // const { token } = response.data;
-      
-      // Mock authentication (remove in production)
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
-      
-      // Mock validation
-      if (username === "admin" && password === "admin123") {
-        // Save token to localStorage
-        const mockToken = "mock-jwt-token-" + Date.now();
-        localStorage.setItem("authToken", mockToken);
-        localStorage.setItem("username", username);
+      // Call backend authentication endpoint (session-based auth)
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // Include session cookie
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle 401, 400, or other error responses
+        throw new Error(data.message || "Incorrect username or password. Please try again.");
+      }
+
+      // Success: Session cookie is set automatically by browser
+      if (response.ok && data.success === true) {
+        // Update auth context with user data from response
+        login(data.user);
         
         // Redirect to dashboard
         navigate("/");
       } else {
-        throw new Error("Invalid credentials");
+        throw new Error(data.message || "Incorrect username or password. Please try again.");
       }
     } catch (error) {
-      setErrorMessage("اسم المستخدم أو كلمة المرور غير صحيحة / Wrong username or password");
+      setErrorMessage(error.message || "Incorrect username or password. Please check your credentials and try again.");
       setLoading(false);
     }
   };
@@ -91,12 +103,15 @@ const LoginForm = () => {
         loading={loading}
         startDecorator={!loading && <LoginIcon />}
         sx={{
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-          color: "white",
+          background: theme.login.buttonBackground,
+          color: theme.colors.textOnPrimary,
           fontWeight: 700,
           fontSize: "16px",
           py: 1.5,
           mb: 2,
+          '&:hover': {
+            background: theme.colors.primaryHover,
+          },
         }}
       >
         {loading ? "جاري تسجيل الدخول..." : "تسجيل الدخول (Sign In)"}
@@ -105,13 +120,14 @@ const LoginForm = () => {
       <Box
         sx={{
           p: 2,
-          background: "rgba(102, 126, 234, 0.05)",
+          background: theme.colors.infoLight,
           borderRadius: "8px",
-          border: "1px solid rgba(102, 126, 234, 0.2)",
+          border: `1px solid ${theme.colors.info}`,
+          opacity: 0.8,
         }}
       >
-        <Typography level="body-xs" sx={{ color: "#666", textAlign: "center" }}>
-          💡 <strong>Demo Credentials:</strong> username: <code>admin</code> | password: <code>admin123</code>
+        <Typography level="body-xs" sx={{ color: theme.colors.textSecondary, textAlign: "center" }}>
+          � <strong>Secure Login:</strong> Enter your credentials to access the system
         </Typography>
       </Box>
     </Box>

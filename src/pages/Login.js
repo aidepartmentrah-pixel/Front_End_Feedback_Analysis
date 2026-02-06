@@ -2,20 +2,22 @@
 import React, { useEffect } from "react";
 import { Box, Card } from "@mui/joy";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import SystemLogo from "../components/login/SystemLogo";
 import LoginForm from "../components/login/LoginForm";
 import FooterNote from "../components/login/FooterNote";
+import theme from "../theme";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, isLoading } = useAuth();
 
   // Auto-redirect if already authenticated
   useEffect(() => {
-    const token = localStorage.getItem("authToken");
-    if (token) {
+    if (!isLoading && isAuthenticated) {
       navigate("/");
     }
-  }, [navigate]);
+  }, [isAuthenticated, isLoading, navigate]);
 
   return (
     <Box
@@ -24,7 +26,7 @@ const Login = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        background: theme.login.background,
         padding: 3,
       }}
     >
@@ -35,7 +37,7 @@ const Login = () => {
           p: 4,
           boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
           borderRadius: "16px",
-          background: "white",
+          background: theme.colors.surface,
         }}
       >
         <SystemLogo />

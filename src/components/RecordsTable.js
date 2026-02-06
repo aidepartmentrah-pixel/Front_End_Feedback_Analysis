@@ -552,11 +552,6 @@ const RecordsTable = ({ records, filters, selectedView = "complete" }) => {
                             <EditIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Delete">
-                          <IconButton size="sm" variant="soft" color="danger">
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
                       </Box>
                     </td>
                   )}

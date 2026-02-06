@@ -35,7 +35,7 @@
 //    // Do something with blob...
 //    downloadBlob(blob, filename);  // Download manually
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
+import apiClient from "./apiClient";
 
 /**
  * Fetch Monthly Report
@@ -54,21 +54,12 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
  * @returns {Promise<Object>} Monthly report JSON data
  */
 export async function fetchMonthlyReport(params) {
-  const url = `${API_BASE_URL}/api/reports/monthly/view`;
+  const url = `/api/reports/monthly/view`;
   console.log("📡 Fetching Monthly Report (POST):", url, params);
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
-  });
+  const response = await apiClient.post(url, params);
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to fetch monthly report: ${response.status} ${errorText}`);
-  }
-
-  return await response.json();
+  return response.data;
 }
 
 /**
@@ -84,21 +75,12 @@ export async function fetchMonthlyReport(params) {
  * @returns {Promise<Object>} Seasonal report JSON data
  */
 export async function fetchSeasonalReport(params) {
-  const url = `${API_BASE_URL}/api/reports/seasonal/view`;
+  const url = `/api/reports/seasonal/view`;
   console.log("📡 Fetching Seasonal Report (POST):", url, params);
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
-  });
+  const response = await apiClient.post(url, params);
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to fetch seasonal report: ${response.status} ${errorText}`);
-  }
-
-  return await response.json();
+  return response.data;
 }
 
 /**
@@ -120,10 +102,10 @@ export async function exportReport({ report_type, format, filters }) {
     throw new Error(`Invalid export format: ${format}. Must be "pdf", "xlsx", or "docx".`);
   }
   
-  let url, requestOptions;
+  let url, requestData;
   
   if (report_type === "monthly") {
-    // Monthly export: Build URL with query parameters
+    // Monthly export: Build URL with query parameters for POST
     const params = new URLSearchParams();
     
     // Required parameters
@@ -153,13 +135,11 @@ export async function exportReport({ report_type, format, filters }) {
       params.append("section_ids", filters.section_ids);
     }
     
-    url = `${API_BASE_URL}/api/reports/monthly/export?${params.toString()}`;
-    requestOptions = {
-      method: "POST",
-    };
+    url = `/api/reports/monthly/export?${params.toString()}`;
+    requestData = null; // POST with no body
   } else {
     // Seasonal export: Backend V2 API format
-    url = `${API_BASE_URL}/api/reports/${report_type}/export`;
+    url = `/api/reports/${report_type}/export`;
     
     // Extract required parameters from filters
     const year = Number(filters.year);
@@ -168,52 +148,37 @@ export async function exportReport({ report_type, format, filters }) {
     const orgunit_type = Number(filters.orgunit_type || 0);
     const language = filters.language || "en";
     
-    requestOptions = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        year,
-        period,
-        orgunit_id,
-        orgunit_type,
-        format,
-        language,
-      }),
-    };
-    
-    console.log("🔍 SEASONAL EXPORT PAYLOAD:", {
+    requestData = {
       year,
       period,
       orgunit_id,
       orgunit_type,
       format,
       language,
-    });
+    };
+    
+    console.log("🔍 SEASONAL EXPORT PAYLOAD:", requestData);
   }
   
   console.log("📡 Exporting Report:", report_type.toUpperCase(), format.toUpperCase(), url);
   
   try {
     // Step 1: First request to detect response type (JSON or blob)
-    const response = await fetch(url, requestOptions);
+    const response = await apiClient.post(url, requestData, {
+      responseType: 'blob', // Request blob by default
+    });
     
-    console.log("📥 Export Response:", response.status, response.statusText);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ Export API Error:", errorText);
-      throw new Error(`Failed to export report: ${response.status} ${response.statusText}`);
-    }
+    console.log("📥 Export Response:", response.status);
     
     // Check Content-Type to determine if it's JSON or a file
-    const contentType = response.headers.get("Content-Type");
+    const contentType = response.headers['content-type'];
     console.log("📋 Response Content-Type:", contentType);
     
     // Step 2: Check if response is JSON (multi-export metadata)
     if (contentType && contentType.includes("application/json")) {
-      const jsonData = await response.json();
+      // Need to parse blob as JSON
+      const text = await response.data.text();
+      const jsonData = JSON.parse(text);
       console.log("📄 JSON Response:", jsonData);
       
       // Check if it's a multi-export with download URL
@@ -222,18 +187,14 @@ export async function exportReport({ report_type, format, filters }) {
         console.log(`🔗 Download URL: ${jsonData.download_url}`);
         
         // Step 3: Download the actual file from the download URL
-        const downloadUrl = `${API_BASE_URL}${jsonData.download_url}`;
+        const downloadUrl = jsonData.download_url;
         console.log(`📡 Fetching multi-export file from: ${downloadUrl}`);
         
-        const fileResponse = await fetch(downloadUrl, {
-          method: "GET",
+        const fileResponse = await apiClient.get(downloadUrl, {
+          responseType: 'blob',
         });
         
-        if (!fileResponse.ok) {
-          throw new Error(`Failed to download multi-export file: ${fileResponse.status}`);
-        }
-        
-        const blob = await fileResponse.blob();
+        const blob = fileResponse.data;
         console.log("📦 Multi-export Blob Size:", blob.size, "bytes");
         
         return {
@@ -249,12 +210,12 @@ export async function exportReport({ report_type, format, filters }) {
       }
     } else {
       // Step 4: Direct file response (single file or ZIP)
-      const blob = await response.blob();
+      const blob = response.data;
       console.log("📦 Export Blob Size:", blob.size, "bytes");
       
       // Extract filename from Content-Disposition header
       let filename = null;
-      const contentDisposition = response.headers.get("Content-Disposition");
+      const contentDisposition = response.headers['content-disposition'];
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
         if (filenameMatch && filenameMatch[1]) {

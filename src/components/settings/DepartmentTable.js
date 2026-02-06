@@ -14,6 +14,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
+import theme from '../../theme';
 
 const DepartmentTable = ({ departments, onEdit, onDelete, loading }) => {
   const [editingId, setEditingId] = useState(null);
@@ -95,7 +96,7 @@ const DepartmentTable = ({ departments, onEdit, onDelete, loading }) => {
         display: "flex",
         alignItems: "center",
         gap: 0.5,
-        "&:hover": { color: "#667eea" },
+        "&:hover": { color: theme.colors.primary },
       }}
     >
       {label}
@@ -196,7 +197,7 @@ const DepartmentTable = ({ departments, onEdit, onDelete, loading }) => {
                         display: "inline-flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        background: "#764ba2",
+                        background: theme.colors.secondary,
                         color: "white",
                         padding: "4px 12px",
                         borderRadius: "4px",
@@ -214,7 +215,7 @@ const DepartmentTable = ({ departments, onEdit, onDelete, loading }) => {
                         alignItems: "center",
                         justifyContent: "center",
                         background:
-                          dept.type === "internal" ? "#667eea" : "#ffa502",
+                          dept.type === "internal" ? theme.colors.primary : "#ffa502",
                         color: "white",
                         padding: "4px 12px",
                         borderRadius: "4px",

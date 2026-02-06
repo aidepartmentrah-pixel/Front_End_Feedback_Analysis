@@ -1,6 +1,7 @@
 // src/pages/SettingPage.js
 import React, { useState, useEffect } from "react";
 import { Box, Typography, Tabs, TabList, Tab, TabPanel, Alert } from "@mui/joy";
+import theme from '../theme';
 import MainLayout from "../components/common/MainLayout";
 import DepartmentTable from "../components/settings/DepartmentTable";
 import AddDepartmentForm from "../components/settings/AddDepartmentForm";
@@ -13,9 +14,15 @@ import SettingActions from "../components/settings/SettingActions";
 import VariableAttributes from "../components/settings/VariableAttributes";
 import PolicyConfiguration from "../components/settings/PolicyConfiguration";
 import Training from "../components/settings/Training";
+import UsersAndSectionsTab from "../components/settings/UsersAndSectionsTab";
+import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 
 const SettingPage = () => {
+  // Auth context for role checking
+  const { user } = useAuth();
+  const isSoftwareAdmin = user?.roles?.includes("SOFTWARE_ADMIN");
+
   // State Management
   const [departments, setDepartments] = useState([]);
   const [doctors, setDoctors] = useState([]);
@@ -324,7 +331,7 @@ const SettingPage = () => {
             level="h2"
             sx={{
               fontWeight: 800,
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: theme.gradients.primary,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               mb: 1,
@@ -376,6 +383,7 @@ const SettingPage = () => {
           <Tab>⚙️ Variable Attributes</Tab>
           <Tab>📋 Policy Configuration</Tab>
           <Tab>🚦 Training</Tab>
+          {isSoftwareAdmin && <Tab>👤 Users & Sections (Testing)</Tab>}
         </TabList>
 
         {/* Department Management Tab */}
@@ -449,6 +457,13 @@ const SettingPage = () => {
         <TabPanel value={5} sx={{ p: 3 }}>
           <Training />
         </TabPanel>
+
+        {/* Users & Sections Tab (SOFTWARE_ADMIN only) */}
+        {isSoftwareAdmin && (
+          <TabPanel value={6} sx={{ p: 3 }}>
+            <UsersAndSectionsTab />
+          </TabPanel>
+        )}
       </Tabs>
       </Box>
     </MainLayout>

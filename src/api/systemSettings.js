@@ -1,7 +1,7 @@
 // src/api/systemSettings.js
-import axios from "axios";
+import apiClient from "./apiClient";
 
-const API_BASE_URL = "http://localhost:8000/api/system-settings";
+const API_ENDPOINT = "/api/system-settings";
 
 /**
  * Get all system settings
@@ -9,7 +9,7 @@ const API_BASE_URL = "http://localhost:8000/api/system-settings";
  */
 export const getAllSettings = async () => {
   try {
-    const response = await axios.get(API_BASE_URL);
+    const response = await apiClient.get(API_ENDPOINT);
     return response.data;
   } catch (error) {
     console.error("Error fetching all settings:", error);
@@ -24,7 +24,7 @@ export const getAllSettings = async () => {
  */
 export const getSetting = async (key) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/${key}`);
+    const response = await apiClient.get(`${API_ENDPOINT}/${key}`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching setting ${key}:`, error);
@@ -49,7 +49,7 @@ export const updateSetting = async (key, value, userId = null) => {
       payload.updated_by_user_id = userId;
     }
     
-    const response = await axios.put(`${API_BASE_URL}/${key}`, payload);
+    const response = await apiClient.put(`${API_ENDPOINT}/${key}`, payload);
     return response.data;
   } catch (error) {
     console.error(`Error updating setting ${key}:`, error);

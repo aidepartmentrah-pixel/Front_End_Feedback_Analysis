@@ -4,6 +4,7 @@ import { Box, Card, Typography, Select, Option, Button, CircularProgress, Input 
 import FilterListIcon from "@mui/icons-material/FilterList";
 import ClearIcon from "@mui/icons-material/Clear";
 import YearPicker from "./YearPicker";
+import theme from '../../theme';
 
 const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => {
   const handleFilterChange = (field, value) => {
@@ -34,7 +35,7 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
         p: 3,
         mb: 3,
         background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
-        border: "1px solid rgba(102, 126, 234, 0.1)",
+        border: `1px solid ${theme.colors.primary}1A`,
         position: "relative",
         zIndex: 10,
       }}
@@ -42,8 +43,8 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
       {/* Header */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <FilterListIcon sx={{ color: "#667eea" }} />
-          <Typography level="h4" sx={{ fontWeight: 700, color: "#667eea" }}>
+          <FilterListIcon sx={{ color: theme.colors.primary }} />
+          <Typography level="h4" sx={{ fontWeight: 700, color: theme.colors.primary }}>
             Filters
           </Typography>
         </Box>

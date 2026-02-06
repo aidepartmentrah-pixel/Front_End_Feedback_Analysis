@@ -1,26 +1,23 @@
 // frontend/src/api/dashboard.js
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
+import apiClient from "./apiClient";
 
 /**
  * Fetch dashboard hierarchy
  * @returns {Promise<Object>} Hierarchy data with administrations, departments, and sections
  */
 export async function fetchDashboardHierarchy() {
-  const url = `${API_BASE_URL}/api/dashboard/hierarchy`;
+  const url = "/api/dashboard/hierarchy";
   console.log("📡 Making API call to:", url);
   
-  const res = await fetch(url);
-  console.log("📥 Response status:", res.status, res.statusText);
-  
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error("❌ API Error:", errorText);
-    throw new Error(`Failed to load hierarchy: ${res.status} ${res.statusText}`);
+  try {
+    const response = await apiClient.get(url);
+    console.log("📥 Response received");
+    console.log("📦 Parsed data:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("❌ API Error:", error);
+    throw new Error(`Failed to load hierarchy: ${error.message}`);
   }
-  
-  const data = await res.json();
-  console.log("📦 Parsed data:", data);
-  return data;
 }
 
 /**
@@ -62,15 +59,28 @@ export async function fetchDashboardStats({
     queryParams.append("end_date", end_date);
   }
 
-  const url = `${API_BASE_URL}/api/dashboard/stats?${queryParams.toString()}`;
+  const url = `/api/dashboard/stats?${queryParams.toString()}`;
   console.log("📡 Making API call to:", url);
 
-  const res = await fetch(url);
-  console.log("📥 Response status:", res.status, res.statusText);
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error("❌ API Error Response:", errorText);
+  try {
+    const response = await apiClient.get(url);
+    console.log("📥 Response received");
+    
+    const data = response.data;
+    console.log("📦 Parsed stats data:", data);
+    console.log("📦 Stats data structure:", JSON.stringify(data, null, 2));
+    
+    // Check actual structure
+    if (data && typeof data === 'object') {
+      console.log("🔍 Top-level keys:", Object.keys(data));
+      if (data.data) console.log("🔍 data.data keys:", Object.keys(data.data));
+      if (data.metrics) console.log("🔍 metrics keys:", Object.keys(data.metrics));
+      if (data.stats) console.log("🔍 stats keys:", Object.keys(data.stats));
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("❌ API Error Response:", error);
     console.error("❌ Request URL was:", url);
     console.error("❌ Request params were:", {
       scope,
@@ -81,34 +91,6 @@ export async function fetchDashboardStats({
       end_date
     });
     
-    // Try to parse error details
-    let errorMessage = `Failed to load dashboard stats: ${res.status} ${res.statusText}`;
-    try {
-      const errorData = JSON.parse(errorText);
-      if (errorData.detail) {
-        errorMessage += ` - ${errorData.detail}`;
-      }
-    } catch (e) {
-      // If not JSON, use the text as is
-      if (errorText) {
-        errorMessage += ` - ${errorText}`;
-      }
-    }
-    
-    throw new Error(errorMessage);
+    throw new Error(`Failed to load dashboard stats: ${error.message}`);
   }
-
-  const data = await res.json();
-  console.log("📦 Parsed stats data:", data);
-  console.log("📦 Stats data structure:", JSON.stringify(data, null, 2));
-  
-  // Check actual structure
-  if (data && typeof data === 'object') {
-    console.log("🔍 Top-level keys:", Object.keys(data));
-    if (data.data) console.log("🔍 data.data keys:", Object.keys(data.data));
-    if (data.metrics) console.log("🔍 metrics keys:", Object.keys(data.metrics));
-    if (data.stats) console.log("🔍 stats keys:", Object.keys(data.stats));
-  }
-  
-  return data;
 }

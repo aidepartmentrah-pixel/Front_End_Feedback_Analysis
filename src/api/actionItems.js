@@ -1,7 +1,7 @@
 // src/api/actionItems.js
 // API service for Action Items / Follow-Up
 
-const API_BASE_URL = "http://127.0.0.1:8000";
+import apiClient from "./apiClient";
 
 /**
  * Get a single action item by ID
@@ -13,14 +13,9 @@ export const getActionItem = async (actionItemId) => {
   try {
     console.log("🔍 Fetching action item:", actionItemId);
     
-    const response = await fetch(`${API_BASE_URL}/api/action-items/${actionItemId}`);
+    const response = await apiClient.get(`/api/action-items/${actionItemId}`);
     
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || "Failed to fetch action item");
-    }
-    
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Action item fetched:", data);
     return data;
   } catch (error) {
@@ -39,14 +34,9 @@ export const getActionItemsByIncident = async (incidentCaseId) => {
   try {
     console.log("🔍 Fetching action items for incident:", incidentCaseId);
     
-    const response = await fetch(`${API_BASE_URL}/api/action-items/by-incident/${incidentCaseId}`);
+    const response = await apiClient.get(`/api/action-items/by-incident/${incidentCaseId}`);
     
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || "Failed to fetch incident action items");
-    }
-    
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Incident action items fetched:", data.length, "items");
     return data;
   } catch (error) {
@@ -65,14 +55,9 @@ export const getActionItemsBySeasonalReport = async (seasonalReportId) => {
   try {
     console.log("🔍 Fetching action items for seasonal report:", seasonalReportId);
     
-    const response = await fetch(`${API_BASE_URL}/api/action-items/by-seasonal-report/${seasonalReportId}`);
+    const response = await apiClient.get(`/api/action-items/by-seasonal-report/${seasonalReportId}`);
     
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || "Failed to fetch seasonal report action items");
-    }
-    
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Seasonal report action items fetched:", data.length, "items");
     return data;
   } catch (error) {
@@ -91,14 +76,9 @@ export const getActionItemsBySeason = async (seasonCaseId) => {
   try {
     console.log("🔍 Fetching action items for season case:", seasonCaseId);
     
-    const response = await fetch(`${API_BASE_URL}/api/action-items/by-season/${seasonCaseId}`);
+    const response = await apiClient.get(`/api/action-items/by-season/${seasonCaseId}`);
     
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || "Failed to fetch season case action items");
-    }
-    
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Season case action items fetched:", data.length, "items");
     return data;
   } catch (error) {
@@ -117,16 +97,9 @@ export const markActionItemDone = async (actionItemId) => {
   try {
     console.log("✓ Marking action item as done:", actionItemId);
     
-    const response = await fetch(`${API_BASE_URL}/api/action-items/${actionItemId}/mark-done`, {
-      method: "POST",
-    });
+    const response = await apiClient.post(`/api/action-items/${actionItemId}/mark-done`);
     
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || "Failed to mark action item as done");
-    }
-    
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Action item marked as done:", data);
     return data;
   } catch (error) {
@@ -146,23 +119,12 @@ export const delayActionItem = async (actionId, delayDays) => {
   try {
     console.log(`⏰ Delaying action item ${actionId} by ${delayDays} days`);
     
-    const response = await fetch(
-      `${API_BASE_URL}/api/follow-up/actions/${actionId}/delay`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ delayDays })
-      }
+    const response = await apiClient.post(
+      `/api/follow-up/actions/${actionId}/delay`,
+      { delayDays }
     );
     
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || "Failed to delay action item");
-    }
-    
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Action item delayed successfully:", data);
     return data;
   } catch (error) {
@@ -180,14 +142,9 @@ export const getAllActionItems = async () => {
   try {
     console.log("🔍 Fetching all action items from unified endpoint");
     
-    const response = await fetch(`${API_BASE_URL}/api/follow-up/actions`);
+    const response = await apiClient.get(`/api/follow-up/actions`);
     
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || "Failed to fetch all action items");
-    }
-    
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ All action items fetched:", data.actions?.length || 0, "items");
     return data.actions || [];
   } catch (error) {

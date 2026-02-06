@@ -1,6 +1,6 @@
 // src/api/investigation.js
 
-const BASE_URL = "http://127.0.0.1:8000/api/investigation";
+import apiClient from "./apiClient";
 
 /**
  * Fetch available seasons from the backend
@@ -9,26 +9,15 @@ const BASE_URL = "http://127.0.0.1:8000/api/investigation";
  */
 export async function fetchSeasons() {
   console.log("🔍 Fetching available seasons...");
-  const url = `${BASE_URL}/seasons`;
+  const url = `/api/investigation/seasons`;
   console.log("📡 Seasons API URL:", url);
 
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
-    });
+    const response = await apiClient.get(url);
     
     console.log("📥 Seasons response status:", response.status);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ Seasons API error response:", errorText);
-      throw new Error(`Failed to load seasons: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Seasons loaded successfully:", data);
     console.log("📅 Available seasons:", data.seasons?.length);
     console.log("📅 Current season:", data.current_season);
@@ -138,45 +127,18 @@ export async function fetchInvestigationTree({
     console.log("📍 Adding section_id:", section_id);
   }
 
-  const url = `${BASE_URL}/tree?${params.toString()}`;
+  const url = `/api/investigation/tree?${params.toString()}`;
   console.log("📡 Full Investigation tree API URL:", url);
   console.log("📡 Query String Parameters:", params.toString());
   console.log("=================================");
 
   try {
-    const response = await fetch(url, {
-      method: "GET", // Explicitly specify GET method
-      headers: {
-        "Accept": "application/json",
-      },
-    });
+    const response = await apiClient.get(url);
     
     console.log("📥 Investigation tree response status:", response.status);
     console.log("📥 Response OK:", response.ok);
-    console.log("📥 Response headers:", {
-      contentType: response.headers.get("content-type"),
-      contentLength: response.headers.get("content-length"),
-    });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ Investigation tree API error response (raw):", errorText);
-      
-      try {
-        const errorJson = JSON.parse(errorText);
-        console.error("❌ Parsed error JSON:", errorJson);
-        
-        // FastAPI returns { "detail": "error message" }
-        const errorMessage = errorJson.detail || errorJson.message || JSON.stringify(errorJson);
-        throw new Error(`Failed to load investigation tree: ${response.status} - ${errorMessage}`);
-      } catch (parseError) {
-        // If not JSON, use the text directly
-        console.error("❌ Could not parse error as JSON");
-        throw new Error(`Failed to load investigation tree: ${response.status} ${response.statusText} - ${errorText}`);
-      }
-    }
-
-    const data = await response.json();
+    const data = response.data;
     console.log("✅ Investigation tree data loaded successfully");
     console.log("✅ Data summary:", {
       season: data.season,

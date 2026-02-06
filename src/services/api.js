@@ -1,34 +1,41 @@
 // src/services/api.js
 // API service for all backend calls
+import apiClient from "../api/apiClient";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000/api";
-
-// Helper function for API calls
+// Helper function for API calls using apiClient
 const apiCall = async (endpoint, options = {}) => {
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-      ...options,
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      // Create error with backend message structure
-      const error = new Error(data.message || "API request failed");
-      error.code = data.error;
-      error.field = data.field;
-      error.message_ar = data.message_ar;
-      error.status = response.status;
-      throw error;
+    const { method = "GET", body, ...restOptions } = options;
+    
+    const config = {
+      method,
+      ...restOptions,
+    };
+    
+    if (body) {
+      config.data = body;
     }
 
-    return data;
+    const response = await apiClient.request({
+      url: endpoint,
+      ...config,
+    });
+
+    return response.data;
   } catch (error) {
     console.error(`API Error [${endpoint}]:`, error);
+    
+    // Extract error details from axios error
+    if (error.response) {
+      const data = error.response.data;
+      const customError = new Error(data.message || "API request failed");
+      customError.code = data.error;
+      customError.field = data.field;
+      customError.message_ar = data.message_ar;
+      customError.status = error.response.status;
+      throw customError;
+    }
+    
     throw error;
   }
 };
@@ -87,7 +94,7 @@ const api = {
 
   // Get reserve doctors only (for settings page)
   getDoctors: async (limit = 100) => {
-    return apiCall(`/doctors/reserve?limit=${limit}`);
+    return apiCall(`/api/doctors/reserve?limit=${limit}`);
   },
 
   // Add new doctor
@@ -100,7 +107,7 @@ const api = {
       source_system: data.source_system || "MANUAL",
     };
     
-    return apiCall("/doctors", {
+    return apiCall("/api/doctors", {
       method: "POST",
       body: JSON.stringify(requestBody),
     });
@@ -129,7 +136,7 @@ const api = {
 
   // Get reserve patients only (for settings page)
   getPatients: async (limit = 100, offset = 0, orderBy = "created_at") => {
-    return apiCall(`/patients/reserve?limit=${limit}&offset=${offset}&order_by=${orderBy}`);
+    return apiCall(`/api/patients/reserve?limit=${limit}&offset=${offset}&order_by=${orderBy}`);
   },
 
   // Add new patient
@@ -158,7 +165,7 @@ const api = {
       }
     });
 
-    return apiCall("/patients/create", {
+    return apiCall("/api/patients/create", {
       method: "POST",
       body: JSON.stringify(requestBody),
     });

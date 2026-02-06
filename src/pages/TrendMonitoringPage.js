@@ -1,6 +1,7 @@
 // src/pages/TrendMonitoringPage.js
 import React, { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { Box, Typography, Divider, Button, Card, CircularProgress, Select, Option, FormControl, FormLabel, RadioGroup, Radio, Input, IconButton, Chip, Accordion, AccordionSummary, AccordionDetails, Tabs, TabList, Tab, TabPanel, Skeleton } from "@mui/joy";
+import theme from '../theme';
 import { useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AddIcon from "@mui/icons-material/Add";
@@ -373,7 +374,7 @@ const TrendMonitoringPage = () => {
             level="h2"
             sx={{
               fontWeight: 800,
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: theme.gradients.primary,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               mb: 1,
@@ -509,7 +510,7 @@ const TrendMonitoringPage = () => {
         {/* Domain Trends Section */}
         {!loading && !error && trendsData?.domain && (
           <Box sx={{ mb: 5 }}>
-            <Typography level="h4" sx={{ mb: 2, color: "#667eea", fontWeight: 700 }}>
+            <Typography level="h4" sx={{ mb: 2, color: theme.colors.primary, fontWeight: 700 }}>
               🔬 Domain Trends (Clinical, Management, Relational)
             </Typography>
             <DomainTrendChart data={trendsData.domain} />
@@ -522,7 +523,7 @@ const TrendMonitoringPage = () => {
         {/* Category Trends Section */}
         {!loading && !error && trendsData?.category && (
           <Box sx={{ mb: 5 }}>
-            <Typography level="h4" sx={{ mb: 2, color: "#667eea", fontWeight: 700 }}>
+            <Typography level="h4" sx={{ mb: 2, color: theme.colors.primary, fontWeight: 700 }}>
               📑 Category Trends
             </Typography>
             <CategoryTrendChart data={trendsData.category} referenceData={referenceData} />
@@ -536,7 +537,7 @@ const TrendMonitoringPage = () => {
             DISTRIBUTION ANALYSIS SECTION
             ============================ */}
         <Box sx={{ mb: 5 }}>
-          <Typography level="h3" sx={{ mb: 3, color: "#764ba2", fontWeight: 700 }}>
+          <Typography level="h3" sx={{ mb: 3, color: theme.colors.secondary, fontWeight: 700 }}>
             📊 Distribution Analysis (Operator)
           </Typography>
           
@@ -873,7 +874,7 @@ const TrendMonitoringPage = () => {
               aria-label="Analyze distribution data"
               aria-busy={distributionLoading}
               sx={{
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: theme.gradients.primary,
                 fontWeight: 700,
               }}
             >

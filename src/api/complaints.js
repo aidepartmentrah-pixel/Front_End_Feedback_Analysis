@@ -1,6 +1,11 @@
 // src/api/complaints.js
+import apiClient from "./apiClient";
 
-const BASE_URL = "http://127.0.0.1:8000/api/complaints";
+// Helper to convert apiClient response to match old fetch pattern
+const fetchWithAuth = async (url) => {
+  const response = await apiClient.get(url);
+  return response.data;
+};
 
 /**
  * Fetch complaints with pagination, filtering, sorting
@@ -40,33 +45,35 @@ export async function fetchComplaints(params = {}) {
   // View
   if (params.view) queryParams.append("view", params.view);
 
-  const url = `${BASE_URL}?${queryParams.toString()}`;
+  const url = `/api/complaints?${queryParams.toString()}`;
   console.log("📡 Complaints API URL:", url);
+  
+  // Enhanced logging for sort debugging
+  if (params.sort_by) {
+    console.log("🔀 SORT DEBUG:", {
+      sort_by: params.sort_by,
+      sort_order: params.sort_order,
+      message: params.sort_by === 'id' ? '⚠️ Sorting by ID - Backend must use NUMERIC sort, not string sort!' : ''
+    });
+  }
 
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
+    const response = await apiClient.get(url);
+    
+    console.log("✅ Complaints loaded:", {
+      count: response.data.complaints?.length,
+      total_records: response.data.pagination?.total_records,
+      page: response.data.pagination?.page,
     });
-
-    console.log("📥 Complaints response status:", response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ Complaints API error:", errorText);
-      throw new Error(`Failed to fetch complaints: ${response.status} ${response.statusText}`);
+    
+    // Debug: Log first few complaint IDs to verify sort order
+    if (response.data.complaints?.length > 0 && params.sort_by === 'id') {
+      const ids = response.data.complaints.slice(0, 5).map(c => c.id || c.complaint_number);
+      console.log("🔍 SORT VERIFICATION - First 5 IDs:", ids);
+      console.log("⚠️ If IDs show: [177, 175, 176...] this confirms BACKEND is doing STRING sort instead of NUMERIC sort");
     }
 
-    const data = await response.json();
-    console.log("✅ Complaints loaded:", {
-      count: data.complaints?.length,
-      total_records: data.pagination?.total_records,
-      page: data.pagination?.page,
-    });
-
-    return data;
+    return response.data;
   } catch (error) {
     console.error("❌ Error fetching complaints:", error);
     throw error;
@@ -80,63 +87,31 @@ export async function fetchComplaints(params = {}) {
 export async function fetchFilterOptions() {
   console.log("🔍 Fetching filter options...");
   // Use the reference/all endpoint which provides all filter data
-  const url = "http://127.0.0.1:8000/api/reference/all";
+  const url = "/api/reference/all";
   console.log("🔗 Filter options URL:", url);
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-
-    console.log("📊 Response status:", response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ Filter options error response:", errorText);
-      throw new Error(`Failed to fetch filter options: ${response.status} ${errorText}`);
-    }
-
-    const data = await response.json();
+    const response = await apiClient.get(url);
+    const data = response.data;
     console.log("✅ Filter options loaded:", data);
     
     // Fetch case statuses from dedicated endpoint
     try {
-      const statusResponse = await fetch("http://127.0.0.1:8000/api/reference/case-statuses", {
-        method: "GET",
-        headers: { "Accept": "application/json" },
-      });
-      
-      if (statusResponse.ok) {
-        const statusData = await statusResponse.json();
-        console.log("✅ Case statuses loaded:", statusData);
-        data.statuses = statusData.case_statuses || [];
-      }
+      const statusResponse = await apiClient.get("/api/reference/case-statuses");
+      const statusData = statusResponse.data;
+      console.log("✅ Case statuses loaded:", statusData);
+      data.statuses = statusData.case_statuses || [];
     } catch (statusError) {
       console.warn("⚠️ Could not fetch case statuses:", statusError);
     }
     
     // Also fetch classifications from the dashboard debug endpoint
     try {
-      const classResponse = await fetch("http://127.0.0.1:8000/api/dashboard/debug/classifications", {
-        method: "GET",
-        headers: { "Accept": "application/json" },
-      });
-      
-      if (classResponse.ok) {
-        const classData = await classResponse.json();
-        console.log("✅ Classifications loaded from debug endpoint:", classData);
-        // Merge classifications into data
-        data.classifications_en = classData.classifications || [];
-      }
+      const classResponse = await apiClient.get("/api/dashboard/debug/classifications");
+      const classData = classResponse.data;
+      console.log("✅ Classifications loaded from debug endpoint:", classData);
+      // Merge classifications into data
+      data.classifications_en = classData.classifications || [];
     } catch (classError) {
       console.warn("⚠️ Could not fetch classifications from debug endpoint:", classError);
     }
@@ -152,19 +127,13 @@ export async function fetchFilterOptions() {
         // Fetch subcategories for each category
         for (const category of data.categories) {
           try {
-            const subcatResponse = await fetch(`http://127.0.0.1:8000/api/reference/subcategories?category_id=${category.id}`, {
-              method: "GET",
-              headers: { "Accept": "application/json" },
-            });
+            const subcatResponse = await apiClient.get(`/api/reference/subcategories?category_id=${category.id}`);
+            const subcatData = subcatResponse.data;
+            const subcats = Array.isArray(subcatData) ? subcatData : (subcatData.subcategories || []);
             
-            if (subcatResponse.ok) {
-              const subcatData = await subcatResponse.json();
-              const subcats = Array.isArray(subcatData) ? subcatData : (subcatData.subcategories || []);
-              
-              if (subcats.length > 0) {
-                console.log(`✅ Loaded ${subcats.length} subcategories for category ${category.id} (${category.name})`);
-                allSubcategories.push(...subcats);
-              }
+            if (subcats.length > 0) {
+              console.log(`✅ Loaded ${subcats.length} subcategories for category ${category.id} (${category.name})`);
+              allSubcategories.push(...subcats);
             }
           } catch (e) {
             console.warn(`⚠️ Could not fetch subcategories for category ${category.id}:`, e);
@@ -197,21 +166,11 @@ export async function fetchFilterOptions() {
  */
 export async function fetchComplaintById(id) {
   console.log("🔍 Fetching complaint:", id);
-  const url = `${BASE_URL}/${id}`;
+  const url = `/api/complaints/${id}`;
 
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch complaint: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const response = await apiClient.get(url);
+    const data = response.data;
     console.log("✅ Complaint loaded:", data.complaint_number);
     return data;
   } catch (error) {
@@ -233,21 +192,11 @@ export async function fetchComplaintsCount(filters = {}) {
     if (filters[key]) queryParams.append(key, filters[key]);
   });
 
-  const url = `${BASE_URL}/count?${queryParams.toString()}`;
+  const url = `/api/complaints/count?${queryParams.toString()}`;
 
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch count: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const response = await apiClient.get(url);
+    const data = response.data;
     console.log("✅ Complaints count:", data.count);
     return data.count;
   } catch (error) {
@@ -290,22 +239,18 @@ export async function exportComplaints(params = {}) {
   // View mode
   if (params.view) queryParams.append("view", params.view);
 
-  const url = `${BASE_URL}/export?${queryParams.toString()}`;
+  const url = `/api/complaints/export?${queryParams.toString()}`;
   console.log("📤 Export URL:", url);
 
   try {
-    const response = await fetch(url, {
-      method: "GET",
+    const response = await apiClient.get(url, {
+      responseType: 'blob',
       headers: {
         "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       },
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to export: ${response.status}`);
-    }
-
-    const blob = await response.blob();
+    const blob = response.data;
     console.log("✅ Export complete, blob size:", blob.size);
     return blob;
   } catch (error) {
@@ -325,21 +270,12 @@ export async function importExcel(file) {
   const formData = new FormData();
   formData.append("file", file);
 
-  const url = `${BASE_URL}/import-excel`;
+  const url = `/api/complaints/import-excel`;
   console.log("📥 Import URL:", url);
 
   try {
-    const response = await fetch(url, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: "Failed to import" }));
-      throw new Error(errorData.message || `Failed to import: ${response.status}`);
-    }
-
-    const result = await response.json();
+    const response = await apiClient.post(url, formData);
+    const result = response.data;
     console.log("✅ Import complete:", result);
     return result;
   } catch (error) {
@@ -354,21 +290,11 @@ export async function importExcel(file) {
  */
 export async function fetchTableViews() {
   console.log("🔍 Fetching table views...");
-  const url = `${BASE_URL}/views`;
+  const url = `/api/complaints/views`;
 
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch views: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const response = await apiClient.get(url);
+    const data = response.data;
     console.log("✅ Table views loaded");
     return data;
   } catch (error) {
@@ -384,34 +310,12 @@ export async function fetchTableViews() {
  */
 export async function deleteComplaint(complaintId) {
   console.log("🗑️ Hard deleting complaint:", complaintId);
-  const url = `${BASE_URL}/${complaintId}/hard-delete`;
+  const url = `/api/complaints/${complaintId}/hard-delete`;
   console.log("🔗 DELETE URL:", url);
 
   try {
-    const response = await fetch(url, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    console.log("📊 Response status:", response.status);
-    console.log("📊 Response OK:", response.ok);
-
-    let data;
-    try {
-      data = await response.json();
-      console.log("📊 Response data:", data);
-    } catch (e) {
-      console.log("⚠️ Could not parse response as JSON");
-      data = { success: response.ok };
-    }
-
-    // Check if response indicates success (200-299 status)
-    if (!response.ok) {
-      throw new Error(data?.detail?.message || data?.message || `Failed to delete: ${response.status}`);
-    }
-
+    const response = await apiClient.delete(url);
+    const data = response.data;
     console.log("✅ Complaint permanently deleted:", data);
     return data;
   } catch (error) {
@@ -427,26 +331,12 @@ export async function deleteComplaint(complaintId) {
  */
 export async function getRecordById(recordId) {
   console.log("📖 Fetching record details:", recordId);
-  const url = `http://127.0.0.1:8000/api/records/${recordId}`;
+  const url = `/api/records/${recordId}`;
   console.log("🔗 GET URL:", url);
 
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
-    });
-
-    console.log("📊 Response status:", response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ Record fetch error:", errorText);
-      throw new Error(`Failed to fetch record: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const response = await apiClient.get(url);
+    const data = response.data;
     console.log("✅ Record loaded:", data);
     return data;
   } catch (error) {
@@ -463,34 +353,13 @@ export async function getRecordById(recordId) {
  */
 export async function updateRecord(recordId, payload) {
   console.log("✏️ Updating record:", recordId);
-  const url = `http://127.0.0.1:8000/api/records/${recordId}`;
+  const url = `/api/records/${recordId}`;
   console.log("🔗 PUT URL:", url);
   console.log("📦 Payload:", JSON.stringify(payload, null, 2));
 
   try {
-    const response = await fetch(url, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    console.log("📊 Response status:", response.status);
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = await response.json();
-      } catch (e) {
-        errorData = { detail: { message: `HTTP ${response.status}` } };
-      }
-      const errorMessage = errorData?.detail?.message || errorData?.message || `Update failed: ${response.status}`;
-      console.error("❌ Update error:", errorMessage);
-      throw new Error(errorMessage);
-    }
-
-    const data = await response.json();
+    const response = await apiClient.put(url, payload);
+    const data = response.data;
     console.log("✅ Record updated successfully:", data);
     return data;
   } catch (error) {

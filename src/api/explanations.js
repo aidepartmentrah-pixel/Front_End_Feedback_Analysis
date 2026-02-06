@@ -1,7 +1,5 @@
 // src/api/explanations.js
-import axios from "axios";
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+import apiClient from "./apiClient";
 
 /**
  * Get all pending cases requiring explanation (Red Flag, Never Event, Ordinary)
@@ -15,15 +13,14 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
  */
 export const getPendingExplanations = async (params = {}) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/explanations/pending/cases`, {
-      params: {
-        dept_id: params.dept_id,
-        start_date: params.start_date,
-        end_date: params.end_date,
-        case_type: params.case_type,
-        include_red_flags_only: params.include_red_flags_only,
-      },
-    });
+    const queryParams = new URLSearchParams();
+    if (params.dept_id) queryParams.append('dept_id', params.dept_id);
+    if (params.start_date) queryParams.append('start_date', params.start_date);
+    if (params.end_date) queryParams.append('end_date', params.end_date);
+    if (params.case_type) queryParams.append('case_type', params.case_type);
+    if (params.include_red_flags_only !== undefined) queryParams.append('include_red_flags_only', params.include_red_flags_only);
+    
+    const response = await apiClient.get(`/api/explanations/pending/cases?${queryParams.toString()}`);
     
     console.log('[DEBUG] Pending Cases API Response:', response.data);
     
@@ -48,13 +45,12 @@ export const getPendingExplanations = async (params = {}) => {
  */
 export const getPendingSeasonalReports = async (params = {}) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/explanations/pending/seasonal`, {
-      params: {
-        org_unit_id: params.org_unit_id,
-        season_id: params.season_id,
-        non_compliant_only: params.non_compliant_only,
-      },
-    });
+    const queryParams = new URLSearchParams();
+    if (params.org_unit_id) queryParams.append('org_unit_id', params.org_unit_id);
+    if (params.season_id) queryParams.append('season_id', params.season_id);
+    if (params.non_compliant_only !== undefined) queryParams.append('non_compliant_only', params.non_compliant_only);
+    
+    const response = await apiClient.get(`/api/explanations/pending/seasonal?${queryParams.toString()}`);
     
     console.log('[DEBUG] Pending Seasonal Reports API Response:', response.data);
     
@@ -75,7 +71,7 @@ export const getPendingSeasonalReports = async (params = {}) => {
  */
 export const getExplanationStatistics = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/explanations/statistics`);
+    const response = await apiClient.get(`/api/explanations/statistics`);
     
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to fetch statistics');
@@ -95,7 +91,7 @@ export const getExplanationStatistics = async () => {
  */
 export const getCaseDetails = async (caseId) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/explanations/${caseId}`);
+    const response = await apiClient.get(`/api/explanations/${caseId}`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching case details for case ${caseId}:`, error);
@@ -110,7 +106,7 @@ export const getCaseDetails = async (caseId) => {
  */
 export const getRedFlagFeedback = async (caseId) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/explanations/red-flag/${caseId}`);
+    const response = await apiClient.get(`/api/explanations/red-flag/${caseId}`);
     
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to fetch Red Flag feedback');
@@ -131,7 +127,7 @@ export const getRedFlagFeedback = async (caseId) => {
  */
 export const submitRedFlagFeedback = async (caseId, data) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/explanations/red-flag/${caseId}`, data);
+    const response = await apiClient.post(`/api/explanations/red-flag/${caseId}`, data);
     
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to submit Red Flag feedback');
@@ -151,7 +147,7 @@ export const submitRedFlagFeedback = async (caseId, data) => {
  */
 export const getOrdinaryExplanation = async (caseId) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/explanations/ordinary/${caseId}`);
+    const response = await apiClient.get(`/api/explanations/ordinary/${caseId}`);
     
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to fetch Ordinary explanation');
@@ -172,7 +168,7 @@ export const getOrdinaryExplanation = async (caseId) => {
  */
 export const submitOrdinaryExplanation = async (caseId, data) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/explanations/ordinary/${caseId}`, data);
+    const response = await apiClient.post(`/api/explanations/ordinary/${caseId}`, data);
     
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to submit Ordinary explanation');
@@ -192,7 +188,7 @@ export const submitOrdinaryExplanation = async (caseId, data) => {
  */
 export const getSeasonalExplanation = async (reportId) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/explanations/seasonal/${reportId}`);
+    const response = await apiClient.get(`/api/explanations/seasonal/${reportId}`);
     
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to fetch Seasonal explanation');
@@ -213,7 +209,7 @@ export const getSeasonalExplanation = async (reportId) => {
  */
 export const submitSeasonalExplanation = async (reportId, data) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/explanations/seasonal/${reportId}`, data);
+    const response = await apiClient.post(`/api/explanations/seasonal/${reportId}`, data);
     
     if (!response.data.success) {
       throw new Error(response.data.error || 'Failed to submit Seasonal explanation');
@@ -233,7 +229,7 @@ export const submitSeasonalExplanation = async (reportId, data) => {
  */
 export const getCompletionStatus = async (caseId) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/explanations/${caseId}/completion-status`);
+    const response = await apiClient.get(`/api/explanations/${caseId}/completion-status`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching completion status for case ${caseId}:`, error);
@@ -252,7 +248,7 @@ export const getCompletionStatus = async (caseId) => {
  */
 export const submitExplanation = async (caseId, data) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/explanations/${caseId}`, data);
+    const response = await apiClient.post(`/api/explanations/${caseId}`, data);
     return response.data;
   } catch (error) {
     console.error(`Error submitting explanation for case ${caseId}:`, error);
@@ -271,8 +267,8 @@ export const submitExplanation = async (caseId, data) => {
  */
 export const updateRequiresExplanation = async (caseId, data) => {
   try {
-    const response = await axios.put(
-      `${API_BASE_URL}/api/explanations/${caseId}/requires-explanation`,
+    const response = await apiClient.put(
+      `/api/explanations/${caseId}/requires-explanation`,
       data
     );
     return response.data;
@@ -292,7 +288,7 @@ export const updateRequiresExplanation = async (caseId, data) => {
  */
 export const forceCloseCase = async (caseId, data) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/explanations/${caseId}/force-close`, data);
+    const response = await apiClient.post(`/api/explanations/${caseId}/force-close`, data);
     return response.data;
   } catch (error) {
     console.error(`Error force closing case ${caseId}:`, error);
@@ -308,10 +304,8 @@ export const forceCloseCase = async (caseId, data) => {
  */
 export const checkCaseClosure = async (caseId, userId) => {
   try {
-    const response = await axios.post(
-      `${API_BASE_URL}/api/explanations/${caseId}/check-closure`,
-      null,
-      { params: { user_id: userId } }
+    const response = await apiClient.post(
+      `/api/explanations/${caseId}/check-closure?user_id=${userId}`
     );
     return response.data;
   } catch (error) {
@@ -330,8 +324,8 @@ export const checkCaseClosure = async (caseId, userId) => {
  */
 export const markActionComplete = async (caseId, data) => {
   try {
-    const response = await axios.post(
-      `${API_BASE_URL}/api/explanations/${caseId}/mark-action-complete`,
+    const response = await apiClient.post(
+      `/api/explanations/${caseId}/mark-action-complete`,
       data
     );
     return response.data;
@@ -351,7 +345,7 @@ export const markActionComplete = async (caseId, data) => {
  */
 export const validateExplanation = async (caseId, data) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/explanations/${caseId}/validate`, data);
+    const response = await apiClient.post(`/api/explanations/${caseId}/validate`, data);
     return response.data;
   } catch (error) {
     console.error(`Error validating explanation for case ${caseId}:`, error);

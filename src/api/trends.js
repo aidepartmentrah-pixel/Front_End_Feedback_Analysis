@@ -1,5 +1,5 @@
 // frontend/src/api/trends.js
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
+import apiClient from "./apiClient";
 
 /**
  * Fetch all trends (domains, categories, classifications) by scope
@@ -37,27 +37,18 @@ export async function fetchTrendsByScope({
   if (start_date) queryParams.append("start_date", start_date);
   if (end_date) queryParams.append("end_date", end_date);
 
-  const url = `${API_BASE_URL}/api/trends/analysis?${queryParams.toString()}`;
+  const url = `/api/trends/analysis?${queryParams.toString()}`;
   console.log("📡 Fetching trends from:", url);
 
-  const res = await fetch(url);
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error("❌ API Error Response:", errorText);
-    
-    let errorMessage = `Failed to load trends: ${res.status} ${res.statusText}`;
-    try {
-      const errorData = JSON.parse(errorText);
-      if (errorData.detail) errorMessage += ` - ${errorData.detail}`;
-    } catch (e) {
-      if (errorText) errorMessage += ` - ${errorText}`;
-    }
-    throw new Error(errorMessage);
+  try {
+    const response = await apiClient.get(url);
+    const data = response.data;
+    console.log("📦 Trends data loaded:", data);
+    return data;
+  } catch (error) {
+    console.error("❌ API Error:", error);
+    throw new Error(`Failed to load trends: ${error.message}`);
   }
-
-  const data = await res.json();
-  console.log("📦 Trends data loaded:", data);
-  return data;
 }
 
 /**
@@ -96,32 +87,16 @@ export async function fetchDomainTrends({
     queryParams.append("calculate_trends", calculate_trends);
   }
 
-  const url = `${API_BASE_URL}/api/trends/domains?${queryParams.toString()}`;
+  const url = `/api/trends/domains?${queryParams.toString()}`;
   console.log("📡 Fetching domain trends from:", url);
 
-  const res = await fetch(url);
-  console.log("📥 Response status:", res.status, res.statusText);
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error("❌ API Error Response:", errorText);
-    
-    let errorMessage = `Failed to load domain trends: ${res.status} ${res.statusText}`;
-    try {
-      const errorData = JSON.parse(errorText);
-      if (errorData.detail) {
-        errorMessage += ` - ${errorData.detail}`;
-      }
-    } catch (e) {
-      if (errorText) {
-        errorMessage += ` - ${errorText}`;
-      }
-    }
-    
-    throw new Error(errorMessage);
+  try {
+    const response = await apiClient.get(url);
+    const data = response.data;
+    console.log("📦 Domain trends data loaded:", data);
+    return data;
+  } catch (error) {
+    console.error("❌ API Error:", error);
+    throw new Error(`Failed to load domain trends: ${error.message}`);
   }
-
-  const data = await res.json();
-  console.log("📦 Domain trends data loaded:", data);
-  return data;
 }

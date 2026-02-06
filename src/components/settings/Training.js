@@ -43,6 +43,7 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import WarningIcon from "@mui/icons-material/Warning";
 import ErrorIcon from "@mui/icons-material/Error";
 import InfoIcon from "@mui/icons-material/Info";
+import theme from '../../theme';
 
 const Training = () => {
   // State for grouped model data
@@ -669,12 +670,12 @@ const Training = () => {
             disabled={isTraining || trainingProgress?.is_running}
             size="lg"
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: theme.gradients.primary,
               color: "white",
               fontWeight: 700,
               px: 3,
               "&:hover": {
-                background: "linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)",
+                opacity: 0.9,
               },
             }}
           >

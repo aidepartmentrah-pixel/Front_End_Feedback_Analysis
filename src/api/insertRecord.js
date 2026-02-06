@@ -1,7 +1,6 @@
   // src/api/insertRecord.js
   // API service for Insert Record page
-
-  const API_BASE_URL = "http://127.0.0.1:8000";
+  import apiClient from "./apiClient";
 
   /**
    * Fetch all reference data (departments, sources, domains, severity, stages, harm)
@@ -9,14 +8,9 @@
    */
   export const fetchReferenceData = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/reference/all`);
+      const response = await apiClient.get("/api/reference/all");
+      const data = response.data;
       
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail?.message || "Failed to fetch reference data");
-      }
-      
-      const data = await response.json();
       console.log("Reference data received:", data);
       console.log("Sample domain:", data.domains?.[0]);
       console.log("Sample source:", data.sources?.[0]);
@@ -51,14 +45,8 @@
    */
   export const fetchCategories = async (domainId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/reference/categories?domain_id=${domainId}`);
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail?.message || "Failed to fetch categories");
-      }
-      
-      const data = await response.json();
+      const response = await apiClient.get(`/api/reference/categories?domain_id=${domainId}`);
+      const data = response.data;
       console.log(`Categories for domain ${domainId}:`, data);
       
       // Return array directly if it's already an array, otherwise return empty array
@@ -75,14 +63,8 @@
    */
   export const fetchSubcategories = async (categoryId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/reference/subcategories?category_id=${categoryId}`);
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail?.message || "Failed to fetch subcategories");
-      }
-      
-      const data = await response.json();
+      const response = await apiClient.get(`/api/reference/subcategories?category_id=${categoryId}`);
+      const data = response.data;
       console.log(`Subcategories for category ${categoryId}:`, data);
       
       return Array.isArray(data) ? data : (data.subcategories ? data.subcategories : []);
@@ -98,14 +80,8 @@
    */
   export const fetchClassifications = async (subcategoryId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/reference/classifications?subcategory_id=${subcategoryId}`);
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail?.message || "Failed to fetch classifications");
-      }
-      
-      const data = await response.json();
+      const response = await apiClient.get(`/api/reference/classifications?subcategory_id=${subcategoryId}`);
+      const data = response.data;
       console.log(`Classifications for subcategory ${subcategoryId}:`, data);
       
       return Array.isArray(data) ? data : (data.classifications ? data.classifications : []);
@@ -121,26 +97,8 @@
    */
   export const submitRecord = async (payload) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/records/add`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        // Handle backend error format: { detail: { error, message, message_ar, field } }
-        throw {
-          message: error.detail?.message || "Failed to add record",
-          message_ar: error.detail?.message_ar,
-          field: error.detail?.field,
-          error: error.detail?.error,
-        };
-      }
-      
-      return await response.json();
+      const response = await apiClient.post("/api/records/add", payload);
+      return response.data;
     } catch (error) {
       console.error("Error submitting record:", error);
       throw error;
@@ -153,20 +111,8 @@
    */
   export const extractNER = async (text) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/ner/extract`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ text }),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail?.message || "Failed to extract NER");
-      }
-      
-      return await response.json();
+      const response = await apiClient.post("/api/ner/extract", { text });
+      return response.data;
     } catch (error) {
       console.error("Error extracting NER:", error);
       throw error;
@@ -179,20 +125,8 @@
    */
   export const classifyText = async (text) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/classification/classify`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ text }),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail?.message || "Failed to classify text");
-      }
-      
-      return await response.json();
+      const response = await apiClient.post("/api/classification/classify", { text });
+      return response.data;
     } catch (error) {
       console.error("Error classifying text:", error);
       throw error;
@@ -208,17 +142,8 @@
       const formData = new FormData();
       formData.append("audio", audioFile);
       
-      const response = await fetch(`${API_BASE_URL}/api/stt/transcribe`, {
-        method: "POST",
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail?.message || "Failed to transcribe audio");
-      }
-      
-      return await response.json();
+      const response = await apiClient.post("/api/stt/transcribe", formData);
+      return response.data;
     } catch (error) {
       console.error("Error transcribing audio:", error);
       throw error;
@@ -235,16 +160,10 @@
         return [];
       }
       
-      const response = await fetch(
-        `${API_BASE_URL}/api/records/search/patients?q=${encodeURIComponent(query)}&limit=20`
+      const response = await apiClient.get(
+        `/api/records/search/patients?q=${encodeURIComponent(query)}&limit=20`
       );
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail?.message || "Failed to search patients");
-      }
-      
-      const data = await response.json();
+      const data = response.data;
       console.log("Search patients response:", data);
       // API returns {success: true, patients: [...]}
       return Array.isArray(data.patients) ? data.patients : (Array.isArray(data) ? data : []);
@@ -264,16 +183,10 @@
         return [];
       }
       
-      const response = await fetch(
-        `${API_BASE_URL}/api/records/search/doctors?q=${encodeURIComponent(query)}&limit=20`
+      const response = await apiClient.get(
+        `/api/records/search/doctors?q=${encodeURIComponent(query)}&limit=20`
       );
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail?.message || "Failed to search doctors");
-      }
-      
-      const data = await response.json();
+      const data = response.data;
       console.log("Search doctors response:", data);
       // API returns {success: true, doctors: [...]}
       return Array.isArray(data.doctors) ? data.doctors : (Array.isArray(data) ? data : []);
@@ -293,16 +206,10 @@
         return [];
       }
       
-      const response = await fetch(
-        `${API_BASE_URL}/api/records/search/employees?q=${encodeURIComponent(query)}&limit=20`
+      const response = await apiClient.get(
+        `/api/records/search/employees?q=${encodeURIComponent(query)}&limit=20`
       );
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail?.message || "Failed to search employees");
-      }
-      
-      const data = await response.json();
+      const data = response.data;
       console.log("Search employees response:", data);
       // API returns {success: true, employees: [...]}
       return Array.isArray(data.employees) ? data.employees : (Array.isArray(data) ? data : []);

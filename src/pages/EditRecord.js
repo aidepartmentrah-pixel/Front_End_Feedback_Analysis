@@ -1,6 +1,7 @@
 // src/pages/EditRecord.js
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Box, Container, Typography, Divider, CircularProgress, Card, Alert } from "@mui/joy";
+import theme from '../theme';
 import { useNavigate, useParams } from "react-router-dom";
 import { Warning } from "@mui/icons-material";
 
@@ -53,6 +54,7 @@ const EditRecord = () => {
     building: null,
     in_out: null,
     doctors: [],
+    requires_explanation: false,
   });
 
   // State for UI
@@ -211,6 +213,7 @@ const EditRecord = () => {
             is_inpatient: record.is_inpatient,
             explanation_status_id: record.explanation_status_id || null,
             case_status_id: record.case_status_id || 1,
+            requires_explanation: record.requires_explanation !== undefined ? record.requires_explanation : false,
           };
           
           setFormData(initialFormData);
@@ -222,6 +225,14 @@ const EditRecord = () => {
           
           if (!initialValidation.isValid) {
             console.warn("⚠️ Loaded record is incomplete:", initialValidation.errors);
+            console.warn("📋 Missing fields:", Object.keys(initialValidation.errors));
+            console.warn("📊 FormData snapshot:", {
+              requires_explanation: initialFormData.requires_explanation,
+              is_inpatient: initialFormData.is_inpatient,
+              building: initialFormData.building,
+            });
+          } else {
+            console.log("✅ Loaded record is valid!");
           }
           
           // Small delay to ensure state is set before enabling useEffects
@@ -462,6 +473,7 @@ const EditRecord = () => {
         is_inpatient: originalRecord.is_inpatient,
         explanation_status_id: originalRecord.explanation_status_id || null,
         case_status_id: originalRecord.case_status_id || 1,
+        requires_explanation: originalRecord.requires_explanation !== undefined ? originalRecord.requires_explanation : false,
       };
       
       setFormData(resetFormData);
@@ -493,8 +505,8 @@ const EditRecord = () => {
             background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
             border: "1px solid rgba(102, 126, 234, 0.1)",
           }}>
-            <CircularProgress size="lg" sx={{ "--CircularProgress-color": "#667eea" }} />
-            <Typography level="body-md" sx={{ mt: 2, color: "#667eea", fontWeight: 600 }}>
+            <CircularProgress size="lg" sx={{ "--CircularProgress-color": theme.colors.primary }} />
+            <Typography level="body-md" sx={{ mt: 2, color: theme.colors.primary, fontWeight: 600 }}>
               Loading record...
             </Typography>
           </Card>

@@ -4,7 +4,6 @@ import { Box, Table, Chip, IconButton } from "@mui/joy";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
 
 // Domain colors - Subtle backgrounds, functional not decorative
 const getDomainColor = (domain) => {
@@ -305,19 +304,6 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
                         title="Edit complaint"
                       >
                         <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        size="sm"
-                        variant="plain"
-                        color="danger"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onDelete) onDelete(complaint.id, complaint);
-                        }}
-                        sx={{ fontSize: 18 }}
-                        title="Delete complaint"
-                      >
-                        <DeleteIcon />
                       </IconButton>
                     </Box>
                   ) : col.key === "complaint_number" ? (

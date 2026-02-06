@@ -60,10 +60,8 @@ const DashboardTitle = ({
       level="h3"
       sx={{
         mb: 3,
-        fontWeight: 800,
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent",
+        fontWeight: 700,
+        color: "#1F6F73"
       }}
     >
       Dashboard — {getTitle()}

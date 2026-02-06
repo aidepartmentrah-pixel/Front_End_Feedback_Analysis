@@ -15,6 +15,7 @@ import {
   FormHelperText,
 } from "@mui/joy";
 import AddIcon from "@mui/icons-material/Add";
+import theme from '../../theme';
 
 const AddDepartmentForm = ({ onAdd, departments, viewMode }) => {
   const [formData, setFormData] = useState({
@@ -94,11 +95,11 @@ const AddDepartmentForm = ({ onAdd, departments, viewMode }) => {
     <Card
       sx={{
         p: 3,
-        border: "2px solid rgba(102, 126, 234, 0.2)",
+        border: `2px solid ${theme.colors.primary}33`,
         background: "linear-gradient(135deg, #f5f7ff 0%, #fff 100%)",
       }}
     >
-      <Typography level="h4" sx={{ mb: 2, color: "#667eea", fontWeight: 700 }}>
+      <Typography level="h4" sx={{ mb: 2, color: theme.colors.primary, fontWeight: 700 }}>
         ➕ Add New Department
       </Typography>
 
@@ -174,7 +175,7 @@ const AddDepartmentForm = ({ onAdd, departments, viewMode }) => {
             startDecorator={<AddIcon />}
             loading={isSubmitting}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: theme.gradients.primary,
               fontWeight: 700,
             }}
           >

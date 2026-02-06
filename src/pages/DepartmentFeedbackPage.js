@@ -4,6 +4,7 @@
 // 2. Seasonal Explanations (Tab 2): Department explains why performance exceeded thresholds
 import React, { useState, useEffect, useMemo } from "react";
 import { Box, Typography, Alert, Modal, ModalDialog, ModalClose, DialogTitle, DialogContent, Divider, Grid, Card, Chip } from "@mui/joy";
+import theme from '../theme';
 import MainLayout from "../components/common/MainLayout";
 import DepartmentFeedbackFilters from "../components/departmentFeedback/DepartmentFeedbackFilters";
 import OpenRecordsTable from "../components/departmentFeedback/OpenRecordsTable";
@@ -883,7 +884,7 @@ const DepartmentFeedbackPage = () => {
           sx={{
             mb: 1,
             fontWeight: 900,
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            background: theme.gradients.primary,
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
           }}
@@ -916,7 +917,7 @@ const DepartmentFeedbackPage = () => {
             }}
           >
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-              <Typography level="title-md" sx={{ fontWeight: 700, color: "#667eea" }}>
+              <Typography level="title-md" sx={{ fontWeight: 700, color: theme.colors.primary }}>
                 📊 Explanation Statistics
               </Typography>
               <button
@@ -928,9 +929,9 @@ const DepartmentFeedbackPage = () => {
                 style={{
                   padding: "6px 12px",
                   borderRadius: "4px",
-                  border: "1px solid #667eea",
+                  border: `1px solid ${theme.colors.primary}`,
                   background: "white",
-                  color: "#667eea",
+                  color: theme.colors.primary,
                   fontSize: "12px",
                   fontWeight: 600,
                   cursor: loadingStats || loading ? "not-allowed" : "pointer",
@@ -1041,7 +1042,7 @@ const DepartmentFeedbackPage = () => {
                 <Box
                   sx={{
                     p: 2,
-                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    background: theme.gradients.primary,
                     color: "white",
                   }}
                 >
@@ -1069,7 +1070,7 @@ const DepartmentFeedbackPage = () => {
                       {seasonalViolations.map((violation) => (
                         <tr key={violation.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
                           <td style={{ padding: "12px" }}>
-                            <Typography level="body-sm" sx={{ fontWeight: 700, color: "#667eea" }}>
+                            <Typography level="body-sm" sx={{ fontWeight: 700, color: theme.colors.primary }}>
                               {violation.seasonLabel}
                             </Typography>
                             <Typography level="body-xs" sx={{ color: "#999" }}>
@@ -1154,7 +1155,7 @@ const DepartmentFeedbackPage = () => {
                                 padding: "6px 14px",
                                 borderRadius: "4px",
                                 border: "none",
-                                background: violation.status === "SUBMITTED" ? "#ccc" : "#667eea",
+                                background: violation.status === "SUBMITTED" ? "#ccc" : theme.colors.primary,
                                 color: "white",
                                 fontWeight: 600,
                                 fontSize: "12px",
@@ -1200,7 +1201,7 @@ const DepartmentFeedbackPage = () => {
                           🚩 ملء توضيح Red Flag
                         </Typography>
                       ) : (
-                        <Typography level="h4" sx={{ fontWeight: 700, color: "#667eea", mb: 0.5 }}>
+                        <Typography level="h4" sx={{ fontWeight: 700, color: theme.colors.primary, mb: 0.5 }}>
                           ملء توضيح الحالة (Fill Incident Explanation)
                         </Typography>
                       )}
@@ -1354,7 +1355,7 @@ const DepartmentFeedbackPage = () => {
                         padding: "10px 24px",
                         borderRadius: "6px",
                         border: "none",
-                        background: (!canSave || saving) ? "#ccc" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                        background: (!canSave || saving) ? "#ccc" : theme.gradients.primary,
                         color: "white",
                         fontWeight: 600,
                         cursor: (!canSave || saving) ? "not-allowed" : "pointer",
@@ -1384,7 +1385,7 @@ const DepartmentFeedbackPage = () => {
             {selectedViolation && (
               <>
                 <DialogTitle sx={{ p: 3, pb: 2 }}>
-                  <Typography level="h4" sx={{ fontWeight: 700, color: "#667eea", mb: 0.5 }}>
+                  <Typography level="h4" sx={{ fontWeight: 700, color: theme.colors.primary, mb: 0.5 }}>
                     📊 Seasonal Performance Explanation
                   </Typography>
                   <Typography level="body-sm" sx={{ color: "#666", dir: "rtl" }}>
@@ -1497,10 +1498,10 @@ const DepartmentFeedbackPage = () => {
                         p: 2,
                         borderRadius: "6px",
                         background: "#f0f4ff",
-                        border: "1px solid #667eea",
+                        border: `1px solid ${theme.colors.primary}`,
                       }}
                     >
-                      <Typography level="body-sm" sx={{ fontWeight: 600, color: "#667eea", dir: "rtl" }}>
+                      <Typography level="body-sm" sx={{ fontWeight: 600, color: theme.colors.primary, dir: "rtl" }}>
                         ℹ️ القواعد المنتهكة:
                       </Typography>
                       <Box sx={{ mt: 1, display: "flex", flexDirection: "column", gap: 0.5 }}>
@@ -1729,7 +1730,7 @@ const DepartmentFeedbackPage = () => {
                       padding: "10px 24px",
                       borderRadius: "6px",
                       border: "none",
-                      background: (!seasonalFormData.explanation_text || seasonalFormData.explanation_text.trim().length < 50 || !seasonalFormData.action_items || seasonalFormData.action_items.length === 0) ? "#ccc" : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                      background: (!seasonalFormData.explanation_text || seasonalFormData.explanation_text.trim().length < 50 || !seasonalFormData.action_items || seasonalFormData.action_items.length === 0) ? "#ccc" : theme.gradients.primary,
                       color: "white",
                       fontWeight: 600,
                       cursor: (!seasonalFormData.explanation_text || seasonalFormData.explanation_text.trim().length < 50 || !seasonalFormData.action_items || seasonalFormData.action_items.length === 0) ? "not-allowed" : "pointer",

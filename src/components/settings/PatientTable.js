@@ -14,6 +14,7 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import SearchIcon from "@mui/icons-material/Search";
+import theme from '../../theme';
 
 const PatientTable = ({ patients, onEdit, onDelete, loading, totalCount }) => {
   const [sortConfig, setSortConfig] = useState({ key: "full_name", direction: "asc" });
@@ -66,7 +67,7 @@ const PatientTable = ({ patients, onEdit, onDelete, loading, totalCount }) => {
         display: "flex",
         alignItems: "center",
         gap: 0.5,
-        "&:hover": { color: "#667eea" },
+        "&:hover": { color: theme.colors.primary },
       }}
     >
       {label}
@@ -102,7 +103,7 @@ const PatientTable = ({ patients, onEdit, onDelete, loading, totalCount }) => {
       {/* Header with Search */}
       <Box sx={{ p: 2, borderBottom: "1px solid #e0e0e0" }}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-          <Typography level="h4" sx={{ color: "#667eea", fontWeight: 700 }}>
+          <Typography level="h4" sx={{ color: theme.colors.primary, fontWeight: 700 }}>
             🏥 Reserve Patients
           </Typography>
           <Chip color="primary" variant="soft">
@@ -146,10 +147,10 @@ const PatientTable = ({ patients, onEdit, onDelete, loading, totalCount }) => {
             "& thead th": {
               fontWeight: 700,
               background: "linear-gradient(135deg, #f5f7ff 0%, #fff 100%)",
-              color: "#667eea",
+              color: theme.colors.primary,
             },
             "& tbody tr:hover": {
-              background: "rgba(102, 126, 234, 0.05)",
+              background: `${theme.colors.primary}0D`,
             },
           }}
         >

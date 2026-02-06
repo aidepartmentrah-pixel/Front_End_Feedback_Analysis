@@ -5,6 +5,7 @@ import WarningIcon from "@mui/icons-material/Warning";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import BusinessIcon from "@mui/icons-material/Business";
+import theme from '../../theme';
 
 const SeasonalSummary = ({ stats, threshold, filters }) => {
   const { totalOpen, clinicalCount, clinicalPercentage } = stats;
@@ -27,7 +28,7 @@ const SeasonalSummary = ({ stats, threshold, filters }) => {
         sx={{
           mb: 2,
           fontWeight: 700,
-          color: "#667eea",
+          color: theme.colors.primary,
         }}
       >
         📊 ملخص التقرير الفصلي (Seasonal Summary)
@@ -37,10 +38,10 @@ const SeasonalSummary = ({ stats, threshold, filters }) => {
       <Card sx={{ p: 2, mb: 3, background: "linear-gradient(135deg, #f5f7ff 0%, #fff 100%)" }}>
         <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap", alignItems: "center" }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <CalendarMonthIcon sx={{ color: "#667eea" }} />
+            <CalendarMonthIcon sx={{ color: theme.colors.primary }} />
             <Box>
               <Typography level="body-xs" sx={{ color: "#999" }}>الفترة</Typography>
-              <Typography level="body-sm" sx={{ fontWeight: 700, color: "#667eea" }}>
+              <Typography level="body-sm" sx={{ fontWeight: 700, color: theme.colors.primary }}>
                 {getTrimesterLabel(filters.trimester)} - {filters.year}
               </Typography>
             </Box>
@@ -48,7 +49,7 @@ const SeasonalSummary = ({ stats, threshold, filters }) => {
 
           {(filters.idara || filters.dayra || filters.qism) && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <BusinessIcon sx={{ color: "#667eea" }} />
+              <BusinessIcon sx={{ color: theme.colors.primary }} />
               <Box>
                 <Typography level="body-xs" sx={{ color: "#999" }}>الجهة</Typography>
                 <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mt: 0.5 }}>
@@ -91,14 +92,14 @@ const SeasonalSummary = ({ stats, threshold, filters }) => {
         <Card
           sx={{
             p: 2,
-            background: "linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)",
-            border: "2px solid rgba(102, 126, 234, 0.3)",
+            background: `linear-gradient(135deg, ${theme.colors.primary}1A 0%, ${theme.colors.secondary}1A 100%)`,
+            border: `2px solid ${theme.colors.primary}4D`,
           }}
         >
           <Typography level="body-sm" sx={{ color: "#666", mb: 0.5 }}>
             إجمالي الحالات المفتوحة
           </Typography>
-          <Typography level="h4" sx={{ fontWeight: 800, color: "#667eea" }}>
+          <Typography level="h4" sx={{ fontWeight: 800, color: theme.colors.primary }}>
             {totalOpen}
           </Typography>
           <Typography level="body-xs" sx={{ color: "#999" }}>
@@ -155,14 +156,14 @@ const SeasonalSummary = ({ stats, threshold, filters }) => {
         <Card
           sx={{
             p: 2,
-            background: "linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)",
-            border: "2px solid rgba(102, 126, 234, 0.2)",
+            background: `linear-gradient(135deg, ${theme.colors.primary}0D 0%, ${theme.colors.secondary}0D 100%)`,
+            border: `2px solid ${theme.colors.primary}33`,
           }}
         >
           <Typography level="body-sm" sx={{ color: "#666", mb: 0.5 }}>
             العتبة المحددة
           </Typography>
-          <Typography level="h4" sx={{ fontWeight: 800, color: "#667eea" }}>
+          <Typography level="h4" sx={{ fontWeight: 800, color: theme.colors.primary }}>
             {threshold}%
           </Typography>
           <Typography level="body-xs" sx={{ color: "#999" }}>

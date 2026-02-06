@@ -25,6 +25,7 @@ import {
   HARM_OPTIONS,
   STATUS_OPTIONS,
 } from "../utils/fieldMappings";
+import theme from '../theme';
 
 const issuingDepartments = [
   "All",
@@ -108,7 +109,7 @@ const SearchFilters = ({ filters, setFilters }) => {
           p: 2,
           mb: 2,
           background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
-          border: "1px solid rgba(102, 126, 234, 0.1)",
+          border: `1px solid ${theme.colors.primary}1A`,
         }}
       >
         <Box
@@ -119,7 +120,7 @@ const SearchFilters = ({ filters, setFilters }) => {
             mb: 2,
           }}
         >
-          <SearchIcon sx={{ color: "#667eea" }} />
+          <SearchIcon sx={{ color: theme.colors.primary }} />
           <Typography level="h4" sx={{ color: "#1a1e3f", fontWeight: 700 }}>
             Search & Filter Records
           </Typography>
@@ -216,7 +217,7 @@ const SearchFilters = ({ filters, setFilters }) => {
             variant={showAdvanced ? "solid" : "outlined"}
             sx={{
               background: showAdvanced
-                ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                ? theme.gradients.primary
                 : undefined,
             }}
           >
@@ -239,8 +240,8 @@ const SearchFilters = ({ filters, setFilters }) => {
           sx={{
             p: 2,
             background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
-            border: "2px solid rgba(102, 126, 234, 0.2)",
-            borderTop: "4px solid #667eea",
+            border: `2px solid ${theme.colors.primary}33`,
+            borderTop: `4px solid ${theme.colors.primary}`,
           }}
         >
           <Typography level="h4" sx={{ color: "#1a1e3f", fontWeight: 700, mb: 2 }}>

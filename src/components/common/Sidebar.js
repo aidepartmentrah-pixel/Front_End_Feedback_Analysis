@@ -9,21 +9,41 @@ import {
 } from "@mui/joy";
 import { Link, useLocation } from "react-router-dom";
 import logo from "../../assests/logo.png";
+import { useAuth } from "../../context/AuthContext";
+import { 
+  canViewInbox, 
+  canViewFollowUp, 
+  canViewInsight, 
+  canGenerateSeasonalReports 
+} from "../../utils/roleGuards";
+import brandTheme from "../../theme/brandTheme";
 
 const Sidebar = () => {
   const location = useLocation();
+  const { user } = useAuth();
   
-  const pages = [
-    { name: "📊 Dashboard", path: "/" },
-    { name: "📈 Trend Monitoring", path: "/trend-monitoring" },    { name: "🔍 Investigation", path: "/investigation" },    { name: "➕ Insert Record", path: "/insert" },
-    { name: "📋 Table View", path: "/table-view" },
-    { name: "📊 Reporting", path: "/reporting" },
-    { name: "📝 Explanations", path: "/department-feedback" },
-    { name: "📋 History", path: "/history" },
-    { name: "🚩 Critical Issues", path: "/critical-issues" },
-    { name: "� Follow Up", path: "/follow-up" },
-    { name: "⚙️ Settings", path: "/settings" }
+  // Menu configuration with role guards
+  const menuItems = [
+    { name: "📊 Dashboard", path: "/", canShow: () => true },
+    { name: "📈 Trend Monitoring", path: "/trend-monitoring", canShow: () => true },
+    { name: "🔍 Investigation", path: "/investigation", canShow: () => true },
+    { name: "➕ Insert Record", path: "/insert", canShow: () => true },
+    { name: "📋 Table View", path: "/table-view", canShow: () => true },
+    { name: "📊 Reporting", path: "/reporting", canShow: () => true },
+    // HIDDEN: { name: "📝 Explanations", path: "/department-feedback", canShow: () => true },
+    { name: "📋 History", path: "/history", canShow: () => true },
+    { name: "🚩 Critical Issues", path: "/critical-issues", canShow: () => true },
+    { name: "📥 Inbox", path: "/inbox", canShow: canViewInbox },
+    { name: "📋 Follow Up", path: "/follow-up", canShow: canViewFollowUp },
+    { name: "💡 Insight", path: "/insight", canShow: canViewInsight },
+    // HIDDEN: { name: "📅 Seasonal Reports", path: "/seasonal-reports", canShow: canGenerateSeasonalReports },
+    { name: "⚙️ Settings", path: "/settings", canShow: () => true }
   ];
+
+  // Filter menu items based on role guards
+  const visibleItems = menuItems.filter(item => 
+    item.canShow ? item.canShow(user) : true
+  );
 
   return (
     <Sheet
@@ -33,22 +53,13 @@ const Sidebar = () => {
         display: "flex",
         flexDirection: "column",
         flexShrink: 0,
-        background: "linear-gradient(180deg, #1a1e3f 0%, #2d3561 100%)",
-        boxShadow: "4px 0 12px rgba(0, 0, 0, 0.1)",
+        background: brandTheme.sidebar.background,
+        boxShadow: `${brandTheme.shadows.sidebar}, ${brandTheme.sidebar.innerShadow}`,
         overflow: "auto",
         position: "fixed",
         left: 0,
         top: 0,
-        color: "#ffffff",
-        "& *": {
-          color: "inherit !important",
-        },
-        "& .MuiListItemButton-root": {
-          color: "#ffffff !important",
-        },
-        "& .MuiTypography-root": {
-          color: "#ffffff !important",
-        },
+        borderRight: "2px solid #2CA6A4"
       }}
     >
       {/* Logo Section */}
@@ -60,89 +71,106 @@ const Sidebar = () => {
           flexDirection: "column",
           alignItems: "center",
           gap: 1.5,
+          background: brandTheme.sidebar.logoZoneOverlay,
         }}
       >
         <Box
-          component="img"
-          src={logo}
-          alt="Logo"
           sx={{
-            width: 150,
-            height: 150,
-            objectFit: "contain",
-            borderRadius: "12px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+            p: 2,
+            background: brandTheme.sidebar.logoPanel.background,
+            border: brandTheme.sidebar.logoPanel.border,
+            borderRadius: brandTheme.sidebar.logoPanel.borderRadius,
+            boxShadow: brandTheme.sidebar.logoPanel.shadow,
+            backdropFilter: brandTheme.sidebar.logoPanel.backdropFilter,
+            WebkitBackdropFilter: brandTheme.sidebar.logoPanel.backdropFilter,
           }}
-        />
+        >
+          <Box
+            component="img"
+            src={logo}
+            alt="Logo"
+            sx={{
+              width: 120,
+              height: 120,
+              objectFit: "contain",
+            }}
+          />
+        </Box>
 
         <Typography
           level="h3"
           sx={{
-            color: "#fff",
+            color: brandTheme.sidebar.text,
             fontWeight: 800,
             fontSize: "24px",
-            textShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
           }}
         >
-          FeedbackAI
+          Feedback System
         </Typography>
 
         <Typography
           level="body-xs"
-          sx={{ color: "#e0e7ff", fontSize: "12px" }}
+          sx={{ color: brandTheme.sidebar.textSecondary, fontSize: "12px", fontWeight: 500 }}
         >
-          Hospital Feedback System
+          Al Rassoul Al Azam Hospital
         </Typography>
       </Box>
 
-      <Divider sx={{ my: 1, borderColor: "rgba(102, 126, 234, 0.3)" }} />
+      <Divider sx={{ my: 1.5, borderColor: brandTheme.sidebar.divider }} />
 
       {/* Navigation Links */}
       <List sx={{ flex: 1, px: 2, py: 2 }}>
-        {pages.map((page) => (
-          <ListItemButton
-            key={page.name}
-            component={Link}
-            to={page.path}
-            selected={location.pathname === page.path}
-            sx={{
-              mb: 1.5,
-              color: "#ffffff !important",
-              fontSize: "15px",
-              fontWeight: 500,
-              "& .MuiTypography-root": {
-                color: "#ffffff !important",
-                fontSize: "15px !important",
-              },
-              "&:hover": {
-                backgroundColor: "rgba(102, 126, 234, 0.25)",
-                color: "#ffffff !important",
+        {visibleItems.map((page) => {
+          const isActive = location.pathname === page.path;
+          return (
+            <ListItemButton
+              key={page.name}
+              component={Link}
+              to={page.path}
+              selected={isActive}
+              sx={{
+                mb: 1,
+                color: brandTheme.sidebar.icon,
+                fontSize: "15px",
+                fontWeight: 500,
+                borderRadius: "10px",
+                transition: "all 0.2s ease",
                 "& .MuiTypography-root": {
-                  color: "#ffffff !important",
+                  color: "inherit",
+                  fontSize: "15px",
                 },
-              },
-              "&.Mui-selected": {
-                backgroundColor: "rgba(102, 126, 234, 0.35)",
-                color: "#ffffff !important",
-                fontWeight: 700,
-                "& .MuiTypography-root": {
-                  color: "#ffffff !important",
+                "&:hover": {
+                  backgroundColor: brandTheme.sidebar.hoverBackground,
+                  transform: "translateX(4px)",
                 },
-              },
-              borderRadius: "8px",
-              transition: "all 0.3s ease",
-            }}
-          >
-            <Typography level="body-sm" sx={{ fontSize: "15px", fontWeight: "inherit", color: "#ffffff !important" }}>{page.name}</Typography>
-          </ListItemButton>
-        ))}
+                "&.Mui-selected": {
+                  backgroundColor: brandTheme.sidebar.activeBackground,
+                  color: brandTheme.sidebar.iconActive,
+                  fontWeight: brandTheme.sidebar.activeFontWeight,
+                  borderLeft: brandTheme.sidebar.activeBorderLeft,
+                  borderRadius: brandTheme.sidebar.activeBorderRadius,
+                  boxShadow: brandTheme.sidebar.activeBoxShadow,
+                  "& .MuiTypography-root": {
+                    color: brandTheme.sidebar.iconActive,
+                  },
+                },
+              }}
+            >
+              <Typography level="body-sm" sx={{ fontSize: "15px", fontWeight: "inherit" }}>{page.name}</Typography>
+            </ListItemButton>
+          );
+        })}
       </List>
 
-      <Divider sx={{ my: 1, borderColor: "rgba(102, 126, 234, 0.3)" }} />
+      <Divider sx={{ my: 1.5, borderColor: brandTheme.sidebar.divider }} />
 
       {/* Footer Info */}
-      <Box sx={{ p: 2, textAlign: "center" }}>
-        <Typography level="body-xs" sx={{ color: "#ffffff", fontSize: "12px", fontWeight: 600 }}>
+      <Box sx={{ 
+        p: 2, 
+        textAlign: "center",
+        background: brandTheme.sidebar.footerZoneOverlay,
+      }}>
+        <Typography level="body-xs" sx={{ color: brandTheme.sidebar.icon, fontSize: "12px", fontWeight: 600 }}>
           v1.0.0
         </Typography>
       </Box>

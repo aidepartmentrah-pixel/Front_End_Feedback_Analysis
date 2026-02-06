@@ -1,6 +1,7 @@
 // src/pages/ReportingPage.js
 import React, { useState, useEffect } from "react";
 import { Box, Typography, Card } from "@mui/joy";
+import theme from '../theme';
 import MainLayout from "../components/common/MainLayout";
 import { fetchDashboardHierarchy } from "../api/dashboard";
 import {
@@ -588,7 +589,7 @@ const ReportingPage = () => {
             level="h2"
             sx={{
               fontWeight: 800,
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: theme.gradients.primary,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               mb: 1,
@@ -628,11 +629,11 @@ const ReportingPage = () => {
           sx={{
             mb: 3,
             p: 3,
-            background: "linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)",
-            border: "2px solid rgba(102, 126, 234, 0.2)",
+            background: "linear-gradient(135deg, rgba(43, 188, 196, 0.08) 0%, rgba(100, 167, 11, 0.08) 100%)",
+            border: "2px solid rgba(43, 188, 196, 0.2)",
           }}
         >
-          <Typography level="h6" sx={{ mb: 2, fontWeight: 700, color: "#667eea" }}>
+          <Typography level="h6" sx={{ mb: 2, fontWeight: 700, color: theme.colors.primary }}>
             📊 ملخص التقرير (Report Summary)
           </Typography>
           
@@ -642,7 +643,7 @@ const ReportingPage = () => {
               <Typography level="body-sm" sx={{ color: "#666", mb: 0.5 }}>
                 📄 نوع التقرير
               </Typography>
-              <Typography level="title-md" sx={{ fontWeight: 700, color: "#667eea" }}>
+              <Typography level="title-md" sx={{ fontWeight: 700, color: theme.colors.primary }}>
                 {reportType === "monthly" ? "📅 شهري (Monthly)" : "🍃 فصلي (Seasonal)"}
               </Typography>
             </Box>
@@ -653,7 +654,7 @@ const ReportingPage = () => {
                 <Typography level="body-sm" sx={{ color: "#666", mb: 0.5 }}>
                   📊 الوضع
                 </Typography>
-                <Typography level="title-md" sx={{ fontWeight: 700, color: "#667eea" }}>
+                <Typography level="title-md" sx={{ fontWeight: 700, color: theme.colors.primary }}>
                   {filters.mode === "detailed" ? "📋 تفصيلي (Detailed)" : "🔢 رقمي (Numeric)"}
                 </Typography>
               </Box>
@@ -664,7 +665,7 @@ const ReportingPage = () => {
               <Typography level="body-sm" sx={{ color: "#666", mb: 0.5 }}>
                 📆 الفترة
               </Typography>
-              <Typography level="title-md" sx={{ fontWeight: 700, color: "#667eea" }}>
+              <Typography level="title-md" sx={{ fontWeight: 700, color: theme.colors.primary }}>
                 {filters.dateMode === "month" && filters.month && filters.year && (
                   `${filters.month}/${filters.year}`
                 )}
@@ -692,7 +693,7 @@ const ReportingPage = () => {
               <Typography level="body-sm" sx={{ color: "#666", mb: 0.5 }}>
                 🏯 النطاق
               </Typography>
-              <Typography level="title-md" sx={{ fontWeight: 700, color: "#667eea" }}>
+              <Typography level="title-md" sx={{ fontWeight: 700, color: theme.colors.primary }}>
                 {reportScope.level === "hospital" && "🏥 المستشفى (Hospital)"}
                 {reportScope.level === "administration" && `🏢 إدارة (${reportScope.administrationIds.length || "All"})`}
                 {reportScope.level === "department" && `🏬 دائرة (${reportScope.departmentIds.length || "All"})`}
@@ -706,12 +707,12 @@ const ReportingPage = () => {
             sx={{
               mt: 3,
               p: 2,
-              background: "rgba(102, 126, 234, 0.05)",
+              background: "rgba(43, 188, 196, 0.05)",
               borderRadius: "8px",
-              border: "1px dashed rgba(102, 126, 234, 0.3)",
+              border: "1px dashed rgba(43, 188, 196, 0.3)",
             }}
           >
-            <Typography level="body-sm" sx={{ color: "#667eea", fontWeight: 600 }}>
+            <Typography level="body-sm" sx={{ color: theme.colors.primary, fontWeight: 600 }}>
               ℹ️ هذه الصفحة لإنشاء التقارير فقط. لعرض التقارير المخزنة، انتقل إلى لوحة التقارير الفصلية.
             </Typography>
             <Typography level="body-xs" sx={{ color: "#999", mt: 0.5 }}>
@@ -782,12 +783,12 @@ const ReportingPage = () => {
           sx={{
             mt: 4,
             p: 3,
-            background: "linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)",
+            background: "linear-gradient(135deg, rgba(43, 188, 196, 0.05) 0%, rgba(100, 167, 11, 0.05) 100%)",
             borderRadius: "8px",
-            border: "1px solid rgba(102, 126, 234, 0.2)",
+            border: "1px solid rgba(43, 188, 196, 0.2)",
           }}
         >
-          <Typography level="body-sm" sx={{ fontWeight: 700, color: "#667eea", mb: 1 }}>
+          <Typography level="body-sm" sx={{ fontWeight: 700, color: theme.colors.primary, mb: 1 }}>
             💡 وضع التطوير (Development Mode)
           </Typography>
           <Typography level="body-xs" sx={{ color: "#666" }}>

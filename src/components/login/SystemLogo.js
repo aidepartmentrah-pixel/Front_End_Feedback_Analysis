@@ -1,7 +1,7 @@
 // src/components/login/SystemLogo.js
 import React from "react";
 import { Box, Typography } from "@mui/joy";
-import LocalHospitalIcon from "@mui/icons-material/LocalHospital";
+import logo3 from "../../assests/logo3.png";
 
 const SystemLogo = () => {
   return (
@@ -13,24 +13,29 @@ const SystemLogo = () => {
     >
       <Box
         sx={{
-          width: 80,
-          height: 80,
-          borderRadius: "50%",
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          width: 120,
+          height: 120,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           margin: "0 auto 16px",
-          boxShadow: "0 8px 24px rgba(102, 126, 234, 0.3)",
         }}
       >
-        <LocalHospitalIcon sx={{ fontSize: 40, color: "white" }} />
+        <img 
+          src={logo3} 
+          alt="System Logo" 
+          style={{ 
+            width: "100%", 
+            height: "100%", 
+            objectFit: "contain" 
+          }} 
+        />
       </Box>
       <Typography
         level="h3"
         sx={{
           fontWeight: 900,
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          background: "linear-gradient(135deg, #2BBCC4 0%, #64A70B 100%)",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
           mb: 0.5,

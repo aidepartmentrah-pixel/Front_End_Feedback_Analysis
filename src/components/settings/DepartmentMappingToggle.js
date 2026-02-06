@@ -3,6 +3,7 @@ import React from "react";
 import { Box, Button, Typography } from "@mui/joy";
 import BusinessIcon from "@mui/icons-material/Business";
 import PublicIcon from "@mui/icons-material/Public";
+import theme from '../../theme';
 
 const DepartmentMappingToggle = ({ viewMode, onToggle }) => {
   return (
@@ -14,10 +15,10 @@ const DepartmentMappingToggle = ({ viewMode, onToggle }) => {
         p: 2,
         borderRadius: "8px",
         background: "linear-gradient(135deg, #f5f7ff 0%, #fff 100%)",
-        border: "2px solid rgba(102, 126, 234, 0.2)",
+        border: `2px solid ${theme.colors.primary}33`,
       }}
     >
-      <BusinessIcon sx={{ fontSize: "28px", color: "#667eea" }} />
+      <BusinessIcon sx={{ fontSize: "28px", color: theme.colors.primary }} />
       <Box sx={{ flex: 1 }}>
         <Typography level="body-md" sx={{ fontWeight: 600, color: "#333" }}>
           Department View Mode
@@ -35,7 +36,7 @@ const DepartmentMappingToggle = ({ viewMode, onToggle }) => {
           sx={{
             fontWeight: 700,
             ...(viewMode === "internal" && {
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: theme.gradients.primary,
             }),
           }}
         >

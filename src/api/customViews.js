@@ -1,7 +1,7 @@
 // src/api/customViews.js
 // API service for Custom Table Views
 
-const API_BASE_URL = "http://127.0.0.1:8000";
+import apiClient from "./apiClient";
 
 /**
  * Fetch all custom views
@@ -9,21 +9,11 @@ const API_BASE_URL = "http://127.0.0.1:8000";
  */
 export const fetchCustomViews = async (activeOnly = true) => {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/custom-views?active_only=${activeOnly}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
+    const response = await apiClient.get(
+      `/api/custom-views?active_only=${activeOnly}`
     );
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail?.message || "Failed to fetch custom views");
-    }
-
-    return await response.json();
+    return response.data;
   } catch (error) {
     console.error("Error fetching custom views:", error);
     throw error;
@@ -36,21 +26,11 @@ export const fetchCustomViews = async (activeOnly = true) => {
  */
 export const fetchCustomView = async (viewId) => {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/custom-views/${viewId}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
+    const response = await apiClient.get(
+      `/api/custom-views/${viewId}`
     );
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail?.message || "Failed to fetch custom view");
-    }
-
-    return await response.json();
+    return response.data;
   } catch (error) {
     console.error("Error fetching custom view:", error);
     throw error;
@@ -63,20 +43,9 @@ export const fetchCustomView = async (viewId) => {
  */
 export const createCustomView = async (viewData) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/custom-views`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(viewData),
-    });
+    const response = await apiClient.post(`/api/custom-views`, viewData);
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail?.message || "Failed to create custom view");
-    }
-
-    return await response.json();
+    return response.data;
   } catch (error) {
     console.error("Error creating custom view:", error);
     throw error;
@@ -90,32 +59,14 @@ export const createCustomView = async (viewData) => {
 export const updateCustomView = async (viewId, viewData) => {
   try {
     console.log(`Calling PUT /api/custom-views/${viewId}`, viewData);
-    const response = await fetch(
-      `${API_BASE_URL}/api/custom-views/${viewId}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(viewData),
-      }
+    const response = await apiClient.put(
+      `/api/custom-views/${viewId}`,
+      viewData
     );
 
     console.log("Update response status:", response.status);
     
-    if (!response.ok) {
-      let errorMessage = "Failed to update custom view";
-      try {
-        const error = await response.json();
-        console.log("Error response:", error);
-        errorMessage = error.detail?.message || error.message || errorMessage;
-      } catch (e) {
-        console.log("Could not parse error response");
-      }
-      throw new Error(errorMessage);
-    }
-
-    const result = await response.json();
+    const result = response.data;
     console.log("Update successful:", result);
     return result;
   } catch (error) {
@@ -132,70 +83,17 @@ export const deleteCustomView = async (viewId, hardDelete = false) => {
   try {
     // Convert boolean to string for URL parameter
     const hardParam = hardDelete ? "true" : "false";
-    const url = `${API_BASE_URL}/api/custom-views/${viewId}?hard=${hardParam}`;
+    const url = `/api/custom-views/${viewId}?hard=${hardParam}`;
     
     console.log(`Deleting view ${viewId}`);
     console.log(`Hard delete: ${hardDelete}`);
     console.log(`URL: ${url}`);
     
-    const response = await fetch(url, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const response = await apiClient.delete(url);
 
     console.log("Delete response status:", response.status);
-    console.log("Response headers:", {
-      contentType: response.headers.get("content-type"),
-    });
     
-    if (!response.ok) {
-      let errorMessage = "Failed to delete custom view";
-      const contentType = response.headers.get("content-type");
-      
-      try {
-        if (contentType && contentType.includes("application/json")) {
-          const error = await response.json();
-          console.log("Error response JSON:", error);
-          
-          // Safely extract error message
-          if (typeof error === 'object' && error !== null) {
-            if (error.detail) {
-              errorMessage = typeof error.detail === 'string' 
-                ? error.detail 
-                : (error.detail.message || JSON.stringify(error.detail));
-            } else if (error.message) {
-              errorMessage = error.message;
-            } else {
-              errorMessage = JSON.stringify(error);
-            }
-          } else {
-            errorMessage = String(error);
-          }
-        } else {
-          const text = await response.text();
-          console.log("Error response text:", text);
-          errorMessage = text || errorMessage;
-        }
-      } catch (e) {
-        console.log("Could not parse error response:", e);
-        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-      }
-      
-      console.log("Final error message:", errorMessage);
-      throw new Error(errorMessage);
-    }
-
-    const contentType = response.headers.get("content-type");
-    let result = null;
-    
-    if (contentType && contentType.includes("application/json")) {
-      result = await response.json();
-    } else {
-      result = await response.text();
-    }
-    
+    const result = response.data;
     console.log("Delete successful:", result);
     return result;
   } catch (error) {

@@ -1,7 +1,7 @@
 // src/api/distribution.js
 // API client for Distribution Operator analysis
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
+import apiClient from "./apiClient";
 
 /**
  * Fetch distribution data for a given dimension and time configuration
@@ -16,82 +16,24 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
  * @returns {Promise<Object>} Distribution analysis data
  */
 export async function fetchDistributionData(requestBody, signal = null) {
-  const url = `${API_BASE_URL}/api/operators/distribution`;
+  const url = `/api/operators/distribution`;
   
   console.log("📡 Posting distribution request to:", url);
   console.log("📤 Request body:", JSON.stringify(requestBody, null, 2));
 
   try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody),
+    const response = await apiClient.post(url, requestBody, {
       signal: signal, // Support request cancellation
     });
 
-    // Try to parse response body
-    let responseData;
-    const contentType = response.headers.get("content-type");
-    
-    if (contentType && contentType.includes("application/json")) {
-      responseData = await response.json();
-    } else {
-      const text = await response.text();
-      console.error("❌ Non-JSON response:", text);
-      throw new Error(`Unexpected response format: ${text.substring(0, 100)}`);
-    }
-
-    // Handle error responses with detailed messages
-    if (!response.ok) {
-      console.error("❌ API Error Response:", responseData);
-      
-      // Handle bad request (400)
-      if (response.status === 400) {
-        const errorMessage = responseData.detail || responseData.message || "Invalid request parameters";
-        throw new Error(errorMessage);
-      }
-      
-      // Handle validation errors (422) with field-specific details
-      if (response.status === 422 && responseData.detail) {
-        const validationErrors = Array.isArray(responseData.detail)
-          ? responseData.detail.map(err => {
-              const field = err.loc?.join('.') || 'unknown field';
-              return `${field}: ${err.msg}`;
-            }).join(', ')
-          : JSON.stringify(responseData.detail);
-        throw new Error(`Validation error: ${validationErrors}`);
-      }
-      
-      // Handle server errors (500)
-      if (response.status >= 500) {
-        const errorMessage = responseData.detail || "Server error. Please try again later.";
-        throw new Error(errorMessage);
-      }
-      
-      // Generic error
-      throw new Error(
-        responseData.detail || 
-        responseData.message || 
-        `Request failed with status ${response.status}`
-      );
-    }
-
-    console.log("✅ Distribution data received:", responseData);
-    return responseData;
+    console.log("✅ Distribution data received:", response.data);
+    return response.data;
 
   } catch (error) {
     // Handle abort errors (request cancellation)
-    if (error.name === 'AbortError') {
+    if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
       console.log("🚫 Request cancelled");
       throw new Error("Request cancelled");
-    }
-    
-    // Network errors or other exceptions
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      console.error("❌ Network error:", error);
-      throw new Error("Network error. Please check your connection.");
     }
     
     console.error("❌ Distribution fetch error:", error);
