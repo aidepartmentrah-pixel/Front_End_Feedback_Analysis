@@ -1,7 +1,6 @@
 // src/pages/RedFlagsPage.js
 import React, { useState, useEffect } from "react";
-import { Box, Typography, Button, CircularProgress } from "@mui/joy";
-import DownloadIcon from "@mui/icons-material/Download";
+import { Box, Typography, CircularProgress } from "@mui/joy";
 import MainLayout from "../components/common/MainLayout";
 import StatisticsCards from "../components/redflags/StatisticsCards";
 import FilterPanel from "../components/redflags/FilterPanel";
@@ -19,6 +18,8 @@ import {
   fetchRedFlagsCategoryBreakdown,
   fetchRedFlagsDepartmentBreakdown,
 } from "../api/redFlags";
+import { fetchLeaves } from "../api/orgUnits";
+import apiClient from "../api/apiClient";
 
 const RedFlagsPage = ({ embedded = false }) => {
   // State management
@@ -29,6 +30,8 @@ const RedFlagsPage = ({ embedded = false }) => {
   const [departmentBreakdown, setDepartmentBreakdown] = useState(null);
   const [selectedRedFlag, setSelectedRedFlag] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [leaves, setLeaves] = useState([]);
+  const [domains, setDomains] = useState([]);
   
   // Loading states
   const [loadingRedFlags, setLoadingRedFlags] = useState(false);
@@ -53,10 +56,26 @@ const RedFlagsPage = ({ embedded = false }) => {
 
   // Trend controls
   const [granularity, setGranularity] = useState("monthly");
-  const [groupBy, setGroupBy] = useState("none");
 
   // Pagination
   const [totalCount, setTotalCount] = useState(0);
+
+  // Load leaves and domains for filters
+  useEffect(() => {
+    const loadFilterOptions = async () => {
+      try {
+        const [leavesData, domainsRes] = await Promise.all([
+          fetchLeaves(),
+          apiClient.get("/api/reference/domains"),
+        ]);
+        setLeaves(leavesData || []);
+        setDomains(domainsRes.data?.domains || []);
+      } catch (error) {
+        console.error("Error loading filter options:", error);
+      }
+    };
+    loadFilterOptions();
+  }, []);
 
   // Fetch red flags
   useEffect(() => {
@@ -64,6 +83,8 @@ const RedFlagsPage = ({ embedded = false }) => {
       setLoadingRedFlags(true);
       try {
         const data = await fetchRedFlags(filters);
+        console.log("🔍 RedFlagsPage - Received data:", data.red_flags?.length, "records");
+        console.log("🔍 RedFlagsPage - First record:", data.red_flags?.[0]);
         setRedFlags(data.red_flags || []);
         setTotalCount(data.total || 0);
       } catch (error) {
@@ -105,18 +126,22 @@ const RedFlagsPage = ({ embedded = false }) => {
           from_date: filters.from_date,
           to_date: filters.to_date,
           granularity,
-          group_by: groupBy,
         });
-        setTrends(data.trends || []);
+        console.log("📈 Trends API response:", data);
+        // Handle different response structures
+        const trendsData = data.trends || data.data || data || [];
+        console.log("📈 Trends data to display:", trendsData);
+        setTrends(trendsData);
       } catch (error) {
         console.error("Error loading trends:", error);
+        setTrends([]);
       } finally {
         setLoadingTrends(false);
       }
     };
 
     loadTrends();
-  }, [filters.from_date, filters.to_date, granularity, groupBy]);
+  }, [filters.from_date, filters.to_date, granularity]);
 
   // Fetch category breakdown
   useEffect(() => {
@@ -206,30 +231,10 @@ const RedFlagsPage = ({ embedded = false }) => {
   const content = (
     <Box>
       {/* Page Header */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+      <Box sx={{ mb: 3 }}>
         <Typography level="h2" sx={{ fontWeight: 700 }}>
           🚩 الأعلام الحمراء (Critical Issues)
         </Typography>
-        <Box sx={{ display: "flex", gap: 2 }}>
-          <Button
-            variant="outlined"
-            color="neutral"
-            startDecorator={<DownloadIcon />}
-            disabled
-            title="قريبًا"
-          >
-            تصدير PDF
-          </Button>
-          <Button
-            variant="outlined"
-            color="neutral"
-            startDecorator={<DownloadIcon />}
-            disabled
-            title="قريبًا"
-          >
-            تصدير جماعي
-          </Button>
-        </Box>
       </Box>
 
       {/* Statistics Cards */}
@@ -253,9 +258,7 @@ const RedFlagsPage = ({ embedded = false }) => {
           trends={trends}
           loading={loadingTrends}
           granularity={granularity}
-          groupBy={groupBy}
           onGranularityChange={setGranularity}
-          onGroupByChange={setGroupBy}
         />
       </Box>
 
@@ -267,6 +270,8 @@ const RedFlagsPage = ({ embedded = false }) => {
         filters={filters}
         onFilterChange={handleFilterChange}
         onClearFilters={handleClearFilters}
+        leaves={leaves}
+        domains={domains}
       />
 
       {/* Results Summary */}

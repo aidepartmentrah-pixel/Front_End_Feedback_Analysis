@@ -5,9 +5,23 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 // Auth
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import RoleProtectedRoute from "./components/RoleProtectedRoute";
+import { 
+  canAccessMigration,
+  canViewInsight,
+  canViewPersonReporting,
+  canAccessDrawerNotes,
+  canViewReporting,
+  canViewInvestigation,
+  canViewTableView,
+  canViewInsertRecord,
+  canViewSettings,
+  canViewInbox
+} from "./utils/roleGuards";
 
 // Dev Helpers (DEV-ONLY)
 import AuthDebugPanel from "./dev/AuthDebugPanel";
+import VisibilityTestPage from "./dev/VisibilityTestPage";
 
 // Pages
 import DashBoard from "./pages/DashBoard";
@@ -27,6 +41,11 @@ import InsightPage from "./pages/InsightPage";
 import WorkflowInboxPage from "./pages/WorkflowInboxPage";
 import SeasonalReportsPage from "./pages/SeasonalReportsPage";
 import SeasonalReportDetailPage from "./pages/SeasonalReportDetailPage";
+import DrawerNotesPage from "./pages/DrawerNotesPage";
+import MigrationMainPage from "./pages/MigrationMainPage";
+import MigrationViewPage from "./pages/MigrationViewPage";
+import MigrationFormPage from "./pages/MigrationFormPage";
+import UnauthorizedPage from "./pages/UnauthorizedPage";
 
 function App() {
   return (
@@ -36,8 +55,14 @@ function App() {
         {process.env.NODE_ENV === "development" && <AuthDebugPanel />}
 
         <Routes>
-          {/* Public Route */}
+          {/* Public Routes */}
           <Route path="/login" element={<Login />} />
+          <Route path="/unauthorized" element={<UnauthorizedPage />} />
+          
+          {/* DEV-ONLY: Phase J-9 Visibility Test Page */}
+          {process.env.NODE_ENV === "development" && (
+            <Route path="/test-visibility" element={<VisibilityTestPage />} />
+          )}
 
           {/* Protected Routes */}
           <Route
@@ -59,17 +84,17 @@ function App() {
           <Route
             path="/table-view"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute canAccess={canViewTableView} routeName="Table View">
                 <TableView />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
           <Route
             path="/insert"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute canAccess={canViewInsertRecord} routeName="Insert Record">
                 <InsertRecord />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
           <Route
@@ -91,25 +116,25 @@ function App() {
           <Route
             path="/reporting"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute canAccess={canViewReporting} routeName="Reporting">
                 <ReportingPage />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
           <Route
             path="/settings"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute canAccess={canViewSettings} routeName="Settings">
                 <SettingPage />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
           <Route
             path="/history"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute canAccess={canViewPersonReporting} routeName="History">
                 <HistoryPage />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
           {/* HIDDEN: Department Feedback page - moved to Reporting page */}
@@ -148,25 +173,57 @@ function App() {
           <Route
             path="/investigation"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute canAccess={canViewInvestigation} routeName="Investigation">
                 <InvestigationPage />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
           <Route
             path="/inbox"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute canAccess={canViewInbox} routeName="Inbox">
                 <WorkflowInboxPage />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
           <Route
             path="/insight"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute canAccess={canViewInsight} routeName="Insight">
                 <InsightPage />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/drawer-notes"
+            element={
+              <RoleProtectedRoute canAccess={canAccessDrawerNotes} routeName="Drawer Notes">
+                <DrawerNotesPage />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/migration"
+            element={
+              <RoleProtectedRoute canAccess={canAccessMigration} routeName="Migration">
+                <MigrationMainPage />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/migration/view/:legacyId"
+            element={
+              <RoleProtectedRoute canAccess={canAccessMigration} routeName="Migration View">
+                <MigrationViewPage />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/migration/migrate/:legacyId"
+            element={
+              <RoleProtectedRoute canAccess={canAccessMigration} routeName="Migration Form">
+                <MigrationFormPage />
+              </RoleProtectedRoute>
             }
           />
           {/* HIDDEN: Seasonal Reports pages - reports generated through /reporting page */}

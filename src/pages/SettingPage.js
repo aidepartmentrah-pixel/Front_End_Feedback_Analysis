@@ -1,43 +1,89 @@
 // src/pages/SettingPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Box, Typography, Tabs, TabList, Tab, TabPanel, Alert } from "@mui/joy";
 import theme from '../theme';
 import MainLayout from "../components/common/MainLayout";
 import DepartmentTable from "../components/settings/DepartmentTable";
 import AddDepartmentForm from "../components/settings/AddDepartmentForm";
-import DepartmentMappingToggle from "../components/settings/DepartmentMappingToggle";
 import DoctorTable from "../components/settings/DoctorTable";
 import AddDoctorForm from "../components/settings/AddDoctorForm";
 import PatientTable from "../components/settings/PatientTable";
 import AddPatientForm from "../components/settings/AddPatientForm";
-import SettingActions from "../components/settings/SettingActions";
-import VariableAttributes from "../components/settings/VariableAttributes";
 import PolicyConfiguration from "../components/settings/PolicyConfiguration";
 import Training from "../components/settings/Training";
-import UsersAndSectionsTab from "../components/settings/UsersAndSectionsTab";
+import UnifiedUsersTab from "./settings/UnifiedUsersTab";
+import SectionCreationPanel from "../components/settings/SectionCreationPanel"; // PHASE C — Production Section Creation Tool
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
+import { canRoleSeeSettingsTab, SETTINGS_TAB_KEYS } from "../security/roleVisibilityMap";
 
 const SettingPage = () => {
   // Auth context for role checking
   const { user } = useAuth();
-  const isSoftwareAdmin = user?.roles?.includes("SOFTWARE_ADMIN");
+  
+  // Helper to get primary role from user
+  const getPrimaryRole = (user) => {
+    if (!user || !user.roles || user.roles.length === 0) return null;
+    return user.roles[0];
+  };
+  
+  // Get primary role for visibility checks
+  const primaryRole = getPrimaryRole(user);
+  
+  // Define all available tabs with their keys
+  const allTabs = useMemo(() => [
+    {
+      key: SETTINGS_TAB_KEYS.DEPARTMENTS,
+      label: "🏥 Departments",
+      component: 0
+    },
+    {
+      key: SETTINGS_TAB_KEYS.DOCTORS,
+      label: "👨‍⚕️ Doctors",
+      component: 1
+    },
+    {
+      key: SETTINGS_TAB_KEYS.PATIENTS,
+      label: "🧑‍🤝‍🧑 Patients",
+      component: 2
+    },
+    {
+      key: SETTINGS_TAB_KEYS.POLICY,
+      label: "📋 Policy Configuration",
+      component: 4
+    },
+    {
+      key: SETTINGS_TAB_KEYS.TRAINING,
+      label: "🚦 Training",
+      component: 5
+    },
+    {
+      key: SETTINGS_TAB_KEYS.USERS,
+      label: "� Users Management",
+      component: 6
+    },
+  ], []);
+  
+  // Filter tabs based on role visibility
+  const visibleTabs = useMemo(() => {
+    if (!primaryRole) return [];
+    return allTabs.filter(tab => canRoleSeeSettingsTab(primaryRole, tab.key));
+  }, [primaryRole, allTabs]);
 
   // State Management
   const [departments, setDepartments] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
   const [totalPatients, setTotalPatients] = useState(0);
-  const [viewMode, setViewMode] = useState("internal"); // "internal" or "external"
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
 
-  // Fetch departments on mount and when viewMode changes
+  // Fetch departments on mount
   useEffect(() => {
     fetchDepartments();
-  }, [viewMode]);
+  }, []);
 
   // Fetch doctors on mount
   useEffect(() => {
@@ -54,29 +100,13 @@ const SettingPage = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.getDepartments(viewMode);
+      const response = await api.getDepartments();
       setDepartments(response.data || []);
     } catch (err) {
       setError("Failed to fetch departments. Please try again.");
       console.error("Error fetching departments:", err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Add new department
-  const handleAddDepartment = async (newDepartment) => {
-    try {
-      setError(null);
-      const response = await api.addDepartment(newDepartment);
-      setDepartments([...departments, response.data]);
-      setSuccess("Department added successfully!");
-      setTimeout(() => setSuccess(null), 3000);
-      return true;
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to add department");
-      console.error("Error adding department:", err);
-      return false;
     }
   };
 
@@ -112,6 +142,28 @@ const SettingPage = () => {
     } catch (err) {
       setError(err.response?.data?.message || "Failed to delete department");
       console.error("Error deleting department:", err);
+    }
+  };
+
+  // Add new department
+  const handleAddDepartment = async (newDepartment) => {
+    try {
+      setError(null);
+      const response = await api.addDepartment(newDepartment);
+      
+      // Handle success response from API
+      if (response.success || response.data) {
+        // Refresh departments list to get updated data
+        await fetchDepartments();
+        setSuccess(response.message || "Department added successfully!");
+        setTimeout(() => setSuccess(null), 3000);
+        return true;
+      }
+    } catch (err) {
+      const errorMsg = err.message || "Failed to add department";
+      setError(errorMsg);
+      console.error("Error adding department:", err);
+      return false;
     }
   };
 
@@ -273,53 +325,9 @@ const SettingPage = () => {
     }
   };
 
-  // Save configuration
-  const handleSaveConfiguration = async () => {
-    try {
-      setError(null);
-      await api.saveConfiguration({ departments });
-      setSuccess("Configuration saved successfully!");
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError("Failed to save configuration");
-      console.error("Error saving configuration:", err);
-    }
-  };
-
   // Refresh data
   const handleRefresh = () => {
     fetchDepartments();
-  };
-
-  // Export configuration
-  const handleExport = (format) => {
-    const data = { departments, viewMode };
-    if (format === "json") {
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `settings_${new Date().toISOString().split("T")[0]}.json`;
-      link.click();
-    } else if (format === "csv") {
-      // CSV export for departments
-      const deptCSV = [
-        ["ID", "Name", "Parent ID", "Type"],
-        ...departments.map((d) => [d.id, d.name, d.parent_id || "", d.type]),
-      ]
-        .map((row) => row.join(","))
-        .join("\n");
-      const blob = new Blob([deptCSV], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `departments_${new Date().toISOString().split("T")[0]}.csv`;
-      link.click();
-    }
-    setSuccess(`Configuration exported as ${format.toUpperCase()}!`);
-    setTimeout(() => setSuccess(null), 3000);
   };
 
   return (
@@ -356,114 +364,119 @@ const SettingPage = () => {
         </Alert>
       )}
 
-      {/* Department Mapping Toggle */}
-      <Box sx={{ mb: 3 }}>
-        <DepartmentMappingToggle
-          viewMode={viewMode}
-          onToggle={(newMode) => setViewMode(newMode)}
-        />
-      </Box>
-
-      {/* Actions Bar */}
-      <Box sx={{ mb: 3 }}>
-        <SettingActions
-          departments={departments}
-          onSave={handleSaveConfiguration}
-          onRefresh={handleRefresh}
-          onExport={handleExport}
-        />
-      </Box>
-
       {/* Tabs */}
       <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
         <TabList>
-          <Tab>🏥 Departments</Tab>
-          <Tab>👨‍⚕️ Doctors</Tab>
-          <Tab>🧑‍🤝‍🧑 Patients</Tab>
-          <Tab>⚙️ Variable Attributes</Tab>
-          <Tab>📋 Policy Configuration</Tab>
-          <Tab>🚦 Training</Tab>
-          {isSoftwareAdmin && <Tab>👤 Users & Sections (Testing)</Tab>}
+          {visibleTabs.map((tab, index) => (
+            <Tab key={`${tab.key}-${index}`}>{tab.label}</Tab>
+          ))}
         </TabList>
 
-        {/* Department Management Tab */}
-        <TabPanel value={0} sx={{ p: 3 }}>
-          <Box sx={{ display: "grid", gap: 3 }}>
-            {/* Add Department Form */}
-            <AddDepartmentForm
-              onAdd={handleAddDepartment}
-              departments={departments}
-              viewMode={viewMode}
-            />
+        {/* Render TabPanels for visible tabs only */}
+        {visibleTabs.map((tab, index) => {
+          // Departments Tab
+          if (tab.component === 0) {
+            return (
+              <TabPanel key={`panel-${tab.key}-${index}`} value={index} sx={{ p: 3 }}>
+                <Box sx={{ display: "grid", gap: 3 }}>
+                  {/* Add Department Form - Available for SOFTWARE_ADMIN and COMPLAINT_SUPERVISOR */}
+                  {(primaryRole === 'SOFTWARE_ADMIN' || primaryRole === 'COMPLAINT_SUPERVISOR') && (
+                    <AddDepartmentForm
+                      onAdd={handleAddDepartment}
+                      departments={departments}
+                      viewMode="internal"
+                    />
+                  )}
 
-            {/* Department Table */}
-            <DepartmentTable
-              departments={departments}
-              onEdit={handleEditDepartment}
-              onDelete={handleDeleteDepartment}
-              loading={loading}
-            />
-          </Box>
-        </TabPanel>
+                  {/* Department Table */}
+                  <DepartmentTable
+                    departments={departments}
+                    onEdit={handleEditDepartment}
+                    onDelete={handleDeleteDepartment}
+                    loading={loading}
+                  />
 
-        {/* Doctors Management Tab */}
-        <TabPanel value={1} sx={{ p: 3 }}>
-          <Box sx={{ display: "grid", gap: 3 }}>
-            {/* Add Doctor Form */}
-            <AddDoctorForm
-              onAdd={handleAddDoctor}
-            />
+                  {/* PHASE C — F-C8 — Role Guard — Section Creation restricted to SOFTWARE_ADMIN */}
+                  {primaryRole === 'SOFTWARE_ADMIN' && (
+                    <Box sx={{ mt: 3 }}>
+                      <SectionCreationPanel />
+                    </Box>
+                  )}
+                </Box>
+              </TabPanel>
+            );
+          }
+          
+          // Doctors Tab
+          if (tab.component === 1) {
+            return (
+              <TabPanel key={`panel-${tab.key}-${index}`} value={index} sx={{ p: 3 }}>
+                <Box sx={{ display: "grid", gap: 3 }}>
+                  {/* Add Doctor Form */}
+                  <AddDoctorForm onAdd={handleAddDoctor} />
 
-            {/* Doctor Table */}
-            <DoctorTable
-              doctors={doctors}
-              onEdit={handleEditDoctor}
-              onDelete={handleDeleteDoctor}
-              loading={loading}
-            />
-          </Box>
-        </TabPanel>
+                  {/* Doctor Table */}
+                  <DoctorTable
+                    doctors={doctors}
+                    onEdit={handleEditDoctor}
+                    onDelete={handleDeleteDoctor}
+                    loading={loading}
+                  />
+                </Box>
+              </TabPanel>
+            );
+          }
+          
+          // Patients Tab
+          if (tab.component === 2) {
+            return (
+              <TabPanel key={`panel-${tab.key}-${index}`} value={index} sx={{ p: 3 }}>
+                <Box sx={{ display: "grid", gap: 3 }}>
+                  {/* Add Patient Form */}
+                  <AddPatientForm onAdd={handleAddPatient} />
 
-        {/* Patients Management Tab */}
-        <TabPanel value={2} sx={{ p: 3 }}>
-          <Box sx={{ display: "grid", gap: 3 }}>
-            {/* Add Patient Form */}
-            <AddPatientForm
-              onAdd={handleAddPatient}
-            />
-
-            {/* Patient Table */}
-            <PatientTable
-              patients={patients}
-              onEdit={handleEditPatient}
-              onDelete={handleDeletePatient}
-              loading={loading}
-              totalCount={totalPatients}
-            />
-          </Box>
-        </TabPanel>
-
-        {/* Variable Attributes Tab */}
-        <TabPanel value={3} sx={{ p: 3 }}>
-          <VariableAttributes />
-        </TabPanel>
-
-        {/* Policy Configuration Tab */}
-        <TabPanel value={4} sx={{ p: 3 }}>
-          <PolicyConfiguration />
-        </TabPanel>
-
-        {/* Training Tab */}
-        <TabPanel value={5} sx={{ p: 3 }}>
-          <Training />
-        </TabPanel>
-
-        {/* Users & Sections Tab (SOFTWARE_ADMIN only) */}
-        {isSoftwareAdmin && (
-          <TabPanel value={6} sx={{ p: 3 }}>
-            <UsersAndSectionsTab />
-          </TabPanel>
-        )}
+                  {/* Patient Table */}
+                  <PatientTable
+                    patients={patients}
+                    onEdit={handleEditPatient}
+                    onDelete={handleDeletePatient}
+                    loading={loading}
+                    totalCount={totalPatients}
+                  />
+                </Box>
+              </TabPanel>
+            );
+          }
+          
+          // Policy Configuration Tab
+          if (tab.component === 4) {
+            return (
+              <TabPanel key={`panel-${tab.key}-${index}`} value={index} sx={{ p: 3 }}>
+                <PolicyConfiguration />
+              </TabPanel>
+            );
+          }
+          
+          // Training Tab
+          if (tab.component === 5) {
+            return (
+              <TabPanel key={`panel-${tab.key}-${index}`} value={index} sx={{ p: 3 }}>
+                <Training />
+              </TabPanel>
+            );
+          }
+          
+          // Unified Users Management Tab
+          if (tab.component === 6) {
+            return (
+              <TabPanel key={`panel-${tab.key}-${index}`} value={index} sx={{ p: 3 }}>
+                <UnifiedUsersTab />
+              </TabPanel>
+            );
+          }
+          
+          return null;
+        })}
       </Tabs>
       </Box>
     </MainLayout>

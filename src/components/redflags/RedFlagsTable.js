@@ -1,32 +1,44 @@
 // src/components/redflags/RedFlagsTable.js
 import React from "react";
 import { Box, Table, Chip, Typography } from "@mui/joy";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
 const RedFlagsTable = ({ redFlags, loading, onRowClick }) => {
+  console.log("🔍 RedFlagsTable - Received redFlags:", redFlags?.length, "records");
+  console.log("🔍 RedFlagsTable - First record structure:", redFlags?.[0]);
+  console.log("🔍 RedFlagsTable - First record keys:", redFlags?.[0] ? Object.keys(redFlags[0]) : []);
+
   const getSeverityColor = (severity) => {
-    if (severity === "CRITICAL") return "danger";
-    if (severity === "HIGH") return "warning";
+    const text = severity?.toLowerCase() || "";
+    if (text === "high") return "danger";
+    if (text === "medium") return "warning";
+    if (text === "low") return "neutral";
     return "neutral";
   };
 
   const getStatusColor = (status) => {
-    if (status === "OPEN") return "primary";
-    if (status === "UNDER_REVIEW") return "warning";
-    if (status === "FINISHED") return "success";
+    const text = status?.toLowerCase() || "";
+    if (text === "open" || text === "pending") return "primary";
+    if (text === "in progress") return "warning";
+    if (text === "resolved" || text === "closed" || text === "finished") return "success";
     return "neutral";
   };
 
   const getStatusLabel = (status) => {
-    if (status === "OPEN") return "مفتوح";
-    if (status === "UNDER_REVIEW") return "قيد المراجعة";
-    if (status === "FINISHED") return "منتهي";
+    const text = status?.toLowerCase() || "";
+    if (text === "open") return "Open";
+    if (text === "pending") return "Pending";
+    if (text === "in progress") return "In Progress";
+    if (text === "resolved" || text === "finished") return "Finished";
+    if (text === "closed") return "Closed";
     return status;
   };
 
   const getSeverityLabel = (severity) => {
-    if (severity === "CRITICAL") return "حرج";
-    if (severity === "HIGH") return "عالي";
+    const text = severity?.toLowerCase() || "";
+    if (text === "high") return "High";
+    if (text === "medium") return "Medium";
+    if (text === "low") return "Low";
+    if (text === "critical") return "Critical";
     return severity;
   };
 
@@ -58,6 +70,8 @@ const RedFlagsTable = ({ redFlags, loading, onRowClick }) => {
     >
       <Table
         sx={{
+          tableLayout: "fixed",
+          width: "100%",
           "& thead th": {
             bgcolor: "#fafafa",
             fontWeight: 600,
@@ -67,11 +81,11 @@ const RedFlagsTable = ({ redFlags, loading, onRowClick }) => {
             color: "#6b7280",
             position: "sticky",
             top: 0,
-            zIndex: 1,
+            zIndex: 2,
             textAlign: "center",
             borderBottom: "1px solid #e5e7eb",
             py: 1.5,
-            px: 2,
+            px: 1,
           },
           "& tbody tr": {
             cursor: "pointer",
@@ -87,63 +101,80 @@ const RedFlagsTable = ({ redFlags, loading, onRowClick }) => {
           "& tbody td": {
             textAlign: "center",
             verticalAlign: "middle",
-            py: 2,
-            px: 2,
-            fontSize: "0.875rem",
+            py: 1.5,
+            px: 1,
+            fontSize: "0.8125rem",
           },
         }}
       >
         <thead>
           <tr>
-            <th>رقم السجل</th>
-            <th>اسم المريض</th>
-            <th>تاريخ الاستلام</th>
-            <th>القسم</th>
-            <th>التصنيف</th>
-            <th>الخطورة</th>
-            <th>الحالة</th>
-            <th>حدث لا يجب أن يحدث</th>
-            <th>الملخص</th>
+            <th style={{ width: "8%" }}>رقم الحالة</th>
+            <th style={{ width: "9%" }}>التاريخ</th>
+            <th style={{ width: "12%" }}>اسم المريض</th>
+            <th style={{ width: "20%" }}>نص الشكوى</th>
+            <th style={{ width: "13%" }}>القسم</th>
+            <th style={{ width: "10%" }}>التصنيف</th>
+            <th style={{ width: "8%" }}>الخطورة</th>
+            <th style={{ width: "8%" }}>الحالة</th>
+            <th style={{ width: "12%" }}>ملخص الشكوى</th>
           </tr>
         </thead>
         <tbody>
           {redFlags.map((redFlag) => (
             <tr
-              key={redFlag.red_flag_id}
-              onClick={() => onRowClick(redFlag.red_flag_id)}
+              key={redFlag.id}
+              onClick={() => onRowClick(redFlag.id)}
             >
               <td>
-                <Box sx={{ fontWeight: 600, color: "#0f172a" }}>
-                  {redFlag.recordID}
+                <Box sx={{ fontWeight: 600, color: "#0f172a", fontSize: "0.75rem", textAlign: "center" }}>
+                  {redFlag.case_id}
                 </Box>
               </td>
               <td>
-                <Box sx={{ color: "#4b5563" }}>{redFlag.patient_name}</Box>
-              </td>
-              <td>
-                <Box sx={{ color: "#6b7280", fontSize: "0.8125rem" }}>
-                  {new Date(redFlag.date_received).toLocaleDateString("ar-SA", {
+                <Box sx={{ color: "#6b7280", fontSize: "0.75rem", textAlign: "center" }}>
+                  {redFlag.date ? new Date(redFlag.date).toLocaleDateString("ar-SA", {
                     year: "numeric",
                     month: "short",
                     day: "numeric",
-                  })}
+                  }) : "-"}
                 </Box>
               </td>
               <td>
-                <Box sx={{ color: "#4b5563" }}>{redFlag.department}</Box>
+                <Box sx={{ color: "#4b5563", fontSize: "0.75rem", textAlign: "center", whiteSpace: "normal", wordBreak: "break-word" }}>
+                  {redFlag.patient_name || redFlag.patient_full_name || "-"}
+                </Box>
+              </td>
+              <td>
+                <Box
+                  sx={{
+                    color: "#4b5563",
+                    fontSize: "0.8125rem",
+                    textAlign: "center",
+                    whiteSpace: "normal",
+                    wordBreak: "break-word",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {redFlag.complaint_text || redFlag.description || "-"}
+                </Box>
+              </td>
+              <td>
+                <Box sx={{ color: "#4b5563", fontSize: "0.75rem", textAlign: "center", whiteSpace: "normal", wordBreak: "break-word" }}>{redFlag.department}</Box>
               </td>
               <td>
                 <Box
                   sx={{
                     display: "inline-block",
-                    px: 1.5,
-                    py: 0.5,
+                    px: 1,
+                    py: 0.25,
                     borderRadius: "4px",
-                    fontSize: "0.8125rem",
+                    fontSize: "0.75rem",
                     fontWeight: 500,
                     bgcolor: "#eff6ff",
                     color: "#1e40af",
                     border: "1px solid #bfdbfe",
+                    textAlign: "center",
                   }}
                 >
                   {redFlag.category}
@@ -153,7 +184,7 @@ const RedFlagsTable = ({ redFlags, loading, onRowClick }) => {
                 <Chip
                   color={getSeverityColor(redFlag.severity)}
                   size="sm"
-                  sx={{ fontWeight: 700, fontSize: "0.8125rem" }}
+                  sx={{ fontWeight: 700, fontSize: "0.7rem" }}
                 >
                   {getSeverityLabel(redFlag.severity)}
                 </Chip>
@@ -163,32 +194,14 @@ const RedFlagsTable = ({ redFlags, loading, onRowClick }) => {
                   color={getStatusColor(redFlag.status)}
                   size="sm"
                   variant="soft"
-                  sx={{ fontWeight: 500, fontSize: "0.75rem" }}
+                  sx={{ fontWeight: 500, fontSize: "0.7rem" }}
                 >
                   {getStatusLabel(redFlag.status)}
                 </Chip>
               </td>
               <td>
-                {redFlag.isNeverEvent ? (
-                  <Box sx={{ display: "flex", justifyContent: "center" }}>
-                    <CheckCircleIcon sx={{ color: "#dc2626", fontSize: 20 }} />
-                  </Box>
-                ) : (
-                  <Box sx={{ color: "#9ca3af" }}>-</Box>
-                )}
-              </td>
-              <td>
-                <Box
-                  sx={{
-                    color: "#6b7280",
-                    fontSize: "0.8125rem",
-                    maxWidth: 300,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {redFlag.complaint_summary}
+                <Box sx={{ color: "#6b7280", fontSize: "0.75rem", textAlign: "center", whiteSpace: "normal", wordBreak: "break-word" }}>
+                  {redFlag.complaint_summary || redFlag.title || "-"}
                 </Box>
               </td>
             </tr>

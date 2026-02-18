@@ -13,7 +13,7 @@ import {
   ReferenceLine,
 } from "recharts";
 
-const TrendChart = ({ trends, loading, granularity, groupBy, onGranularityChange, onGroupByChange }) => {
+const TrendChart = ({ trends, loading, granularity, onGranularityChange }) => {
   if (loading) {
     return (
       <Card sx={{ p: 3 }}>
@@ -82,17 +82,10 @@ const TrendChart = ({ trends, loading, granularity, groupBy, onGranularityChange
           <FormControl size="sm" sx={{ minWidth: 150 }}>
             <FormLabel>الفترة الزمنية</FormLabel>
             <Select value={granularity} onChange={(_, value) => onGranularityChange(value)}>
+              <Option value="weekly">أسبوعي</Option>
               <Option value="monthly">شهري</Option>
               <Option value="quarterly">ربع سنوي</Option>
-              <Option value="weekly">أسبوعي</Option>
-            </Select>
-          </FormControl>
-          <FormControl size="sm" sx={{ minWidth: 150 }}>
-            <FormLabel>تجميع حسب</FormLabel>
-            <Select value={groupBy} onChange={(_, value) => onGroupByChange(value)}>
-              <Option value="none">بدون تجميع</Option>
-              <Option value="category">الفئة</Option>
-              <Option value="department">القسم</Option>
+              <Option value="yearly">سنوي</Option>
             </Select>
           </FormControl>
         </Box>

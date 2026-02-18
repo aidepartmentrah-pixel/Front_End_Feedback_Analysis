@@ -1,17 +1,21 @@
 // src/components/redflags/FilterPanel.js
+// 
+// CURRENT STATE: Filters match simplified API response (case_id, title, description, department, category, severity, status)
+// FUTURE: Once backend implements JOIN with complaints table, update search label to include "patient name"
+//
 import React from "react";
 import { Box, Card, FormControl, FormLabel, Input, Select, Option, Button, Grid, Typography } from "@mui/joy";
 import SearchIcon from "@mui/icons-material/Search";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import ClearIcon from "@mui/icons-material/Clear";
 
-const FilterPanel = ({ filters, onFilterChange, onClearFilters }) => {
+const FilterPanel = ({ filters, onFilterChange, onClearFilters, leaves = [], domains = [] }) => {
   return (
     <Card sx={{ mb: 3, p: 2 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
         <FilterListIcon />
         <Typography level="title-md" sx={{ fontWeight: 600 }}>
-          التصفية والبحث
+          Filters & Search
         </Typography>
       </Box>
 
@@ -19,9 +23,9 @@ const FilterPanel = ({ filters, onFilterChange, onClearFilters }) => {
         {/* Search */}
         <Grid xs={12} md={6}>
           <FormControl>
-            <FormLabel>بحث (رقم السجل أو اسم المريض)</FormLabel>
+            <FormLabel>Search (Case ID or Text)</FormLabel>
             <Input
-              placeholder="ابحث..."
+              placeholder="Search by case ID or description..."
               value={filters.search || ""}
               onChange={(e) => onFilterChange("search", e.target.value)}
               startDecorator={<SearchIcon />}
@@ -32,15 +36,16 @@ const FilterPanel = ({ filters, onFilterChange, onClearFilters }) => {
         {/* Status */}
         <Grid xs={12} sm={6} md={3}>
           <FormControl>
-            <FormLabel>الحالة</FormLabel>
+            <FormLabel>Case Status</FormLabel>
             <Select
               value={filters.status || "all"}
               onChange={(_, value) => onFilterChange("status", value)}
             >
-              <Option value="all">الكل</Option>
-              <Option value="OPEN">مفتوح</Option>
-              <Option value="UNDER_REVIEW">قيد المراجعة</Option>
-              <Option value="FINISHED">منتهي</Option>
+              <Option value="all">All</Option>
+              <Option value="Open">Open</Option>
+              <Option value="In Progress">In Progress</Option>
+              <Option value="Closed">Closed</Option>
+              <Option value="Finished">Finished</Option>
             </Select>
           </FormControl>
         </Grid>
@@ -48,46 +53,64 @@ const FilterPanel = ({ filters, onFilterChange, onClearFilters }) => {
         {/* Severity */}
         <Grid xs={12} sm={6} md={3}>
           <FormControl>
-            <FormLabel>الخطورة</FormLabel>
+            <FormLabel>Severity</FormLabel>
             <Select
               value={filters.severity || ""}
               onChange={(_, value) => onFilterChange("severity", value)}
             >
-              <Option value="">الكل</Option>
-              <Option value="CRITICAL">حرج</Option>
-              <Option value="HIGH">عالي</Option>
+              <Option value="">All</Option>
+              <Option value="CRITICAL">Critical</Option>
+              <Option value="HIGH">High</Option>
+              <Option value="MEDIUM">Medium</Option>
+              <Option value="LOW">Low</Option>
             </Select>
           </FormControl>
         </Grid>
 
-        {/* Department */}
+        {/* Domain (was Category) */}
         <Grid xs={12} sm={6} md={3}>
           <FormControl>
-            <FormLabel>القسم</FormLabel>
-            <Input
-              placeholder="اسم القسم"
-              value={filters.department || ""}
-              onChange={(e) => onFilterChange("department", e.target.value)}
-            />
+            <FormLabel>Domain</FormLabel>
+            <Select
+              value={filters.category || ""}
+              onChange={(_, value) => onFilterChange("category", value)}
+              placeholder="Select domain"
+              slotProps={{ listbox: { sx: { maxHeight: 250, overflowY: "auto", zIndex: 9999 } } }}
+            >
+              <Option value="">All</Option>
+              {domains.map((domain) => (
+                <Option key={domain.id} value={domain.name_en}>
+                  {domain.name_en}
+                </Option>
+              ))}
+            </Select>
           </FormControl>
         </Grid>
 
-        {/* Category */}
+        {/* Department (from leaves) */}
         <Grid xs={12} sm={6} md={3}>
           <FormControl>
-            <FormLabel>التصنيف</FormLabel>
-            <Input
-              placeholder="التصنيف"
-              value={filters.category || ""}
-              onChange={(e) => onFilterChange("category", e.target.value)}
-            />
+            <FormLabel>Department</FormLabel>
+            <Select
+              value={filters.department || ""}
+              onChange={(_, value) => onFilterChange("department", value)}
+              placeholder="Select department"
+              slotProps={{ listbox: { sx: { maxHeight: 250, overflowY: "auto", zIndex: 9999 } } }}
+            >
+              <Option value="">All</Option>
+              {leaves.map((leaf) => (
+                <Option key={leaf.id} value={leaf.name || leaf.name_ar}>
+                  {leaf.name || leaf.name_ar}
+                </Option>
+              ))}
+            </Select>
           </FormControl>
         </Grid>
 
         {/* From Date */}
         <Grid xs={12} sm={6} md={3}>
           <FormControl>
-            <FormLabel>من تاريخ</FormLabel>
+            <FormLabel>From Date</FormLabel>
             <Input
               type="date"
               value={filters.from_date || ""}
@@ -99,7 +122,7 @@ const FilterPanel = ({ filters, onFilterChange, onClearFilters }) => {
         {/* To Date */}
         <Grid xs={12} sm={6} md={3}>
           <FormControl>
-            <FormLabel>إلى تاريخ</FormLabel>
+            <FormLabel>To Date</FormLabel>
             <Input
               type="date"
               value={filters.to_date || ""}
@@ -117,7 +140,7 @@ const FilterPanel = ({ filters, onFilterChange, onClearFilters }) => {
             onClick={onClearFilters}
             fullWidth
           >
-            مسح الفلاتر
+            Clear Filters
           </Button>
         </Grid>
       </Grid>

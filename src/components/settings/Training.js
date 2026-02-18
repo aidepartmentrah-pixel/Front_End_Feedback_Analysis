@@ -44,6 +44,7 @@ import WarningIcon from "@mui/icons-material/Warning";
 import ErrorIcon from "@mui/icons-material/Error";
 import InfoIcon from "@mui/icons-material/Info";
 import theme from '../../theme';
+import * as trainingApi from '../../api/training';
 
 const Training = () => {
   // State for grouped model data
@@ -74,9 +75,7 @@ const Training = () => {
   const fetchGroupedStatus = async () => {
     try {
       setStatusLoading(true);
-      const response = await fetch("http://localhost:8000/api/settings/training/grouped-status");
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
+      const data = await trainingApi.getGroupedStatus();
       console.log("Grouped status response:", data);
       setGroupedStatus(data);
     } catch (err) {
@@ -90,9 +89,7 @@ const Training = () => {
   // Fetch training progress (Phase 5)
   const fetchTrainingProgress = async () => {
     try {
-      const response = await fetch("http://localhost:8000/api/settings/training/progress");
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
+      const data = await trainingApi.getTrainingProgress();
       console.log("Training progress:", data);
       setTrainingProgress(data);
       
@@ -121,9 +118,9 @@ const Training = () => {
       
       // Fetch all charts in parallel
       const [dbGrowth, perfTrends, familyComp] = await Promise.all([
-        fetch("http://localhost:8000/api/settings/training/charts/db-growth?days=30").then(r => r.json()),
-        fetch("http://localhost:8000/api/settings/training/charts/performance-trends").then(r => r.json()),
-        fetch("http://localhost:8000/api/settings/training/charts/family-comparison").then(r => r.json())
+        trainingApi.getDbGrowthChart(30),
+        trainingApi.getPerformanceTrendsChart(),
+        trainingApi.getFamilyComparisonChart()
       ]);
       
       console.log("Charts loaded:", { dbGrowth, perfTrends, familyComp });
@@ -145,17 +142,7 @@ const Training = () => {
       setError(null);
       setSuccess(null);
       
-      const response = await fetch("http://localhost:8000/api/settings/training/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
-      
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || `Training failed: HTTP ${response.status}`);
-      }
-      
-      const data = await response.json();
+      const data = await trainingApi.runTraining();
       console.log("Training started response:", data);
       setSuccess(`Training started successfully! Run ID: ${data.run_id}`);
       

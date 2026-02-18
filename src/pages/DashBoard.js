@@ -1,9 +1,12 @@
 // src/pages/DashboardPage.js
-import React, { useEffect, useState } from "react";
-import { fetchDashboardHierarchy, fetchDashboardStats } from "../api/dashboard";
+import React, { useEffect, useState, useRef } from "react";
+import { fetchDashboardHierarchy, fetchDashboardStats, fetchDashboardDateBounds } from "../api/dashboard";
+import { indexToDate, clampIndex } from "../utils/dateSliderMapping";
+import { hasFullOperationalAccess } from "../utils/roleGuards";
+import { useAuth } from "../context/AuthContext";
 import theme from '../theme';
 
-import { Box, Card, Typography, Select, Option, FormControl, FormLabel } from "@mui/joy";
+import { Box, Card, Typography, Select, Option, FormControl, FormLabel, Slider } from "@mui/joy";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 
 // Components
@@ -16,6 +19,9 @@ import QismDashboardStats from "../components/dashboard/QismDashboardStats";
 import DashboardActions from "../components/dashboard/DashboardActions";
 
 const DashboardPage = () => {
+  // Auth context
+  const { user } = useAuth();
+  
 // ============================
   // STATE
   // ============================
@@ -31,11 +37,26 @@ const DashboardPage = () => {
   const [loadingStats, setLoadingStats] = useState(false);
   const [statsError, setStatsError] = useState(null);
   
+  const [boundsLoading, setBoundsLoading] = useState(false);
+  
   // Date range for stats (defaults to last 30 days)
   const [dateRange, setDateRange] = useState({
     start_date: null, // Will default to 30 days ago on backend
     end_date: null,   // Will default to today on backend
   });
+
+  // Date bounds from backend (for slider range)
+  const [dateBounds, setDateBounds] = useState({
+    minDate: null,
+    maxDate: null,
+    totalDays: null
+  });
+
+  // Slider value (local state, no binding yet)
+  const [sliderValue, setSliderValue] = useState([0, 0]);
+
+  // Debounce timer ref for slider updates
+  const debounceTimerRef = useRef(null);
 
   // Chart mode selections
   const [chartModes, setChartModes] = useState({
@@ -58,6 +79,113 @@ const DashboardPage = () => {
       .then((data) => setHierarchy(data))
       .catch((error) => console.error("Failed to load hierarchy:", error))
       .finally(() => setLoadingHierarchy(false));
+  }, []);
+
+  // ============================
+  // FETCH DASHBOARD DATE BOUNDS
+  // ============================
+  useEffect(() => {
+    // Build params based on current scope (same logic as stats fetch)
+    const params = {
+      scope,
+    };
+
+    // Add IDs based on scope
+    if (scope === "administration" || scope === "department" || scope === "section") {
+      if (selectedAdmin && selectedAdmin !== "") {
+        params.administration_id = selectedAdmin;
+      } else {
+        // Reset bounds if waiting for selection
+        setDateBounds({
+          minDate: null,
+          maxDate: null,
+          totalDays: null
+        });
+        return; // Wait for administration selection
+      }
+    }
+
+    if (scope === "department" || scope === "section") {
+      if (selectedDept && selectedDept !== "") {
+        params.department_id = selectedDept;
+      } else {
+        // Reset bounds if waiting for selection
+        setDateBounds({
+          minDate: null,
+          maxDate: null,
+          totalDays: null
+        });
+        return; // Wait for department selection
+      }
+    }
+
+    if (scope === "section") {
+      if (selectedSection && selectedSection !== "") {
+        params.section_id = selectedSection;
+      } else {
+        // Reset bounds if waiting for selection
+        setDateBounds({
+          minDate: null,
+          maxDate: null,
+          totalDays: null
+        });
+        return; // Wait for section selection
+      }
+    }
+
+    console.log("🔄 Fetching dashboard date bounds with params:", params);
+    setBoundsLoading(true);
+
+    fetchDashboardDateBounds(params)
+      .then((data) => {
+        console.log("✅ Dashboard date bounds loaded successfully:", data);
+        
+        // Compute totalDays if both dates are present
+        const totalDays = computeTotalDays(data.min_date, data.max_date);
+        
+        // Update dateBounds state
+        setDateBounds({
+          minDate: data.min_date,
+          maxDate: data.max_date,
+          totalDays: totalDays
+        });
+      })
+      .catch((error) => {
+        console.error("❌ Failed to load dashboard date bounds:", error);
+        console.error("❌ Error details - Scope:", scope, "Selected:", {
+          administration: selectedAdmin,
+          department: selectedDept,
+          section: selectedSection
+        });
+        
+        // Reset bounds on error
+        setDateBounds({
+          minDate: null,
+          maxDate: null,
+          totalDays: null
+        });
+      })
+      .finally(() => setBoundsLoading(false));
+  }, [scope, selectedAdmin, selectedDept, selectedSection]);
+
+  // ============================
+  // SYNC SLIDER VALUE WITH BOUNDS (Guard: bounds change reset)
+  // ============================
+  useEffect(() => {
+    if (dateBounds.totalDays !== null) {
+      setSliderValue([0, dateBounds.totalDays]);
+    }
+  }, [dateBounds.totalDays]);
+
+  // ============================
+  // CLEANUP DEBOUNCE TIMER ON UNMOUNT
+  // ============================
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
   }, []);
 
   // ============================
@@ -127,6 +255,32 @@ const DashboardPage = () => {
   // ============================
   // HELPER FUNCTIONS - copied from InvestigationPage
   // ============================
+  // Compute total days between date bounds
+  const computeTotalDays = (minDate, maxDate) => {
+    if (!minDate || !maxDate) {
+      return null;
+    }
+    
+    try {
+      const min = new Date(minDate);
+      const max = new Date(maxDate);
+      
+      // Check for invalid dates
+      if (isNaN(min.getTime()) || isNaN(max.getTime())) {
+        return null;
+      }
+      
+      // Calculate difference in milliseconds and convert to days
+      const diffMs = max - min;
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      
+      return diffDays >= 0 ? diffDays : null;
+    } catch (error) {
+      console.error("Error computing total days:", error);
+      return null;
+    }
+  };
+
   // Department options (filtered by selected administration)
   const getDepartments = () => {
     if (!selectedAdmin || !hierarchy) {
@@ -152,6 +306,66 @@ const DashboardPage = () => {
   const handleDeptChange = (event, newValue) => {
     setSelectedDept(newValue);
     setSelectedSection("");
+  };
+
+  // ============================
+  // SLIDER CHANGE HANDLER (with UX Guards)
+  // ============================
+  const handleSliderChange = (event, newValue) => {
+    // Guard 1: Bounds presence
+    if (!dateBounds.minDate || !dateBounds.maxDate || dateBounds.totalDays === null) {
+      return;
+    }
+
+    // Guard 2: Loading state
+    if (boundsLoading) {
+      return;
+    }
+
+    // Guard 3: Validate newValue is array with two elements
+    if (!Array.isArray(newValue) || newValue.length !== 2) {
+      return;
+    }
+
+    let [minIndex, maxIndex] = newValue;
+
+    // Guard 4: Clamp indices to valid range
+    minIndex = clampIndex(minIndex, 0, dateBounds.totalDays);
+    maxIndex = clampIndex(maxIndex, 0, dateBounds.totalDays);
+
+    // Guard 5: Order safety - ensure minIndex <= maxIndex
+    if (minIndex > maxIndex) {
+      // Auto-correct by swapping
+      [minIndex, maxIndex] = [maxIndex, minIndex];
+    }
+
+    const clampedValue = [minIndex, maxIndex];
+
+    // Update local slider state immediately (no debounce for UI responsiveness)
+    setSliderValue(clampedValue);
+
+    // Convert indices to dates
+    const start_date = indexToDate(minIndex, dateBounds.minDate);
+    const end_date = indexToDate(maxIndex, dateBounds.minDate);
+
+    // Guard 6: Ensure conversion succeeded
+    if (!start_date || !end_date) {
+      return;
+    }
+
+    // Guard 7: Debounce dateRange update to prevent excessive refetches
+    // Clear any pending timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Set new timer for debounced update
+    debounceTimerRef.current = setTimeout(() => {
+      setDateRange({
+        start_date,
+        end_date
+      });
+    }, 250); // 250ms debounce delay
   };
 
   // ============================
@@ -276,6 +490,54 @@ const DashboardPage = () => {
               </Select>
             </FormControl>
           </Box>
+
+          {/* Date Range Slider */}
+          {dateBounds.totalDays !== null && (
+            <Box sx={{ mt: 4, px: 2 }}>
+              <Typography level="body-sm" sx={{ mb: 1, fontWeight: 600 }}>
+                Date Range
+              </Typography>
+              <Slider
+                value={sliderValue}
+                onChange={handleSliderChange}
+                min={0}
+                max={dateBounds.totalDays}
+                valueLabelDisplay="auto"
+                valueLabelFormat={(index) => {
+                  if (!dateBounds.minDate) return '';
+                  return indexToDate(index, dateBounds.minDate);
+                }}
+                disabled={boundsLoading}
+                sx={{
+                  width: '100%',
+                  '& .MuiSlider-track': {
+                    height: 4,
+                    backgroundColor: theme.colors.primary,
+                  },
+                  '& .MuiSlider-rail': {
+                    height: 4,
+                  },
+                  '& .MuiSlider-thumb': {
+                    backgroundColor: theme.colors.primary,
+                  },
+                }}
+              />
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  mt: 0.5,
+                }}
+              >
+                <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
+                  {dateBounds.minDate}
+                </Typography>
+                <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
+                  {dateBounds.maxDate}
+                </Typography>
+              </Box>
+            </Box>
+          )}
         </Card>
 
         {/* Dashboard Title */}
@@ -293,10 +555,12 @@ const DashboardPage = () => {
         {isDayraView && <DayraDashboardStats dayra={getDepartments().find(d => d.id === selectedDept)} stats={dashboardStats} loading={loadingStats} />}
         {isQismView && <QismDashboardStats qism={getSections().find(s => s.id === selectedSection)} stats={dashboardStats} loading={loadingStats} />}
 
-        {/* Dashboard Actions */}
-        <Box sx={{ mt: 3 }}>
-          <DashboardActions />
-        </Box>
+        {/* Dashboard Actions - Hidden for limited admins (3 monkeys) */}
+        {hasFullOperationalAccess(user) && (
+          <Box sx={{ mt: 3 }}>
+            <DashboardActions />
+          </Box>
+        )}
 
         {/* Trend Monitoring Link */}
         <Box sx={{ mt: 3 }}>

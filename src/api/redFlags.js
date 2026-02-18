@@ -30,6 +30,8 @@ export async function fetchRedFlags(filters = {}) {
 
     const data = response.data;
     console.log("✅ Red flags loaded:", data.total, "total records");
+    console.log("🔍 RED FLAGS DATA STRUCTURE:", JSON.stringify(data.red_flags?.[0], null, 2));
+    console.log("🔍 All field names:", data.red_flags?.[0] ? Object.keys(data.red_flags[0]) : []);
     return data;
   } catch (error) {
     console.error("❌ Error fetching red flags:", error);

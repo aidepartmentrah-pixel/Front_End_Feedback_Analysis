@@ -43,13 +43,14 @@ const DetailsModal = ({ open, onClose, redFlag, loading }) => {
   };
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} sx={{ zIndex: 9999 }}>
       <ModalDialog
         sx={{
           maxWidth: 900,
           width: "90%",
           maxHeight: "90vh",
           overflow: "auto",
+          zIndex: 10000,
         }}
       >
         <ModalClose />
@@ -71,7 +72,7 @@ const DetailsModal = ({ open, onClose, redFlag, loading }) => {
                     رقم السجل
                   </Typography>
                   <Typography level="title-md" sx={{ fontWeight: 600 }}>
-                    {redFlag.recordID}
+                    {redFlag.case_id || redFlag.recordID}
                   </Typography>
                 </Grid>
                 <Grid xs={12} sm={6}>
@@ -85,7 +86,7 @@ const DetailsModal = ({ open, onClose, redFlag, loading }) => {
                     تاريخ الاستلام
                   </Typography>
                   <Typography level="title-md">
-                    {new Date(redFlag.date_received).toLocaleDateString("ar-SA")}
+                    {redFlag.date ? new Date(redFlag.date).toLocaleDateString("ar-SA") : "-"}
                   </Typography>
                 </Grid>
                 <Grid xs={12} sm={6}>
@@ -133,7 +134,7 @@ const DetailsModal = ({ open, onClose, redFlag, loading }) => {
                     حدث لا يجب أن يحدث
                   </Typography>
                   <Box sx={{ mt: 0.5 }}>
-                    {redFlag.isNeverEvent ? (
+                    {redFlag.is_never_event ? (
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         <CheckCircleIcon sx={{ color: "#dc2626", fontSize: 20 }} />
                         <Typography sx={{ color: "#dc2626", fontWeight: 600 }}>
@@ -149,63 +150,55 @@ const DetailsModal = ({ open, onClose, redFlag, loading }) => {
             </Card>
 
             {/* Incident Details */}
-            {redFlag.incident_details && (
+            {(redFlag.description || redFlag.root_cause || redFlag.corrective_action) && (
               <>
                 <Divider sx={{ my: 2 }} />
                 <Typography level="title-lg" sx={{ mb: 2 }}>
                   تفاصيل الحادثة
                 </Typography>
                 <Card variant="outlined" sx={{ mb: 2, p: 2 }}>
-                  {redFlag.incident_details.complaint_text && (
+                  {redFlag.description && (
                     <Box sx={{ mb: 2 }}>
                       <Typography level="body-sm" sx={{ color: "text.secondary", mb: 1 }}>
-                        نص الشكوى
+                        الوصف
                       </Typography>
-                      <Typography>{redFlag.incident_details.complaint_text}</Typography>
+                      <Typography>{redFlag.description}</Typography>
                     </Box>
                   )}
-                  {redFlag.incident_details.immediate_action && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography level="body-sm" sx={{ color: "text.secondary", mb: 1 }}>
-                        الإجراء الفوري
-                      </Typography>
-                      <Typography>{redFlag.incident_details.immediate_action}</Typography>
-                    </Box>
-                  )}
-                  {redFlag.incident_details.actions_taken && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography level="body-sm" sx={{ color: "text.secondary", mb: 1 }}>
-                        الإجراءات المتخذة
-                      </Typography>
-                      <Typography>{redFlag.incident_details.actions_taken}</Typography>
-                    </Box>
-                  )}
-                  {redFlag.incident_details.root_cause && (
+                  {redFlag.root_cause && (
                     <Box sx={{ mb: 2 }}>
                       <Typography level="body-sm" sx={{ color: "text.secondary", mb: 1 }}>
                         السبب الجذري
                       </Typography>
-                      <Typography>{redFlag.incident_details.root_cause}</Typography>
+                      <Typography>{redFlag.root_cause}</Typography>
+                    </Box>
+                  )}
+                  {redFlag.corrective_action && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography level="body-sm" sx={{ color: "text.secondary", mb: 1 }}>
+                        الإجراء التصحيحي
+                      </Typography>
+                      <Typography>{redFlag.corrective_action}</Typography>
                     </Box>
                   )}
                   <Grid container spacing={2}>
-                    {redFlag.incident_details.harm_level && (
+                    {redFlag.harm_level && (
                       <Grid xs={12} sm={6}>
                         <Typography level="body-sm" sx={{ color: "text.secondary" }}>
                           مستوى الضرر
                         </Typography>
                         <Typography level="title-sm">
-                          {redFlag.incident_details.harm_level}
+                          {redFlag.harm_level}
                         </Typography>
                       </Grid>
                     )}
-                    {redFlag.incident_details.stage && (
+                    {redFlag.stage && (
                       <Grid xs={12} sm={6}>
                         <Typography level="body-sm" sx={{ color: "text.secondary" }}>
                           المرحلة
                         </Typography>
                         <Typography level="title-sm">
-                          {redFlag.incident_details.stage}
+                          {redFlag.stage}
                         </Typography>
                       </Grid>
                     )}
@@ -229,12 +222,12 @@ const DetailsModal = ({ open, onClose, redFlag, loading }) => {
                           {new Date(item.date).toLocaleDateString("ar-SA")}
                         </Typography>
                         <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                          • {item.event}
+                          • {item.action || item.event}
                         </Typography>
                       </Box>
-                      {item.details && (
+                      {(item.details || item.notes) && (
                         <Typography level="body-sm" sx={{ color: "text.secondary", pl: 2 }}>
-                          {item.details}
+                          {item.details || item.notes}
                         </Typography>
                       )}
                     </Box>

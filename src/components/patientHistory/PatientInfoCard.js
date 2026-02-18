@@ -1,4 +1,5 @@
 // src/components/patientHistory/PatientInfoCard.js
+// Phase R-P — Normalized field names: full_name, patient_id, total_incidents, profile_picture
 import React from "react";
 import { Box, Card, Typography, Avatar, Grid } from "@mui/joy";
 import PersonIcon from "@mui/icons-material/Person";
@@ -31,8 +32,8 @@ const PatientInfoCard = ({ patient }) => {
                 border: "4px solid rgba(255, 255, 255, 0.3)",
               }}
             >
-              {patient.profilePicture ? (
-                <img src={patient.profilePicture} alt={patient.name} />
+              {patient.profile_picture ? (
+                <img src={patient.profile_picture} alt={patient.full_name} />
               ) : (
                 <PersonIcon sx={{ fontSize: 60 }} />
               )}
@@ -46,7 +47,7 @@ const PatientInfoCard = ({ patient }) => {
             level="h3"
             sx={{ fontWeight: 800, mb: 2, color: "white" }}
           >
-            {patient.name}
+            {patient.full_name}
           </Typography>
 
           <Grid container spacing={2}>
@@ -57,7 +58,7 @@ const PatientInfoCard = ({ patient }) => {
                   Patient ID:
                 </Typography>
                 <Typography level="body-md" sx={{ fontWeight: 600 }}>
-                  {patient.id}
+                  {patient.patient_id}
                 </Typography>
               </Box>
 
@@ -122,7 +123,7 @@ const PatientInfoCard = ({ patient }) => {
           >
             <ReportProblemIcon sx={{ fontSize: 40, mb: 1, opacity: 0.9 }} />
             <Typography level="h2" sx={{ fontWeight: 800, mb: 0.5 }}>
-              {patient.totalIncidents}
+              {patient.total_incidents}
             </Typography>
             <Typography level="body-sm" sx={{ opacity: 0.9 }}>
               Total Incidents

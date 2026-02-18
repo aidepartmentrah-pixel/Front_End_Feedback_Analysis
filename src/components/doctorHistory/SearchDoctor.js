@@ -1,11 +1,38 @@
 // src/components/doctorHistory/SearchDoctor.js
+// Phase D — Doctor search switched from mock to V2 API
 import React, { useState } from "react";
-import { Box, Typography, Autocomplete, AutocompleteOption, Button } from "@mui/joy";
+import { Box, Typography, Autocomplete, AutocompleteOption, Button, CircularProgress } from "@mui/joy";
 import SearchIcon from "@mui/icons-material/Search";
 import PersonIcon from "@mui/icons-material/Person";
+import { searchDoctorsV2 } from "../../api/personApiV2";
 
-const SearchDoctor = ({ onDoctorSelect, doctors }) => {
+const SearchDoctor = ({ onDoctorSelect }) => {
   const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [options, setOptions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+
+  // Handle async search on input change
+  const handleInputChange = async (event, newInputValue) => {
+    setInputValue(newInputValue);
+
+    if (newInputValue.length < 2) {
+      setOptions([]);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await searchDoctorsV2(newInputValue, 20);
+      const doctors = response.items || response.doctors || [];
+      setOptions(Array.isArray(doctors) ? doctors : []);
+    } catch (error) {
+      console.error("Doctor search error:", error);
+      setOptions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearch = () => {
     if (selectedDoctor) {
@@ -34,28 +61,36 @@ const SearchDoctor = ({ onDoctorSelect, doctors }) => {
           </Typography>
           <Autocomplete
             placeholder="Search by name (English/Arabic) or ID..."
-            options={doctors}
+            options={options}
             value={selectedDoctor}
+            inputValue={inputValue}
             onChange={(e, newValue) => setSelectedDoctor(newValue)}
-            getOptionLabel={(option) => `${option.nameEn} | ${option.nameAr} (${option.employeeId})`}
+            onInputChange={handleInputChange}
+            loading={loading}
+            getOptionLabel={(option) => {
+              const name = option.full_name || option.nameEn || option.name || "Unknown";
+              const id = option.doctor_id || option.employeeId || option.id || "";
+              return `${name} (${id})`;
+            }}
             renderOption={(props, option) => (
               <AutocompleteOption {...props}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, width: "100%" }}>
                   <PersonIcon sx={{ color: "#667eea" }} />
                   <Box sx={{ flex: 1 }}>
                     <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-                      {option.nameEn}
+                      {option.full_name || option.nameEn || option.name}
                     </Typography>
-                    <Typography level="body-xs" sx={{ color: "#999", dir: "rtl" }}>
-                      {option.nameAr}
+                    <Typography level="body-xs" sx={{ color: "#999" }}>
+                      {option.specialty} • {option.department}
                     </Typography>
                   </Box>
                   <Typography level="body-xs" sx={{ color: "#667eea", fontWeight: 600 }}>
-                    {option.employeeId}
+                    {option.doctor_id || option.employeeId || option.id}
                   </Typography>
                 </Box>
               </AutocompleteOption>
             )}
+            endDecorator={loading ? <CircularProgress size="sm" /> : null}
             sx={{ width: "100%" }}
           />
         </Box>

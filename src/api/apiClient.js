@@ -17,6 +17,13 @@ apiClient.interceptors.request.use(
   (config) => {
     // Session authentication - no Authorization header needed
     // Cookie is automatically included via withCredentials: true
+    
+    // If sending FormData (file uploads), remove Content-Type header
+    // so the browser can set the correct multipart/form-data boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+    
     return config;
   },
   (error) => {

@@ -5,7 +5,6 @@ import theme from '../theme';
 import { useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DownloadIcon from "@mui/icons-material/Download";
-import UploadIcon from "@mui/icons-material/Upload";
 import MainLayout from "../components/common/MainLayout";
 import SearchBar from "../components/TableView/SearchBar";
 import FilterPanel from "../components/TableView/FilterPanel";
@@ -13,11 +12,10 @@ import DataTable from "../components/TableView/DataTable";
 import Pagination from "../components/TableView/Pagination";
 import CustomViewManager from "../components/TableView/CustomViewManager";
 import DeleteConfirmationDialog from "../components/TableView/DeleteConfirmationDialog";
-import { fetchComplaints, fetchFilterOptions, exportComplaints, deleteComplaint, importExcel } from "../api/complaints";
+import { fetchComplaints, fetchFilterOptions, exportComplaints, deleteComplaint } from "../api/complaints";
 
 const TableView = () => {
   const navigate = useNavigate();
-
   // Data state
   const [complaints, setComplaints] = useState([]);
   const [pagination, setPagination] = useState({
@@ -69,11 +67,7 @@ const TableView = () => {
   const [exporting, setExporting] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
-  // Import state
-  const [importing, setImporting] = useState(false);
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [importPreview, setImportPreview] = useState(null);
+
 
   // ========================================
   // FETCH FILTER OPTIONS
@@ -323,64 +317,6 @@ const TableView = () => {
     setExportDialogOpen(false);
   };
 
-  const handleImportClick = () => {
-    // Trigger file input
-    const fileInput = document.createElement("input");
-    fileInput.type = "file";
-    fileInput.accept = ".xlsx";
-    fileInput.onchange = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        // Validate file type
-        if (!file.name.endsWith(".xlsx")) {
-          alert("❌ Invalid file type. Please select an Excel file (.xlsx)");
-          return;
-        }
-        setSelectedFile(file);
-        // For now, show dialog with file info (in production, parse file for row count)
-        setImportPreview({ fileName: file.name, estimatedRows: "Unknown" });
-        setImportDialogOpen(true);
-      }
-    };
-    fileInput.click();
-  };
-
-  const handleImportConfirm = async () => {
-    if (!selectedFile) return;
-    
-    setImportDialogOpen(false);
-    setImporting(true);
-    
-    try {
-      const result = await importExcel(selectedFile);
-      
-      // Show success message
-      alert(
-        `✅ Import Successful!\n\n` +
-        `Total rows: ${result.total_rows}\n` +
-        `Inserted: ${result.inserted_count}\n` +
-        `Failed: ${result.failed_count}\n` +
-        `${result.errors && result.errors.length > 0 ? `\nErrors:\n${result.errors.join("\n")}` : ""}`
-      );
-      
-      // Reload complaints
-      await loadComplaints();
-    } catch (error) {
-      console.error("❌ Import failed:", error);
-      alert(`❌ Import Failed: ${error.message}`);
-    } finally {
-      setImporting(false);
-      setSelectedFile(null);
-      setImportPreview(null);
-    }
-  };
-
-  const handleImportCancel = () => {
-    setImportDialogOpen(false);
-    setSelectedFile(null);
-    setImportPreview(null);
-  };
-
   // ========================================
   // RENDER
   // ========================================
@@ -415,16 +351,6 @@ const TableView = () => {
               onClick={() => navigate("/")}
             >
               Back to Dashboard
-            </Button>
-            <Button
-              variant="solid"
-              color="success"
-              startDecorator={<UploadIcon />}
-              onClick={handleImportClick}
-              loading={importing}
-              disabled={loading}
-            >
-              Import Excel
             </Button>
             <Button
               variant="solid"
@@ -556,57 +482,6 @@ const TableView = () => {
           </>
         )}
 
-        {/* Import Confirmation Dialog */}
-        <Modal 
-          open={importDialogOpen} 
-          onClose={handleImportCancel}
-          slotProps={{
-            backdrop: {
-              sx: {
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              }
-            }
-          }}
-        >
-          <ModalDialog 
-            variant="outlined" 
-            role="alertdialog" 
-            sx={{ 
-              minWidth: 400,
-              zIndex: 9999,
-            }}
-          >
-            <ModalClose />
-            <DialogTitle sx={{ color: "success.main" }}>
-              <UploadIcon sx={{ mr: 1 }} />
-              Import Excel Records
-            </DialogTitle>
-            <Divider />
-            <DialogContent>
-              <Typography level="body-md" sx={{ mb: 2 }}>
-                File: <strong>{importPreview?.fileName}</strong>
-              </Typography>
-              <Typography level="body-md" sx={{ color: "warning.main", fontWeight: 600 }}>
-                ⚠️ Warning:
-              </Typography>
-              <Typography level="body-sm" sx={{ mt: 1 }}>
-                You are about to import records into the database. These records will be inserted as <strong>CLOSED</strong> and <strong>FINAL</strong>.
-              </Typography>
-              <Typography level="body-sm" sx={{ mt: 1, color: "text.secondary" }}>
-                Are you sure you want to continue?
-              </Typography>
-            </DialogContent>
-            <DialogActions>
-              <Button variant="solid" color="success" onClick={handleImportConfirm} loading={importing}>
-                Import
-              </Button>
-              <Button variant="plain" color="neutral" onClick={handleImportCancel} disabled={importing}>
-                Cancel
-              </Button>
-            </DialogActions>
-          </ModalDialog>
-        </Modal>
-
         {/* Export Confirmation Dialog */}
         <Modal 
           open={exportDialogOpen} 
@@ -615,6 +490,7 @@ const TableView = () => {
             backdrop: {
               sx: {
                 backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                zIndex: 9998,
               }
             }
           }}
@@ -663,6 +539,7 @@ const TableView = () => {
           isLoading={deleteLoading}
           complaint={complaintToDelete}
         />
+
       </Box>
     </MainLayout>
   );

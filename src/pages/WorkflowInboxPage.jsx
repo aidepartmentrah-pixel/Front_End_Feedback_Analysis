@@ -22,24 +22,41 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Box, Card, Typography, Table, Chip, Button, CircularProgress } from '@mui/joy';
+import { Box, Card, Typography, Table, Chip, Button, CircularProgress, Tabs, TabList, Tab, TabPanel } from '@mui/joy';
+import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/common/MainLayout';
 import ErrorPanel from '../components/common/ErrorPanel';
-import { getWorkflowInbox } from '../api/workflowApi';
+import { getWorkflowInbox, getWorkflowInboxArchive } from '../api/workflowApi';
 import CaseActionModal from '../components/workflow/CaseActionModal';
+import ResponseViewerModal from '../components/workflow/ResponseViewerModal';
+import SeasonalReportViewerModal from '../components/workflow/SeasonalReportViewerModal';
 
 const WorkflowInboxPage = () => {
+  const navigate = useNavigate();
+  
   // ============================
   // STATE
   // ============================
   const [items, setItems] = useState([]);
+  const [archiveItems, setArchiveItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [archiveLoading, setArchiveLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [archiveError, setArchiveError] = useState(null);
+  const [activeTab, setActiveTab] = useState(0); // 0 = Inbox, 1 = Archive
 
   // Modal state for Case Action Modal
   const [modalOpen, setModalOpen] = useState(false);
   const [modalActionCode, setModalActionCode] = useState(null);
   const [modalSubcaseId, setModalSubcaseId] = useState(null);
+
+  // Modal state for Response Viewer Modal
+  const [responseViewerOpen, setResponseViewerOpen] = useState(false);
+  const [responseViewerSubcaseId, setResponseViewerSubcaseId] = useState(null);
+
+  // Modal state for Seasonal Report Viewer Modal
+  const [seasonalViewerOpen, setSeasonalViewerOpen] = useState(false);
+  const [seasonalViewerReportId, setSeasonalViewerReportId] = useState(null);
 
   // ============================
   // LOAD INBOX ON MOUNT
@@ -67,6 +84,32 @@ const WorkflowInboxPage = () => {
     }
   };
 
+  const loadArchive = async () => {
+    setArchiveLoading(true);
+    setArchiveError(null);
+    
+    try {
+      const items = await getWorkflowInboxArchive();
+      setArchiveItems(items);
+    } catch (err) {
+      if (!err.response && err.message === 'Network error') {
+        setArchiveError('Network error — check your connection and try again');
+      } else {
+        setArchiveError(err.message || 'Failed to load archive items');
+      }
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+
+  // Load archive when tab changes to Archive
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+    if (newValue === 1 && archiveItems.length === 0 && !archiveLoading) {
+      loadArchive();
+    }
+  };
+
   // ============================
   // MODAL HANDLERS (STEP 4.12)
   // ============================
@@ -84,7 +127,9 @@ const WorkflowInboxPage = () => {
     const mapping = {
       accept: 'APPROVE',
       reject: 'REJECT',
-      view: null, // View doesn't trigger modal
+      submit_response: 'SUBMIT_RESPONSE',
+      reopen: 'REOPEN',
+      view: null, // View navigates to detail page
     };
     return mapping[action] || null;
   };
@@ -116,20 +161,72 @@ const WorkflowInboxPage = () => {
   };
 
   /**
+   * Open Response Viewer Modal
+   */
+  const openResponseViewer = (subcaseId) => {
+    setResponseViewerSubcaseId(subcaseId);
+    setResponseViewerOpen(true);
+  };
+
+  /**
    * Handle action button clicks
    */
   const handleActionClick = (item, action) => {
-    const actionCode = mapInboxActionToCaseAction(action);
-    if (!actionCode) {
-      // View or unsupported action - ignore for now
+    // Handle View action
+    if (action === 'view') {
+      if (item.caseType === 'SEASONAL_REPORT_RESPONSE' && item.seasonalReportId) {
+        // Seasonal report — open viewer modal
+        setSeasonalViewerReportId(item.seasonalReportId);
+        setSeasonalViewerOpen(true);
+      } else if (item.incidentId) {
+        // Incident — navigate to edit page
+        navigate(`/edit/${item.incidentId}`);
+      }
       return;
     }
-    openCaseActionModal(item.subcaseId, actionCode);
+
+    // Handle View Response action - open response viewer modal
+    if (action === 'view_response') {
+      openResponseViewer(item.subcaseId);
+      return;
+    }
+    
+    // Handle modal actions (accept, reject, submit_response)
+    const actionCode = mapInboxActionToCaseAction(action);
+    if (actionCode) {
+      openCaseActionModal(item.subcaseId, actionCode);
+    }
+  };
+
+  // ============================
+  // STATUS DISPLAY HELPERS
+  // ============================
+  /**
+   * Get display label and color for a workflow status.
+   * Returned-for-revision items get a distinct visual badge.
+   */
+  const getStatusDisplay = (status) => {
+    const statusMap = {
+      RETURNED_TO_SECTION_FOR_REVISION: { label: 'Returned for Revision', color: 'warning' },
+      RETURNED_TO_DEPARTMENT_FOR_REVISION: { label: 'Returned for Revision', color: 'warning' },
+      SUBMITTED_TO_SECTION: { label: 'Submitted to Section', color: 'primary' },
+      SUBMITTED_TO_DEPARTMENT: { label: 'Submitted to Department', color: 'primary' },
+      SECTION_ACCEPTED_PENDING_DEPT: { label: 'Section Accepted', color: 'success' },
+      DEPT_ACCEPTED_PENDING_ADMIN: { label: 'Dept Accepted', color: 'success' },
+      ADMIN_APPROVED: { label: 'Admin Approved', color: 'success' },
+      SECTION_DENIED: { label: 'Denied', color: 'danger' },
+      FORCE_CLOSED: { label: 'Force Closed', color: 'neutral' },
+    };
+    return statusMap[status] || { label: status?.replace(/_/g, ' ') || 'Unknown', color: 'neutral' };
   };
 
   // ============================
   // RENDER ACTION BUTTONS
   // ============================
+  // CONTRACT LOCK:
+  // Button visibility is backend-driven via allowedActions.
+  // Do NOT add role-based or status-based UI logic here.
+  // Backend controls action matrix.
   /**
    * Render action buttons based on backend-computed allowedActions.
    * CRITICAL: Do NOT check status, role, or permissions here.
@@ -149,6 +246,28 @@ const WorkflowInboxPage = () => {
             disabled={modalOpen}
           >
             View
+          </Button>
+        )}
+        {allowedActions.includes('view_response') && (
+          <Button
+            size="sm"
+            variant="outlined"
+            color="primary"
+            onClick={() => handleActionClick(item, 'view_response')}
+            disabled={modalOpen}
+          >
+            View Response
+          </Button>
+        )}
+        {allowedActions.includes('submit_response') && (
+          <Button
+            size="sm"
+            variant="solid"
+            color="primary"
+            onClick={() => handleActionClick(item, 'submit_response')}
+            disabled={modalOpen}
+          >
+            Submit Response
           </Button>
         )}
         {allowedActions.includes('accept') && (
@@ -173,157 +292,330 @@ const WorkflowInboxPage = () => {
             Reject
           </Button>
         )}
+        {allowedActions.includes('reopen') && (
+          <Button
+            size="sm"
+            variant="solid"
+            color="warning"
+            onClick={() => handleActionClick(item, 'reopen')}
+            disabled={modalOpen}
+          >
+            Resend to Section
+          </Button>
+        )}
       </Box>
     );
   };
 
   // ============================
-  // RENDER LOADING STATE
+  // RENDER INBOX TABLE ROW
   // ============================
-  if (loading) {
-    return (
-      <MainLayout pageTitle="Workflow Inbox">
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '60vh',
-            gap: 2,
-          }}
+  const renderInboxRow = (item) => (
+    <tr key={item.subcaseId}>
+      <td>
+        <Typography level="body-sm" fontWeight="bold">
+          #{item.subcaseId}
+        </Typography>
+      </td>
+      <td>
+        <Chip
+          size="sm"
+          variant="soft"
+          color={item.caseType === 'INCIDENT' ? 'primary' : 'warning'}
+          sx={{ whiteSpace: 'nowrap' }}
         >
-          <CircularProgress size="lg" />
-          <Typography level="body-lg">Loading inbox...</Typography>
-        </Box>
-      </MainLayout>
-    );
-  }
-
-  // ============================
-  // RENDER ERROR STATE
-  // ============================
-  if (error) {
-    return (
-      <MainLayout pageTitle="Workflow Inbox">
-        <Box sx={{ p: 3 }}>
-          <ErrorPanel
-            message={error}
-            retryAction={loadInbox}
-            retryLabel="Retry Load"
-          />
-        </Box>
-      </MainLayout>
-    );
-  }
-
-  // ============================
-  // RENDER EMPTY STATE
-  // ============================
-  if (items.length === 0) {
-    return (
-      <MainLayout pageTitle="Workflow Inbox">
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '60vh',
-            gap: 2,
-          }}
+          {item.caseType === 'INCIDENT' ? 'Incident' : 'Seasonal'}
+        </Chip>
+      </td>
+      <td>
+        <Chip
+          size="sm"
+          variant="soft"
+          color={getStatusDisplay(item.status).color}
+          sx={{ whiteSpace: 'nowrap' }}
         >
-          <Typography level="h3" sx={{ color: 'neutral.500' }}>
-            📭 No workflow items available
-          </Typography>
-          <Typography level="body-md" sx={{ color: 'neutral.400' }}>
-            You have no pending cases requiring your attention at this time.
-          </Typography>
-          <Typography level="body-sm" sx={{ color: 'neutral.300', mt: 1 }}>
-            New items will appear here when workflow actions are needed.
-          </Typography>
-        </Box>
-      </MainLayout>
-    );
-  }
+          {getStatusDisplay(item.status).label}
+        </Chip>
+      </td>
+      <td>
+        <Typography level="body-sm" sx={{ whiteSpace: 'nowrap' }}>
+          {item.targetOrgUnitName || `Unit ${item.targetOrgUnitId}`}
+        </Typography>
+      </td>
+      <td>
+        <Typography level="body-sm">
+          {item.createdAt?.toLocaleDateString()}
+        </Typography>
+      </td>
+      <td>{renderActionButtons(item)}</td>
+    </tr>
+  );
 
   // ============================
-  // RENDER INBOX TABLE
+  // RENDER ARCHIVE TABLE ROW
+  // ============================
+  const renderArchiveRow = (item) => (
+    <tr key={item.subcaseId}>
+      <td>
+        <Typography level="body-sm" fontWeight="bold">
+          #{item.subcaseId}
+        </Typography>
+      </td>
+      <td>
+        <Chip
+          size="sm"
+          variant="soft"
+          color={item.caseType === 'INCIDENT' ? 'primary' : 'warning'}
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          {item.caseType === 'INCIDENT' ? 'Incident' : 'Seasonal'}
+        </Chip>
+      </td>
+      <td>
+        <Chip
+          size="sm"
+          variant="soft"
+          color={getStatusDisplay(item.status).color}
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          {getStatusDisplay(item.status).label}
+        </Chip>
+      </td>
+      <td>
+        <Typography level="body-sm" sx={{ whiteSpace: 'nowrap' }}>
+          {item.targetOrgUnitName || `Unit ${item.targetOrgUnitId}`}
+        </Typography>
+      </td>
+      <td>
+        <Typography level="body-sm">
+          {item.updatedAt?.toLocaleDateString() || item.createdAt?.toLocaleDateString()}
+        </Typography>
+      </td>
+      <td>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Button
+            size="sm"
+            variant="outlined"
+            color="neutral"
+            onClick={() => handleActionClick(item, 'view')}
+          >
+            View Case
+          </Button>
+          <Button
+            size="sm"
+            variant="soft"
+            color="primary"
+            onClick={() => openResponseViewer(item.subcaseId)}
+          >
+            View Response
+          </Button>
+        </Box>
+      </td>
+    </tr>
+  );
+
+  // ============================
+  // RENDER EMPTY STATE CONTENT
+  // ============================
+  const renderEmptyInbox = () => (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '40vh',
+        gap: 2,
+      }}
+    >
+      <Typography level="h4" sx={{ color: 'neutral.500' }}>
+        📭 No Items Assigned To Your Responsibility Level
+      </Typography>
+      <Typography level="body-md" sx={{ color: 'neutral.400', textAlign: 'center', maxWidth: 500 }}>
+        There are currently no workflow cases waiting for action at your role level.
+      </Typography>
+      <Button
+        size="sm"
+        variant="outlined"
+        color="neutral"
+        onClick={loadInbox}
+        sx={{ mt: 1 }}
+      >
+        Refresh
+      </Button>
+    </Box>
+  );
+
+  const renderEmptyArchive = () => (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '40vh',
+        gap: 2,
+      }}
+    >
+      <Typography level="h4" sx={{ color: 'neutral.500' }}>
+        📋 No Archived Items
+      </Typography>
+      <Typography level="body-md" sx={{ color: 'neutral.400', textAlign: 'center', maxWidth: 500 }}>
+        Cases you have processed will appear here once they move to the next stage.
+      </Typography>
+      <Button
+        size="sm"
+        variant="outlined"
+        color="neutral"
+        onClick={loadArchive}
+        sx={{ mt: 1 }}
+      >
+        Refresh
+      </Button>
+    </Box>
+  );
+
+  // ============================
+  // RENDER LOADING STATE FOR TAB CONTENT
+  // ============================
+  const renderLoadingState = (message = 'Loading...') => (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '40vh',
+        gap: 2,
+      }}
+    >
+      <CircularProgress size="lg" />
+      <Typography level="body-lg">{message}</Typography>
+    </Box>
+  );
+
+  // ============================
+  // MAIN RENDER
   // ============================
   return (
     <MainLayout pageTitle="Workflow Inbox">
       <Box sx={{ p: 3 }}>
-        <Card variant="outlined">
-          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography level="h4">Inbox Items ({items.length})</Typography>
-            <Button
-              size="sm"
-              variant="outlined"
-              color="neutral"
-              onClick={loadInbox}
-              disabled={modalOpen}
-            >
-              Refresh
-            </Button>
-          </Box>
+        <Tabs value={activeTab} onChange={handleTabChange} aria-label="Inbox tabs">
+          <TabList>
+            <Tab>📥 Inbox ({items.length})</Tab>
+            <Tab>📋 Archive ({archiveItems.length})</Tab>
+          </TabList>
 
-          <Table
-            variant="outlined"
-            sx={{
-              '& thead th': {
-                fontWeight: 600,
-                backgroundColor: 'neutral.50',
-              },
-            }}
-          >
-            <thead>
-              <tr>
-                <th style={{ width: '10%' }}>Subcase ID</th>
-                <th style={{ width: '15%' }}>Case Type</th>
-                <th style={{ width: '15%' }}>Status</th>
-                <th style={{ width: '12%' }}>Target Unit</th>
-                <th style={{ width: '15%' }}>Created</th>
-                <th style={{ width: '33%' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.subcaseId}>
-                  <td>
-                    <Typography level="body-sm" fontWeight="bold">
-                      #{item.subcaseId}
-                    </Typography>
-                  </td>
-                  <td>
-                    <Chip
-                      size="sm"
-                      variant="soft"
-                      color={item.caseType === 'INCIDENT' ? 'primary' : 'warning'}
-                    >
-                      {item.caseType}
-                    </Chip>
-                  </td>
-                  <td>
-                    <Typography level="body-sm" sx={{ fontSize: '0.85rem' }}>
-                      {item.status.replace(/_/g, ' ')}
-                    </Typography>
-                  </td>
-                  <td>
-                    <Typography level="body-sm">
-                      Unit {item.targetOrgUnitId}
-                    </Typography>
-                  </td>
-                  <td>
-                    <Typography level="body-sm">
-                      {item.createdAt.toLocaleDateString()}
-                    </Typography>
-                  </td>
-                  <td>{renderActionButtons(item)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </Card>
+          {/* INBOX TAB */}
+          <TabPanel value={0} sx={{ p: 0, pt: 2 }}>
+            {loading ? (
+              renderLoadingState('Loading inbox...')
+            ) : error ? (
+              <ErrorPanel
+                message={error}
+                retryAction={loadInbox}
+                retryLabel="Retry Load"
+              />
+            ) : items.length === 0 ? (
+              renderEmptyInbox()
+            ) : (
+              <Card variant="outlined">
+                <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography level="h4">Active Items ({items.length})</Typography>
+                  <Button
+                    size="sm"
+                    variant="outlined"
+                    color="neutral"
+                    onClick={loadInbox}
+                    disabled={modalOpen}
+                  >
+                    Refresh
+                  </Button>
+                </Box>
+
+                <Table
+                  variant="outlined"
+                  sx={{
+                    '& thead th': {
+                      fontWeight: 600,
+                      backgroundColor: 'neutral.50',
+                    },
+                    tableLayout: 'fixed',
+                  }}
+                >
+                  <thead>
+                    <tr>
+                      <th style={{ width: '8%' }}>ID</th>
+                      <th style={{ width: '12%' }}>Case Type</th>
+                      <th style={{ width: '18%' }}>Status</th>
+                      <th style={{ width: '17%' }}>Target Unit</th>
+                      <th style={{ width: '12%' }}>Created</th>
+                      <th style={{ width: '33%' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item) => renderInboxRow(item))}
+                  </tbody>
+                </Table>
+              </Card>
+            )}
+          </TabPanel>
+
+          {/* ARCHIVE TAB */}
+          <TabPanel value={1} sx={{ p: 0, pt: 2 }}>
+            {archiveLoading ? (
+              renderLoadingState('Loading archive...')
+            ) : archiveError ? (
+              <ErrorPanel
+                message={archiveError}
+                retryAction={loadArchive}
+                retryLabel="Retry Load"
+              />
+            ) : archiveItems.length === 0 ? (
+              renderEmptyArchive()
+            ) : (
+              <Card variant="outlined">
+                <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography level="h4">Archived Items ({archiveItems.length})</Typography>
+                  <Button
+                    size="sm"
+                    variant="outlined"
+                    color="neutral"
+                    onClick={loadArchive}
+                    disabled={modalOpen}
+                  >
+                    Refresh
+                  </Button>
+                </Box>
+
+                <Table
+                  variant="outlined"
+                  sx={{
+                    '& thead th': {
+                      fontWeight: 600,
+                      backgroundColor: 'neutral.50',
+                    },
+                    tableLayout: 'fixed',
+                  }}
+                >
+                  <thead>
+                    <tr>
+                      <th style={{ width: '8%' }}>ID</th>
+                      <th style={{ width: '12%' }}>Case Type</th>
+                      <th style={{ width: '18%' }}>Status</th>
+                      <th style={{ width: '17%' }}>Target Unit</th>
+                      <th style={{ width: '12%' }}>Processed</th>
+                      <th style={{ width: '33%' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {archiveItems.map((item) => renderArchiveRow(item))}
+                  </tbody>
+                </Table>
+              </Card>
+            )}
+          </TabPanel>
+        </Tabs>
       </Box>
 
       {/* Case Action Modal */}
@@ -333,6 +625,20 @@ const WorkflowInboxPage = () => {
         subcaseId={modalSubcaseId}
         actionCode={modalActionCode}
         onSuccess={handleModalSuccess}
+      />
+
+      {/* Response Viewer Modal (read-only) */}
+      <ResponseViewerModal
+        open={responseViewerOpen}
+        onClose={() => setResponseViewerOpen(false)}
+        subcaseId={responseViewerSubcaseId}
+      />
+
+      {/* Seasonal Report Viewer Modal (read-only) */}
+      <SeasonalReportViewerModal
+        open={seasonalViewerOpen}
+        onClose={() => setSeasonalViewerOpen(false)}
+        seasonalReportId={seasonalViewerReportId}
       />
     </MainLayout>
   );

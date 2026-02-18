@@ -94,3 +94,55 @@ export async function fetchDashboardStats({
     throw new Error(`Failed to load dashboard stats: ${error.message}`);
   }
 }
+
+/**
+ * Fetch dashboard date bounds
+ * @param {Object} params - Query parameters
+ * @param {string} params.scope - Scope level: "hospital" | "administration" | "department" | "section"
+ * @param {number} [params.administration_id] - Administration ID (required for administration, department, section scopes)
+ * @param {number} [params.department_id] - Department ID (required for department, section scopes)
+ * @param {number} [params.section_id] - Section ID (required for section scope)
+ * @returns {Promise<Object>} Date bounds { min_date: string | null, max_date: string | null }
+ */
+export async function fetchDashboardDateBounds({
+  scope,
+  administration_id = null,
+  department_id = null,
+  section_id = null,
+}) {
+  // Build query parameters
+  const queryParams = new URLSearchParams();
+  queryParams.append("scope", scope);
+
+  if (administration_id !== null) {
+    queryParams.append("administration_id", administration_id);
+  }
+  if (department_id !== null) {
+    queryParams.append("department_id", department_id);
+  }
+  if (section_id !== null) {
+    queryParams.append("section_id", section_id);
+  }
+
+  const url = `/api/dashboard/date-bounds?${queryParams.toString()}`;
+  console.log("📡 Making API call to:", url);
+
+  try {
+    const response = await apiClient.get(url);
+    console.log("📥 Response received");
+    console.log("📦 Date bounds data:", response.data);
+    
+    return response.data;
+  } catch (error) {
+    console.error("❌ API Error Response:", error);
+    console.error("❌ Request URL was:", url);
+    console.error("❌ Request params were:", {
+      scope,
+      administration_id,
+      department_id,
+      section_id
+    });
+    
+    throw new Error(`Failed to load dashboard date bounds: ${error.message}`);
+  }
+}

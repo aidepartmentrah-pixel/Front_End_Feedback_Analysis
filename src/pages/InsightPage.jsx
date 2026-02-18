@@ -29,8 +29,6 @@ import {
   Option,
   FormControl,
   FormLabel,
-  Table,
-  Chip,
   CircularProgress,
   Button,
 } from '@mui/joy';
@@ -49,12 +47,14 @@ import {
 } from 'recharts';
 import MainLayout from '../components/common/MainLayout';
 import ErrorPanel from '../components/common/ErrorPanel';
+import SectionCard from '../components/SectionCard';
 import {
   getInsightKpis,
   getInsightDistribution,
   getInsightTrend,
-  getStuckCases,
+  getGroupedInbox,
 } from '../api/insightApi';
+import { actOnSubcase } from '../api/workflowApi';
 
 const InsightPage = () => {
   // ============================
@@ -63,13 +63,11 @@ const InsightPage = () => {
   const [kpis, setKpis] = useState(null);
   const [distribution, setDistribution] = useState([]);
   const [trend, setTrend] = useState([]);
-  const [stuckCases, setStuckCases] = useState([]);
+  const [groupedInbox, setGroupedInbox] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Filter state
-  const [selectedOrgUnit, setSelectedOrgUnit] = useState(null);
-  const [selectedStatus, setSelectedStatus] = useState(null);
   const [dateRange, setDateRange] = useState('30'); // Default 30 days
 
   // ============================
@@ -77,21 +75,11 @@ const InsightPage = () => {
   // ============================
   useEffect(() => {
     loadInsightData();
-  }, [selectedOrgUnit, selectedStatus, dateRange]); // Reload when filters change
+  }, [dateRange]); // Reload when filters change
 
   // Build filter parameters
   function buildFilterParams() {
     const params = {};
-    
-    // Add org unit if selected
-    if (selectedOrgUnit && selectedOrgUnit !== 'all') {
-      params.org_unit_id = selectedOrgUnit;
-    }
-    
-    // Add status if selected
-    if (selectedStatus && selectedStatus !== 'all') {
-      params.status = selectedStatus;
-    }
     
     // Add date range if selected
     if (dateRange && dateRange !== 'all') {
@@ -115,7 +103,7 @@ const InsightPage = () => {
       const filterParams = buildFilterParams();
 
       // Load all insight data in parallel
-      const [kpiData, distData, trendData, stuckData] = await Promise.all([
+      const [kpiData, distData, trendData, inboxData] = await Promise.all([
         getInsightKpis(),
         getInsightDistribution({
           entity: 'subcase',
@@ -127,13 +115,13 @@ const InsightPage = () => {
           interval: 'month',
           ...filterParams, // Apply filters to trend
         }),
-        getStuckCases(),
+        getGroupedInbox(), // Load grouped inbox data
       ]);
 
       setKpis(kpiData || {});
       setDistribution(distData || []);
       setTrend(trendData || []);
-      setStuckCases(stuckData || []);
+      setGroupedInbox(inboxData || []);
     } catch (e) {
       console.error('Insight Page Error:', e);
       // Detect network errors
@@ -151,10 +139,34 @@ const InsightPage = () => {
   // RESET FILTERS
   // ============================
   function resetFilters() {
-    setSelectedOrgUnit(null);
-    setSelectedStatus(null);
     setDateRange('30');
     // loadInsightData will be triggered by useEffect
+  }
+
+  // ============================
+  // FORCE CLOSE HANDLER
+  // ============================
+  async function handleForceClose(subcaseId, reason) {
+    try {
+      // Call force close API using actOnSubcase with FORCE_CLOSE action
+      await actOnSubcase(subcaseId, 'FORCE_CLOSE', { reason });
+      
+      // Optimistic UI update - remove subcase immediately
+      setGroupedInbox((prevSections) =>
+        prevSections
+          .map((section) => ({
+            ...section,
+            subcases: section.subcases.filter((s) => s.subcase_id !== subcaseId),
+            pending_count: section.pending_count - 1,
+          }))
+          .filter((section) => section.pending_count > 0) // Hide now-empty sections
+      );
+    } catch (err) {
+      alert('Force close failed: ' + err.message);
+      // Reload data on error to ensure consistency
+      loadInsightData();
+      throw err; // Re-throw so SubcaseCard knows it failed
+    }
   }
 
   // ============================
@@ -186,6 +198,22 @@ const InsightPage = () => {
       color: 'danger',
     },
   ];
+
+  // ============================
+  // DATA VERIFICATION - Compare KPI counts with actual grouped inbox subcases
+  // ============================
+  const actualSubcaseCount = groupedInbox.reduce((total, section) => {
+    return total + (section.subcases?.length || 0);
+  }, 0);
+
+  const totalPendingCount = groupedInbox.reduce((total, section) => {
+    return total + (section.pending_count || 0);
+  }, 0);
+
+  // Check if there's a mismatch between KPI and actual counts
+  const hasCountMismatch = 
+    kpis?.open_subcases !== actualSubcaseCount || 
+    kpis?.open_subcases !== totalPendingCount;
 
   // ============================
   // RENDER LOADING STATE
@@ -242,19 +270,6 @@ const InsightPage = () => {
         {/* Filter Bar */}
         <Card variant="outlined" sx={{ mb: 3, p: 2 }}>
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <FormControl size="sm" sx={{ minWidth: 200 }}>
-              <FormLabel>Organizational Unit</FormLabel>
-              <Select
-                placeholder="All Units"
-                value={selectedOrgUnit}
-                onChange={(e, newValue) => setSelectedOrgUnit(newValue)}
-              >
-                <Option value="all">All Units</Option>
-                <Option value="unit_1">Unit 1</Option>
-                <Option value="unit_2">Unit 2</Option>
-                <Option value="unit_3">Unit 3</Option>
-              </Select>
-            </FormControl>
 
             <FormControl size="sm" sx={{ minWidth: 150 }}>
               <FormLabel>Date Range</FormLabel>
@@ -268,22 +283,6 @@ const InsightPage = () => {
                 <Option value="60">Last 60 days</Option>
                 <Option value="90">Last 90 days</Option>
                 <Option value="all">All Time</Option>
-              </Select>
-            </FormControl>
-
-            <FormControl size="sm" sx={{ minWidth: 150 }}>
-              <FormLabel>Status Filter</FormLabel>
-              <Select
-                placeholder="All Statuses"
-                value={selectedStatus}
-                onChange={(e, newValue) => setSelectedStatus(newValue)}
-              >
-                <Option value="all">All Statuses</Option>
-                <Option value="submitted">Submitted</Option>
-                <Option value="pending_review">Pending Review</Option>
-                <Option value="approved">Approved</Option>
-                <Option value="rejected">Rejected</Option>
-                <Option value="closed">Closed</Option>
               </Select>
             </FormControl>
 
@@ -423,88 +422,77 @@ const InsightPage = () => {
           </Card>
         </Box>
 
-        {/* Table: Stuck/Escalated Cases */}
-        <Card variant="outlined">
-          <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-            <Typography level="title-md" sx={{ fontWeight: 600 }}>
-              Stuck / Escalated Cases ({stuckCases.length})
-            </Typography>
-            <Typography level="body-xs" sx={{ color: 'neutral.600', mt: 0.5 }}>
-              Cases requiring attention or exceeding stage duration thresholds
-            </Typography>
+        {/* Data Verification Alert */}
+        {hasCountMismatch && (
+          <Box sx={{ mt: 3, mb: 2 }}>
+            <Card variant="soft" color="warning" sx={{ p: 2 }}>
+              <Typography level="title-sm" sx={{ mb: 1, fontWeight: 700 }}>
+                ⚠️ Data Inconsistency Detected
+              </Typography>
+              <Typography level="body-sm" sx={{ mb: 1 }}>
+                KPI counts may not match the actual subcases displayed below:
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mt: 1.5 }}>
+                <Box>
+                  <Typography level="body-xs" sx={{ fontWeight: 600 }}>
+                    KPI: Open Subcases
+                  </Typography>
+                  <Typography level="h4">{kpis?.open_subcases ?? '--'}</Typography>
+                </Box>
+                <Box>
+                  <Typography level="body-xs" sx={{ fontWeight: 600 }}>
+                    Grouped Inbox: Actual Subcases
+                  </Typography>
+                  <Typography level="h4">{actualSubcaseCount}</Typography>
+                </Box>
+                <Box>
+                  <Typography level="body-xs" sx={{ fontWeight: 600 }}>
+                    Grouped Inbox: Pending Count
+                  </Typography>
+                  <Typography level="h4">{totalPendingCount}</Typography>
+                </Box>
+              </Box>
+              <Typography level="body-xs" sx={{ mt: 2, fontStyle: 'italic' }}>
+                💡 This may indicate different queries or filtering logic between the two endpoints.
+                Backend verification needed (see troubleshooting guide).
+              </Typography>
+            </Card>
           </Box>
+        )}
 
-          {stuckCases.length > 0 ? (
-            <Table variant="plain">
-              <thead>
-                <tr>
-                  <th style={{ width: '12%' }}>Subcase ID</th>
-                  <th style={{ width: '18%' }}>Org Unit</th>
-                  <th style={{ width: '25%' }}>Current Stage</th>
-                  <th style={{ width: '15%' }}>Days in Stage</th>
-                  <th style={{ width: '15%' }}>Assigned Level</th>
-                  <th style={{ width: '15%' }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stuckCases.map((row, idx) => (
-                  <tr key={idx}>
-                    <td>
-                      <Typography level="body-sm" fontWeight="bold">
-                        #{row.subcase_id || '--'}
-                      </Typography>
-                    </td>
-                    <td>
-                      <Typography level="body-sm">
-                        {row.target_org_unit_id || '--'}
-                      </Typography>
-                    </td>
-                    <td>
-                      <Typography level="body-sm">{row.stage || '--'}</Typography>
-                    </td>
-                    <td>
-                      <Typography level="body-sm" color={row.days_in_stage > 7 ? 'danger' : 'neutral'}>
-                        {row.days_in_stage ?? '--'}
-                      </Typography>
-                    </td>
-                    <td>
-                      <Typography level="body-sm">{row.assigned_level || '--'}</Typography>
-                    </td>
-                    <td>
-                      <Chip
-                        size="sm"
-                        variant="soft"
-                        color={
-                          row.status === 'pending_review'
-                            ? 'warning'
-                            : row.status === 'submitted'
-                            ? 'primary'
-                            : 'neutral'
-                        }
-                      >
-                        {row.status || '--'}
-                      </Chip>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          ) : (
-            <Box
-              sx={{
-                p: 4,
-                textAlign: 'center',
-              }}
-            >
+        {/* Workload Overview - Grouped by Section */}
+        <Box sx={{ mt: 4 }}>
+          <Typography level="h4" sx={{ fontWeight: 700, mb: 1 }}>
+            📊 Workload Overview - Grouped by Section
+          </Typography>
+          <Typography level="body-sm" sx={{ color: 'neutral.600', mb: 3 }}>
+            Sections with pending subcases, supervisor names, and case details
+          </Typography>
+
+          {groupedInbox.length === 0 ? (
+            <Card variant="outlined" sx={{ p: 4, textAlign: 'center' }}>
               <Typography level="h4" sx={{ color: 'neutral.500', mb: 1 }}>
-                ✅ No stuck cases
+                ✅ No pending subcases found
               </Typography>
               <Typography level="body-sm" sx={{ color: 'neutral.400' }}>
-                All workflow cases are progressing normally
+                All sections are up to date
               </Typography>
+            </Card>
+          ) : (
+            <Box>
+              {groupedInbox.map((section) => (
+                <SectionCard
+                  key={section.section_id}
+                  section={section}
+                  onForceClose={handleForceClose}
+                />
+              ))}
             </Box>
           )}
-        </Card>
+        </Box>
+
+        {/* REMOVED: Stuck/Escalated Cases section */}
+        {/* REMOVED: User Workload Summary section */}
 
         {/* Info Note */}
         <Box sx={{ mt: 3, p: 2, backgroundColor: 'primary.50', borderRadius: 'sm' }}>

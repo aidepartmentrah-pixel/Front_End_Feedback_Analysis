@@ -1,5 +1,5 @@
 // src/components/settings/PolicyConfiguration.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Card,
@@ -13,19 +13,13 @@ import {
   Divider,
   Button,
   Sheet,
+  CircularProgress,
 } from "@mui/joy";
+import Snackbar from "@mui/joy/Snackbar";
 import SaveIcon from "@mui/icons-material/Save";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
-
-// Mock departments data (replace with API call later)
-const MOCK_DEPARTMENTS = [
-  { id: 1, name: "Emergency Department" },
-  { id: 2, name: "ICU" },
-  { id: 3, name: "Surgery" },
-  { id: 4, name: "Pediatrics" },
-  { id: 5, name: "Internal Medicine" },
-  { id: 6, name: "Radiology" },
-];
+import { fetchDepartments } from "../../api/orgUnits";
+import { fetchPolicy, savePolicy } from "../../api/settingsPolicyApi";
 
 // Default policy configuration
 const DEFAULT_POLICY = {
@@ -48,16 +42,64 @@ const DEFAULT_POLICY = {
 };
 
 const PolicyConfiguration = () => {
+  const [departments, setDepartments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
   const [policyConfig, setPolicyConfig] = useState(DEFAULT_POLICY);
   const [hasChanges, setHasChanges] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", color: "success" });
 
-  // Handle department selection
-  const handleDepartmentChange = (event, newValue) => {
+  // Load departments on mount
+  useEffect(() => {
+    loadDepartments();
+  }, []);
+
+  const loadDepartments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchDepartments();
+      // Ensure we always have an array
+      setDepartments(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Error loading departments:", err);
+      setError("Failed to load departments. Please try again.");
+      // Set empty array on error
+      setDepartments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle department selection — load existing policy from backend
+  const handleDepartmentChange = async (event, newValue) => {
     setSelectedDepartment(newValue);
-    // Load policy for selected department (mock data for now)
-    setPolicyConfig(DEFAULT_POLICY);
     setHasChanges(false);
+    if (!newValue) return;
+    try {
+      setLoading(true);
+      const data = await fetchPolicy(newValue);
+      // Backend returns { success, policy: {...}, is_default }
+      const policy = data?.policy;
+      if (policy) {
+        // Merge with defaults so missing fields still have values
+        setPolicyConfig({
+          severityLimits: { ...DEFAULT_POLICY.severityLimits, ...policy.severityLimits },
+          highSeverityPercentageLimits: { ...DEFAULT_POLICY.highSeverityPercentageLimits, ...policy.highSeverityPercentageLimits },
+          ruleActivation: { ...DEFAULT_POLICY.ruleActivation, ...policy.ruleActivation },
+        });
+      } else {
+        // No saved policy, use defaults
+        setPolicyConfig(DEFAULT_POLICY);
+      }
+    } catch (err) {
+      console.warn("No saved policy found, using defaults:", err);
+      setPolicyConfig(DEFAULT_POLICY);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Handle severity limit change
@@ -96,15 +138,20 @@ const PolicyConfiguration = () => {
     setHasChanges(true);
   };
 
-  // Save configuration
-  const handleSave = () => {
-    // TODO: API call to save configuration
-    console.log("Saving policy configuration:", {
-      departmentId: selectedDepartment,
-      policy: policyConfig,
-    });
-    setHasChanges(false);
-    // Show success message
+  // Save configuration to backend
+  const handleSave = async () => {
+    if (!selectedDepartment) return;
+    try {
+      setSaving(true);
+      await savePolicy(selectedDepartment, policyConfig);
+      setHasChanges(false);
+      setSnackbar({ open: true, message: "Policy saved successfully!", color: "success" });
+    } catch (err) {
+      console.error("Error saving policy:", err);
+      setSnackbar({ open: true, message: "Failed to save policy. Please try again.", color: "danger" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Reset to defaults
@@ -128,24 +175,43 @@ const PolicyConfiguration = () => {
       </Box>
 
       {/* Department Selector */}
-      <Card variant="soft" sx={{ p: 3 }}>
+      <Card variant="soft" sx={{ p: 3, position: "relative", zIndex: 10 }}>
         <FormControl>
           <FormLabel sx={{ fontWeight: 600, mb: 1 }}>
             Select Department
           </FormLabel>
-          <Select
-            placeholder="Choose a department to configure..."
-            value={selectedDepartment}
-            onChange={handleDepartmentChange}
-            size="lg"
-            sx={{ minWidth: 300 }}
-          >
-            {MOCK_DEPARTMENTS.map((dept) => (
-              <Option key={dept.id} value={dept.id}>
-                {dept.name}
-              </Option>
-            ))}
-          </Select>
+          {loading ? (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, minWidth: 300, p: 2 }}>
+              <CircularProgress size="sm" />
+              <Typography level="body-sm">Loading departments...</Typography>
+            </Box>
+          ) : error ? (
+            <Typography level="body-sm" color="danger">
+              {error}
+            </Typography>
+          ) : (
+            <Select
+              placeholder="Choose a department to configure..."
+              value={selectedDepartment}
+              onChange={handleDepartmentChange}
+              size="lg"
+              sx={{ minWidth: 300 }}
+              slotProps={{
+                listbox: {
+                  sx: {
+                    zIndex: 9999,
+                    maxHeight: 400,
+                  },
+                },
+              }}
+            >
+              {departments.map((dept) => (
+                <Option key={dept.id} value={dept.id}>
+                  {dept.name}
+                </Option>
+              ))}
+            </Select>
+          )}
         </FormControl>
       </Card>
 
@@ -365,28 +431,41 @@ const PolicyConfiguration = () => {
               <Button
                 variant="solid"
                 color="primary"
-                startDecorator={<SaveIcon />}
+                startDecorator={saving ? <CircularProgress size="sm" /> : <SaveIcon />}
                 onClick={handleSave}
-                disabled={!hasChanges}
+                disabled={!hasChanges || saving}
+                loading={saving}
               >
-                Save Configuration
+                {saving ? "Saving..." : "Save Configuration"}
               </Button>
             </Box>
           </Box>
         </Card>
       )}
 
-      {/* Empty State - No Department Selected */}
+      {/* Empty State - No Administration Selected */}
       {!selectedDepartment && (
         <Card variant="soft" sx={{ p: 6, textAlign: "center" }}>
           <Typography level="h4" sx={{ mb: 1, color: "#999" }}>
-            👆 Select a department to begin
+            👆 Select an administration to begin
           </Typography>
           <Typography level="body-md" sx={{ color: "#666" }}>
-            Choose a department from the dropdown above to configure its evaluation policies
+            Choose an administration from the dropdown above to configure its evaluation policies
           </Typography>
         </Card>
       )}
+
+      {/* Snackbar for feedback */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        color={snackbar.color}
+        variant="soft"
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        {snackbar.message}
+      </Snackbar>
     </Box>
   );
 };

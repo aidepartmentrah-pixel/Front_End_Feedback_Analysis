@@ -9,6 +9,9 @@ const DoctorStatisticsCards = ({ statistics }) => {
     { label: "Medium Severity", value: statistics.medium, icon: "📝", color: "#ffa502" },
     { label: "Low Severity", value: statistics.low, icon: "✅", color: "#2ed573" },
     { label: "Red Flags", value: statistics.redFlags, icon: "🚩", color: "#c0392b" },
+    { label: "Good Feedback", value: statistics.good_feedback || 0, icon: "😊", color: "#4caf50" },
+    { label: "Neutral Feedback", value: statistics.neutral_feedback || 0, icon: "😐", color: "#95a5a6" },
+    { label: "Bad Feedback", value: statistics.bad_feedback || 0, icon: "😞", color: "#e74c3c" },
   ];
 
   return (
@@ -23,7 +26,7 @@ const DoctorStatisticsCards = ({ statistics }) => {
             key={index}
             variant="outlined"
             sx={{
-              flex: "1 1 calc(20% - 16px)",
+              flex: "1 1 calc(25% - 16px)",
               minWidth: "150px",
               p: 2,
               textAlign: "center",

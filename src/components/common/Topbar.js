@@ -16,7 +16,9 @@ const TopBar = () => {
       "software_admin": "Software Admin",
       "section_admin": "Section Admin",
       "admin": "Admin",
-      "user": "User"
+      "user": "User",
+      "WORKER": "Complaint Coordinator",
+      "worker": "Complaint Coordinator"
     };
     return roleMap[role] || role.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
   };

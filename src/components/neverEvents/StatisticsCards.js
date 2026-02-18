@@ -21,43 +21,50 @@ const StatisticsCards = ({ statistics, loading }) => {
 
   if (!statistics) return null;
 
+  // Map API response to expected structure (temporary fix until backend is updated)
+  const totalNeverEvents = statistics.total_never_events || statistics.total || 0;
+  const unfinishedCount = statistics.unfinished_count || statistics.unfinished || (statistics.under_investigation + statistics.open) || 0;
+  const finishedCount = statistics.finished_count || statistics.finished || statistics.resolved || 0;
+  const criticalCount = statistics.by_severity?.CRITICAL || statistics.critical_severity || 0;
+  const highCount = statistics.by_severity?.HIGH || statistics.high_severity || 0;
+  const currentMonthCount = statistics.current_month?.count || statistics.current_month_count || 0;
+
   const cards = [
     {
       label: "إجمالي الأحداث",
-      value: statistics.total_never_events,
+      value: totalNeverEvents,
       color: "#dc2626",
       icon: "⚠️",
-      subtitle: "الهدف: صفر",
     },
     {
       label: "غير منتهي",
-      value: statistics.unfinished_count,
+      value: unfinishedCount,
       color: "#f59e0b",
       icon: "⏳",
     },
     {
       label: "منتهي",
-      value: statistics.finished_count,
+      value: finishedCount,
       color: "#10b981",
       icon: "✓",
     },
     {
       label: "حرج",
-      value: statistics.by_severity?.HIGH || statistics.by_severity?.CRITICAL || 0,
+      value: criticalCount,
       color: "#dc2626",
       icon: "🔴",
     },
     {
-      label: "الشهر الحالي",
-      value: statistics.current_month?.count || 0,
-      color: "#3b82f6",
-      icon: "📅",
+      label: "عالي",
+      value: highCount,
+      color: "#f97316",
+      icon: "🟠",
     },
     {
-      label: "الشهر السابق",
-      value: statistics.previous_month?.count || 0,
-      color: "#8b5cf6",
-      icon: "📆",
+      label: "الشهر الحالي",
+      value: currentMonthCount,
+      color: "#3b82f6",
+      icon: "📅",
     },
   ];
 
@@ -90,42 +97,11 @@ const StatisticsCards = ({ statistics, loading }) => {
                 >
                   {card.value?.toLocaleString()}
                 </Typography>
-                {card.subtitle && (
-                  <Typography
-                    level="body-xs"
-                    sx={{ color: card.color, fontWeight: 600, mt: -0.5 }}
-                  >
-                    {card.subtitle}
-                  </Typography>
-                )}
               </Box>
             </Card>
           </Grid>
         ))}
       </Grid>
-
-      {/* Category Breakdown */}
-      {statistics.by_category && Object.keys(statistics.by_category).length > 0 && (
-        <Card sx={{ mt: 2, background: "#fef3c7" }}>
-          <Typography level="title-md" sx={{ mb: 1, fontWeight: 600 }}>
-            📊 التوزيع حسب الفئة
-          </Typography>
-          <Grid container spacing={2}>
-            {Object.entries(statistics.by_category).map(([category, count]) => (
-              <Grid key={category} xs={12} sm={6} md={3}>
-                <Box>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    {category}
-                  </Typography>
-                  <Typography level="h4" sx={{ color: "#d97706" }}>
-                    {count}
-                  </Typography>
-                </Box>
-              </Grid>
-            ))}
-          </Grid>
-        </Card>
-      )}
     </Box>
   );
 };

@@ -12,7 +12,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const TrendChart = ({ trends, loading, granularity, groupBy, onGranularityChange, onGroupByChange }) => {
+const TrendChart = ({ trends, loading, granularity, onGranularityChange }) => {
   if (loading) {
     return (
       <Card sx={{ p: 3 }}>
@@ -20,6 +20,8 @@ const TrendChart = ({ trends, loading, granularity, groupBy, onGranularityChange
       </Card>
     );
   }
+
+  console.log("📈 TrendChart received trends:", trends);
 
   if (!trends || trends.length === 0) {
     return (
@@ -34,25 +36,33 @@ const TrendChart = ({ trends, loading, granularity, groupBy, onGranularityChange
     );
   }
 
-  // Prepare chart data
-  const chartData = trends.map((item) => {
-    if (item.breakdown) {
-      // Grouped data
-      return {
-        period: item.period,
-        ...item.breakdown,
-      };
-    } else {
-      // Non-grouped data
-      return {
-        period: item.period,
-        count: item.count,
-      };
-    }
-  });
+  // Prepare chart data - handle different API response structures
+  let chartData = [];
+  let categories = [];
 
-  // Get unique categories for grouped data
-  const categories = trends[0]?.breakdown ? Object.keys(trends[0].breakdown) : [];
+  if (trends[0]?.breakdown) {
+    // Grouped data - breakdown exists
+    chartData = trends.map((item) => ({
+      period: item.period || item.date || item.month,
+      ...item.breakdown,
+    }));
+    categories = Object.keys(trends[0].breakdown);
+  } else if (trends[0]?.total !== undefined) {
+    // API returns data with category keys directly
+    chartData = trends;
+    // Get all keys except period, date, month, total
+    const excludeKeys = ['period', 'date', 'month', 'total'];
+    categories = Object.keys(trends[0]).filter(key => !excludeKeys.includes(key));
+  } else {
+    // Non-grouped data - simple count
+    chartData = trends.map((item) => ({
+      period: item.period || item.date || item.month,
+      count: item.count || item.total || 0,
+    }));
+  }
+
+  console.log("📊 Chart data prepared:", chartData);
+  console.log("📊 Categories:", categories);
 
   const colors = [
     "#dc2626",
@@ -75,18 +85,10 @@ const TrendChart = ({ trends, loading, granularity, groupBy, onGranularityChange
           <FormControl size="sm" sx={{ minWidth: 150 }}>
             <FormLabel>الفترة الزمنية</FormLabel>
             <Select value={granularity} onChange={(_, value) => onGranularityChange(value)}>
+              <Option value="weekly">أسبوعي</Option>
               <Option value="monthly">شهري</Option>
               <Option value="quarterly">ربع سنوي</Option>
-              <Option value="weekly">أسبوعي</Option>
-            </Select>
-          </FormControl>
-          <FormControl size="sm" sx={{ minWidth: 150 }}>
-            <FormLabel>تجميع حسب</FormLabel>
-            <Select value={groupBy} onChange={(_, value) => onGroupByChange(value)}>
-              <Option value="none">بدون تجميع</Option>
-              <Option value="category">التصنيف</Option>
-              <Option value="severity">الخطورة</Option>
-              <Option value="department">القسم</Option>
+              <Option value="yearly">سنوي</Option>
             </Select>
           </FormControl>
         </Box>

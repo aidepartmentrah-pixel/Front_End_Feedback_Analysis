@@ -1,0 +1,68 @@
+.grouped-inbox-page {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 28px;
+  color: #2d3436;
+}
+
+.page-header p {
+  margin: 4px 0 0 0;
+  color: #636e72;
+}
+
+.btn-refresh {
+  background-color: #0984e3;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-refresh:hover {
+  background-color: #0770c5;
+}
+
+.loading,
+.error,
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.error h3 {
+  color: #d63031;
+}
+
+.error button {
+  margin-top: 16px;
+  padding: 8px 24px;
+  background-color: #0984e3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.sections-list {
+  /* Section cards are styled by SectionCard.css */
+}

@@ -1,6 +1,8 @@
 // src/components/dashboard/IdaraDashboardStats.js
 import React, { useState } from "react";
 import { Grid, Box, Modal, ModalDialog, Typography, Sheet } from "@mui/joy";
+import { useAuth } from "../../context/AuthContext";
+import { hasFullOperationalAccess } from "../../utils/roleGuards";
 import MetricCard from "./MetricCard";
 import ChartCard from "./ChartCard";
 import Top5ClassificationChart from "./Top5ClassificationChart";
@@ -9,6 +11,7 @@ import IssuingDeptBarGraph from "./IssuingDeptBarGraph";
 import RecentActivityFeed from "./RecentActivityFeed";
 
 const IdaraDashboardStats = ({ idara, stats, loading }) => {
+  const { user } = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState({ title: "", data: [] });
 
@@ -154,8 +157,10 @@ const IdaraDashboardStats = ({ idara, stats, loading }) => {
             </Grid>
           </Grid>
 
-          {/* Recent Activity Feed */}
-          <RecentActivityFeed incidents={recentActivity} />
+          {/* Recent Activity Feed - Hidden for limited admins (3 monkeys) */}
+          {hasFullOperationalAccess(user) && (
+            <RecentActivityFeed incidents={recentActivity} />
+          )}
         </>
       )}
 

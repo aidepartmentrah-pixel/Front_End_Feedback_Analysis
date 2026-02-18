@@ -23,7 +23,20 @@ const CategoryBreakdownCard = ({ data, loading, error }) => {
     );
   }
 
-  if (!data || !data.categories || data.categories.length === 0) {
+  // Check if data exists first
+  if (!data) {
+    return (
+      <Card sx={{ p: 3, height: '100%' }}>
+        <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>📊 الرايات الحمراء حسب الفئة</Typography>
+        <Typography level="body-md" color="neutral">جاري التحميل...</Typography>
+      </Card>
+    );
+  }
+
+  // Map API response (uses 'breakdown' not 'categories')
+  const categories = data.breakdown || data.categories || [];
+  
+  if (categories.length === 0) {
     return (
       <Card sx={{ p: 3, height: '100%' }}>
         <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>📊 الرايات الحمراء حسب الفئة</Typography>
@@ -32,8 +45,8 @@ const CategoryBreakdownCard = ({ data, loading, error }) => {
     );
   }
 
-  const chartData = data.categories.map(cat => ({
-    name: cat.category_name_ar || cat.category_name,
+  const chartData = categories.map(cat => ({
+    name: cat.category_name_ar || cat.category_name || cat.category,
     value: cat.count,
     percentage: cat.percentage
   }));
@@ -42,7 +55,7 @@ const CategoryBreakdownCard = ({ data, loading, error }) => {
     <Card sx={{ p: 3, height: '100%' }}>
       <Typography level="h4" sx={{ mb: 1, fontWeight: 600 }}>📊 الرايات الحمراء حسب الفئة</Typography>
       <Typography level="body-sm" color="neutral" sx={{ mb: 3 }}>
-        {data.period} • الإجمالي: {data.total}
+        {data.period || 'جميع الفترات'} • الإجمالي: {data.total}
       </Typography>
 
       {/* Pie Chart */}
@@ -71,11 +84,11 @@ const CategoryBreakdownCard = ({ data, loading, error }) => {
 
       {/* Category List with Progress Bars */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {data.categories.map((category, index) => (
+        {categories.map((category, index) => (
           <Box key={index}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
               <Typography level="body-sm" fontWeight={500}>
-                {category.category_name_ar || category.category_name}
+                {category.category_name_ar || category.category_name || category.category}
               </Typography>
               <Typography level="body-sm" fontWeight={600}>
                 {category.count} ({category.percentage.toFixed(1)}%)

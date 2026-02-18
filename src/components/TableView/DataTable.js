@@ -1,9 +1,10 @@
 // src/components/TableView/DataTable.js
 import React from "react";
-import { Box, Table, Chip, IconButton } from "@mui/joy";
+import { Box, Table, Chip, IconButton, Tooltip } from "@mui/joy";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import EditIcon from "@mui/icons-material/Edit";
+import LockIcon from "@mui/icons-material/Lock";
 
 // Domain colors - Subtle backgrounds, functional not decorative
 const getDomainColor = (domain) => {
@@ -70,7 +71,7 @@ const getStatusColor = (status) => {
   return "neutral";
 };
 
-const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode, customView, onEdit, onDelete, filterOptions }) => {
+const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode, customView, onEdit, onDelete, onForceClose, canForceClose, filterOptions }) => {
   
   // Log filterOptions once for debugging
   React.useEffect(() => {
@@ -292,19 +293,36 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
                 <td key={col.key}>
                   {col.key === "actions" ? (
                     <Box sx={{ display: "flex", gap: 1, justifyContent: "center" }}>
-                      <IconButton
-                        size="sm"
-                        variant="plain"
-                        color="primary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onEdit) onEdit(complaint.id);
-                        }}
-                        sx={{ fontSize: 18 }}
-                        title="Edit complaint"
-                      >
-                        <EditIcon />
-                      </IconButton>
+                      <Tooltip title="Edit complaint" size="sm">
+                        <IconButton
+                          size="sm"
+                          variant="plain"
+                          color="primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onEdit) onEdit(complaint.id);
+                          }}
+                          sx={{ fontSize: 18 }}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                      </Tooltip>
+                      {canForceClose && complaint.workflow_status?.open_subcase_count > 0 && (
+                        <Tooltip title={`Force close case and ${complaint.workflow_status.open_subcase_count} subcase(s)`} size="sm">
+                          <IconButton
+                            size="sm"
+                            variant="plain"
+                            color="danger"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onForceClose) onForceClose(complaint);
+                            }}
+                            sx={{ fontSize: 18 }}
+                          >
+                            <LockIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </Box>
                   ) : col.key === "complaint_number" ? (
                     <Box 

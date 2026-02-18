@@ -20,15 +20,54 @@ export const getUserInventory = async () => {
  * @param {string} section_name - Name of the new section
  * @param {number} parent_department_id - ID of the parent department
  */
-export const createSectionWithAdmin = async (section_name, parent_department_id) => {
+export const createSectionWithAdmin = async (section_name, parent_unit_id) => {
   try {
     const response = await apiClient.post("/api/admin/create-section-with-admin", {
       section_name,
-      parent_department_id,
+      parent_unit_id,
     });
     return response.data;
   } catch (error) {
     console.error("Error creating section with admin:", error);
+    throw error;
+  }
+};
+
+/**
+ * PHASE C — F-C2 — Create Section API Wrapper
+ * Create a new section with auto-generated admin user
+ * Production-safe endpoint with frozen contract
+ * 
+ * @param {Object} payload - Section creation payload
+ * @param {string} payload.section_name - Name of the new section
+ * @param {number} payload.parent_unit_id - ID of the parent org unit (Department or Administration)
+ * @returns {Promise<Object>} Response with section_id, username, and password
+ * 
+ * @example
+ * const result = await createSection({
+ *   section_name: "Emergency Section A",
+ *   parent_unit_id: 42
+ * });
+ * // Returns: { section_id: 101, username: "sec_101_admin", password: "..." }
+ */
+export const createSection = async (payload) => {
+  try {
+    // Send exactly what backend SectionCreateRequest expects
+    const requestBody = {
+      section_name: payload.section_name,
+      parent_unit_id: payload.parent_unit_id,
+    };
+    
+    const response = await apiClient.post("/api/admin/create-section-with-admin", requestBody);
+    // Backend returns temp_password, normalize to password for frontend
+    const data = response.data;
+    return {
+      section_id: data.section_id,
+      username: data.username,
+      password: data.temp_password || data.password,
+    };
+  } catch (error) {
+    console.error("Error creating section:", error);
     throw error;
   }
 };
@@ -98,5 +137,25 @@ export const exportCredentialsMarkdown = async () => {
   } catch (error) {
     console.error("Error exporting credentials markdown:", error);
     throw error;
+  }
+};
+
+/**
+ * Update user credentials (display name, username, password)
+ * @param {number} user_id - ID of the user to update
+ * @param {Object} updates - Fields to update
+ * @param {string} updates.display_name - New display name (optional)
+ * @param {string} updates.username - New username (optional)
+ * @param {string} updates.password - New password (optional)
+ */
+export const updateUser = async (user_id, updates) => {
+  try {
+    const response = await apiClient.put(`/api/admin/users/${user_id}`, updates);
+    return response.data;
+  } catch (error) {
+    console.error("Error updating user:", error);
+    // Extract error message from response
+    const errorMsg = error.response?.data?.detail || "Failed to update user";
+    throw new Error(errorMsg);
   }
 };

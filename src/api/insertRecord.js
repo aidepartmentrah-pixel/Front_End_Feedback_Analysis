@@ -1,20 +1,25 @@
   // src/api/insertRecord.js
   // API service for Insert Record page
   import apiClient from "./apiClient";
+  import { fetchLeaves } from "./orgUnits";
 
   /**
-   * Fetch all reference data (departments, sources, domains, severity, stages, harm)
-   * GET /api/reference/all
+   * Fetch all reference data (sections/leaves, sources, domains, severity, stages, harm)
+   * GET /api/reference/all + /api/org-units/leaves for sections
    */
   export const fetchReferenceData = async () => {
     try {
+      // Fetch main reference data
       const response = await apiClient.get("/api/reference/all");
       const data = response.data;
+      
+      // Fetch sections/leaves separately (for issuing department)
+      const leaves = await fetchLeaves();
       
       console.log("Reference data received:", data);
       console.log("Sample domain:", data.domains?.[0]);
       console.log("Sample source:", data.sources?.[0]);
-      console.log("Sample department:", data.departments?.[0]);
+      console.log("Sample section/leaf:", leaves?.[0]);
       console.log("Sample severity:", data.severity_levels?.[0] || data.severity?.[0]);
       console.log("Sample stage:", data.stages?.[0]);
       console.log("Sample harm:", data.harm_levels?.[0] || data.harm?.[0]);
@@ -23,7 +28,7 @@
       
       // Normalize the data structure to ensure arrays
       return {
-        departments: Array.isArray(data.departments) ? data.departments : [],
+        departments: Array.isArray(leaves) ? leaves : [], // Using leaves/sections instead of departments
         sources: Array.isArray(data.sources) ? data.sources : [],
         domains: Array.isArray(data.domains) ? data.domains : [],
         severity: Array.isArray(data.severity_levels) ? data.severity_levels : (Array.isArray(data.severity) ? data.severity : []),

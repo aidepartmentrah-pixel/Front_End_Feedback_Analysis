@@ -70,10 +70,6 @@ const VariableAttributes = () => {
 
   return (
     <Box>
-      <Typography level="h4" sx={{ mb: 3, fontWeight: 700, color: theme.colors.primary }}>
-        ⚙️ المتغيرات والإعدادات (Variable Attributes)
-      </Typography>
-
       {success && (
         <Alert color="success" sx={{ mb: 3 }} onClose={() => setSuccess(null)}>
           {success}

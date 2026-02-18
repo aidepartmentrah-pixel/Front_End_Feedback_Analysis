@@ -24,20 +24,23 @@ const DetailsModal = ({ open, onClose, neverEvent, loading }) => {
   };
 
   const getStatusLabel = (status) => {
-    if (status === "OPEN") return "مفتوح";
-    if (status === "UNDER_REVIEW") return "قيد المراجعة";
-    if (status === "FINISHED") return "منتهي";
+    if (status === "OPEN") return "Open";
+    if (status === "UNDER_REVIEW") return "Under Review";
+    if (status === "IN_PROGRESS" || status === "In Progress") return "In Progress";
+    if (status === "FINISHED") return "Finished";
+    if (status === "CLOSED" || status === "Closed") return "Closed";
     return status;
   };
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} sx={{ zIndex: 9999 }}>
       <ModalDialog
         sx={{
           maxWidth: 900,
           width: "90%",
           maxHeight: "90vh",
           overflow: "auto",
+          zIndex: 10000,
         }}
       >
         <ModalClose />

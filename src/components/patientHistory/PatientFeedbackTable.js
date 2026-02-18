@@ -1,4 +1,5 @@
 // src/components/patientHistory/PatientFeedbackTable.js
+// Phase R-P — Normalized doctor field: doctor_name (from DoctorName join fix)
 import React, { useState, useMemo } from "react";
 import {
   Table,
@@ -129,7 +130,7 @@ const PatientFeedbackTable = ({ feedbacks }) => {
                 <SortableHeader label="Severity" sortKey="severity" />
               </th>
               <th>
-                <SortableHeader label="Doctor" sortKey="doctorName" />
+                <SortableHeader label="Doctor" sortKey="doctor_name" />
               </th>
               <th>Status</th>
               <th>Description</th>
@@ -178,7 +179,7 @@ const PatientFeedbackTable = ({ feedbacks }) => {
                     </Box>
                   </td>
                   <td>
-                    <Typography level="body-sm">{fb.doctorName}</Typography>
+                    <Typography level="body-sm">{fb.doctor_name || fb.doctorName || "N/A"}</Typography>
                   </td>
                   <td>
                     <Box

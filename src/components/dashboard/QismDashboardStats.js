@@ -1,6 +1,8 @@
 // src/components/dashboard/QismDashboardStats.js
 import React, { useState } from "react";
 import { Grid, Box, Typography, Card, Alert, Modal, ModalDialog, Sheet } from "@mui/joy";
+import { useAuth } from "../../context/AuthContext";
+import { hasFullOperationalAccess } from "../../utils/roleGuards";
 import MetricCard from "./MetricCard";
 import ChartCard from "./ChartCard";
 import Top5ClassificationChart from "./Top5ClassificationChart";
@@ -8,6 +10,7 @@ import RecentActivityFeed from "./RecentActivityFeed";
 import InfoIcon from "@mui/icons-material/Info";
 
 const QismDashboardStats = ({ qism, stats, loading }) => {
+  const { user } = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState({ title: "", data: [] });
 
@@ -255,10 +258,12 @@ const _oldMockData = {
         </Grid>
       </Grid>
 
-      {/* Recent Activity Feed */}
-      <Box sx={{ mb: 3 }}>
-        <RecentActivityFeed incidents={recentActivity} />
-      </Box>
+      {/* Recent Activity Feed - Hidden for limited admins (3 monkeys) */}
+      {hasFullOperationalAccess(user) && (
+        <Box sx={{ mb: 3 }}>
+          <RecentActivityFeed incidents={recentActivity} />
+        </Box>
+      )}
 
       {/* Section-Specific Insights */}
       <Card sx={{ p: 3, background: "linear-gradient(135deg, #f5f7ff 0%, #fff 100%)" }}>

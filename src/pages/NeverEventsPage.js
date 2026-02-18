@@ -9,15 +9,15 @@ import TrendChart from "../components/neverEvents/TrendChart";
 import DetailsModal from "../components/neverEvents/DetailsModal";
 import Pagination from "../components/redflags/Pagination";
 import CategoryBreakdownCard from "../components/neverEvents/CategoryBreakdownCard";
-import TimelineComparisonCard from "../components/neverEvents/TimelineComparisonCard";
 import {
   fetchNeverEvents,
   fetchNeverEventsStatistics,
   fetchNeverEventsTrends,
   fetchNeverEventDetails,
   fetchNeverEventsCategoryBreakdown,
-  fetchNeverEventsTimelineComparison,
 } from "../api/neverEvents";
+import { fetchLeaves } from "../api/orgUnits";
+import apiClient from "../api/apiClient";
 
 const NeverEventsPage = ({ embedded = false }) => {
   // State management
@@ -25,9 +25,10 @@ const NeverEventsPage = ({ embedded = false }) => {
   const [statistics, setStatistics] = useState(null);
   const [trends, setTrends] = useState([]);
   const [categoryBreakdown, setCategoryBreakdown] = useState(null);
-  const [timelineComparison, setTimelineComparison] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [leaves, setLeaves] = useState([]);
+  const [domains, setDomains] = useState([]);
   
   // Loading states
   const [loadingEvents, setLoadingEvents] = useState(false);
@@ -35,7 +36,6 @@ const NeverEventsPage = ({ embedded = false }) => {
   const [loadingTrends, setLoadingTrends] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [loadingCategoryBreakdown, setLoadingCategoryBreakdown] = useState(false);
-  const [loadingTimelineComparison, setLoadingTimelineComparison] = useState(false);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -51,11 +51,26 @@ const NeverEventsPage = ({ embedded = false }) => {
 
   // Trend controls
   const [granularity, setGranularity] = useState("monthly");
-  const [groupBy, setGroupBy] = useState("none");
-  const [comparisonPeriod, setComparisonPeriod] = useState("month");
 
   // Pagination
   const [totalCount, setTotalCount] = useState(0);
+
+  // Load leaves and domains for filters
+  useEffect(() => {
+    const loadFilterOptions = async () => {
+      try {
+        const [leavesData, domainsRes] = await Promise.all([
+          fetchLeaves(),
+          apiClient.get("/api/reference/domains"),
+        ]);
+        setLeaves(leavesData || []);
+        setDomains(domainsRes.data?.domains || []);
+      } catch (error) {
+        console.error("Error loading filter options:", error);
+      }
+    };
+    loadFilterOptions();
+  }, []);
 
   // Fetch never events
   useEffect(() => {
@@ -104,7 +119,6 @@ const NeverEventsPage = ({ embedded = false }) => {
           from_date: filters.from_date,
           to_date: filters.to_date,
           granularity,
-          group_by: groupBy,
         });
         setTrends(data.data || []);
       } catch (error) {
@@ -115,7 +129,7 @@ const NeverEventsPage = ({ embedded = false }) => {
     };
 
     loadTrends();
-  }, [filters.from_date, filters.to_date, granularity, groupBy]);
+  }, [filters.from_date, filters.to_date, granularity]);
 
   // Fetch category breakdown
   useEffect(() => {
@@ -136,23 +150,6 @@ const NeverEventsPage = ({ embedded = false }) => {
 
     loadCategoryBreakdown();
   }, [filters.from_date, filters.to_date]);
-
-  // Fetch timeline comparison
-  useEffect(() => {
-    const loadTimelineComparison = async () => {
-      setLoadingTimelineComparison(true);
-      try {
-        const data = await fetchNeverEventsTimelineComparison(comparisonPeriod);
-        setTimelineComparison(data);
-      } catch (error) {
-        console.error("Error loading timeline comparison:", error);
-      } finally {
-        setLoadingTimelineComparison(false);
-      }
-    };
-
-    loadTimelineComparison();
-  }, [comparisonPeriod]);
 
   // Handle filter changes
   const handleFilterChange = (key, value) => {
@@ -200,31 +197,20 @@ const NeverEventsPage = ({ embedded = false }) => {
   const content = (
     <Box>
       {/* Page Header */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-        <Box>
-          <Typography level="h2" sx={{ fontWeight: 700 }}>
-            ⚠️ الأحداث التي لا يجب أن تحدث (Never Events)
-          </Typography>
-          <Typography level="body-sm" sx={{ color: "#dc2626", fontWeight: 600 }}>
-            معايير الصفرية - Zero Tolerance
-          </Typography>
-        </Box>
+      <Box sx={{ mb: 3 }}>
+        <Typography level="h2" sx={{ fontWeight: 700 }}>
+          ⚠️ الأحداث التي لا يجب أن تحدث (Never Events)
+        </Typography>
       </Box>
 
       {/* Statistics Cards */}
       <StatisticsCards statistics={statistics} loading={loadingStats} />
 
-      {/* Breakdown Cards Grid */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3, mt: 3 }}>
+      {/* Category Breakdown */}
+      <Box sx={{ mt: 3 }}>
         <CategoryBreakdownCard 
           data={categoryBreakdown} 
           loading={loadingCategoryBreakdown} 
-        />
-        <TimelineComparisonCard 
-          data={timelineComparison} 
-          loading={loadingTimelineComparison}
-          period={comparisonPeriod}
-          onPeriodChange={setComparisonPeriod}
         />
       </Box>
 
@@ -234,9 +220,7 @@ const NeverEventsPage = ({ embedded = false }) => {
           trends={trends}
           loading={loadingTrends}
           granularity={granularity}
-          groupBy={groupBy}
           onGranularityChange={setGranularity}
-          onGroupByChange={setGroupBy}
         />
       </Box>
 
@@ -247,6 +231,8 @@ const NeverEventsPage = ({ embedded = false }) => {
         filters={filters}
         onFilterChange={handleFilterChange}
         onClearFilters={handleClearFilters}
+        leaves={leaves}
+        domains={domains}
       />
 
       {/* Results Summary */}

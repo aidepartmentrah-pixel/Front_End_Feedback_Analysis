@@ -25,6 +25,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import DownloadIcon from "@mui/icons-material/Download";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import EditIcon from "@mui/icons-material/Edit";
 import {
   getUserInventory,
   createSectionWithAdmin,
@@ -32,7 +33,9 @@ import {
   deleteUser,
   recreateSectionAdmin,
   exportCredentialsMarkdown,
+  updateUser,
 } from "../../api/adminUsers";
+import EditUserModal from "./EditUserModal";
 
 /**
  * Users & Sections (Testing) Tab
@@ -57,6 +60,10 @@ const UsersAndSectionsTab = () => {
   // Result state
   const [creationResult, setCreationResult] = useState(null);
   const [recreateResult, setRecreateResult] = useState(null);
+
+  // Edit user state
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -83,11 +90,15 @@ const UsersAndSectionsTab = () => {
   const loadOrgUnits = async () => {
     try {
       const data = await getUserInventory();
+      console.log("User inventory data:", data);
       setOrgUnits(data.org_units || []);
 
       // Separate by type
       const admins = data.org_units.filter((unit) => unit.Type === "ADMINISTRATION");
       const depts = data.org_units.filter((unit) => unit.Type === "DEPARTMENT");
+
+      console.log("Administrations:", admins);
+      console.log("Departments:", depts);
 
       setAdministrations(admins);
       setDepartments(depts);
@@ -101,6 +112,7 @@ const UsersAndSectionsTab = () => {
     try {
       setLoadingUsers(true);
       const data = await getUserCredentials();
+      console.log("User credentials data:", data);
       setUsers(data.users || []);
     } catch (err) {
       setError("Failed to load user credentials");
@@ -234,6 +246,26 @@ const UsersAndSectionsTab = () => {
       message: `${label} copied to clipboard`,
       color: "success",
     });
+  };
+
+  const handleOpenEdit = (user) => {
+    setEditingUser(user);
+    setEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (userId, updates) => {
+    try {
+      await updateUser(userId, updates);
+      setSnackbar({
+        open: true,
+        message: "User updated successfully!",
+        color: "success",
+      });
+      await loadUsers(); // Refresh the user list
+      setEditModalOpen(false);
+    } catch (err) {
+      throw err; // Let the modal handle the error display
+    }
   };
 
   return (
@@ -389,6 +421,7 @@ const UsersAndSectionsTab = () => {
           <Table stickyHeader>
             <thead>
               <tr>
+                <th>Display Name</th>
                 <th>Username</th>
                 <th>Role</th>
                 <th>Org Unit</th>
@@ -400,19 +433,24 @@ const UsersAndSectionsTab = () => {
             <tbody>
               {loadingUsers ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "2rem" }}>
+                  <td colSpan={7} style={{ textAlign: "center", padding: "2rem" }}>
                     <CircularProgress />
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "2rem" }}>
+                  <td colSpan={7} style={{ textAlign: "center", padding: "2rem" }}>
                     No users found
                   </td>
                 </tr>
               ) : (
                 users.map((user) => (
                   <tr key={user.user_id}>
+                    <td>
+                      <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                        {user.display_name || "(not set)"}
+                      </Typography>
+                    </td>
                     <td>{user.username}</td>
                     <td>
                       <Typography
@@ -468,6 +506,18 @@ const UsersAndSectionsTab = () => {
                     </td>
                     <td>
                       <Box sx={{ display: "flex", gap: 1 }}>
+                        {/* Edit User */}
+                        <IconButton
+                          size="sm"
+                          color="primary"
+                          variant="outlined"
+                          onClick={() => handleOpenEdit(user)}
+                          disabled={user.role === "SOFTWARE_ADMIN"}
+                          title="Edit User"
+                        >
+                          <EditIcon />
+                        </IconButton>
+
                         {/* Recreate Section Admin */}
                         {user.role === "SECTION_ADMIN" && (
                           <IconButton
@@ -528,7 +578,7 @@ const UsersAndSectionsTab = () => {
       </Card>
 
       {/* Recreate Result Modal */}
-      <Modal open={!!recreateResult} onClose={() => setRecreateResult(null)}>
+      <Modal open={!!recreateResult} onClose={() => setRecreateResult(null)} sx={{ zIndex: 9999 }}>
         <ModalDialog>
           <ModalClose />
           <Typography level="h4" sx={{ mb: 2 }}>
@@ -579,6 +629,14 @@ const UsersAndSectionsTab = () => {
       >
         {snackbar.message}
       </Snackbar>
+
+      {/* Edit User Modal */}
+      <EditUserModal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        user={editingUser}
+        onSave={handleSaveEdit}
+      />
     </Box>
   );
 };

@@ -18,6 +18,7 @@
  * - APPROVE: confirmation only (empty payload)
  * - OVERRIDE: explanation + action items
  * - FORCE_CLOSE: reason text
+ * - REOPEN: rejection text (note for section explaining why it's being resent)
  */
 
 import React, { useState, useEffect } from 'react';
@@ -118,6 +119,12 @@ const CaseActionModal = ({ open, onClose, subcaseId, actionCode, onSuccess }) =>
           return false;
         }
         break;
+      case 'REOPEN':
+        if (!rejectionText.trim()) {
+          setErrorMessage('Please provide a note explaining why this case is being resent to the section');
+          return false;
+        }
+        break;
       case 'APPROVE':
         // No validation needed
         break;
@@ -146,6 +153,10 @@ const CaseActionModal = ({ open, onClose, subcaseId, actionCode, onSuccess }) =>
             })),
         };
       case 'REJECT':
+        return {
+          rejection_text: rejectionText,
+        };
+      case 'REOPEN':
         return {
           rejection_text: rejectionText,
         };
@@ -329,6 +340,28 @@ const CaseActionModal = ({ open, onClose, subcaseId, actionCode, onSuccess }) =>
           </FormControl>
         );
 
+      case 'REOPEN':
+        return (
+          <>
+            <Alert color="warning" variant="soft" sx={{ mb: 2 }}>
+              <Typography level="body-sm">
+                This will resend the case back to the section for re-examination.
+                The section admin will see this case in their inbox again.
+              </Typography>
+            </Alert>
+            <FormControl required>
+              <FormLabel>Note for Section</FormLabel>
+              <Textarea
+                placeholder="Explain why this case is being sent back to the section..."
+                minRows={4}
+                value={rejectionText}
+                onChange={(e) => setRejectionText(e.target.value)}
+                disabled={loading}
+              />
+            </FormControl>
+          </>
+        );
+
       default:
         return (
           <Alert color="warning" variant="soft">
@@ -353,6 +386,8 @@ const CaseActionModal = ({ open, onClose, subcaseId, actionCode, onSuccess }) =>
         return 'Override Case';
       case 'FORCE_CLOSE':
         return 'Force Close Case';
+      case 'REOPEN':
+        return 'Resend to Section';
       default:
         return 'Case Action';
     }
@@ -362,7 +397,7 @@ const CaseActionModal = ({ open, onClose, subcaseId, actionCode, onSuccess }) =>
   // RENDER MODAL
   // ============================
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} sx={{ zIndex: 9999 }}>
       <ModalDialog
         variant="outlined"
         sx={{
@@ -406,7 +441,7 @@ const CaseActionModal = ({ open, onClose, subcaseId, actionCode, onSuccess }) =>
           </Button>
           <Button
             variant="solid"
-            color={actionCode === 'REJECT' || actionCode === 'FORCE_CLOSE' ? 'danger' : 'primary'}
+            color={actionCode === 'REJECT' || actionCode === 'FORCE_CLOSE' ? 'danger' : actionCode === 'REOPEN' ? 'warning' : 'primary'}
             onClick={handleSubmit}
             disabled={loading}
             startDecorator={loading && <CircularProgress size="sm" />}

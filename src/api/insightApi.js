@@ -301,6 +301,64 @@ function buildStuckQuery(daysThreshold) {
   };
 }
 
+/**
+ * Adapt grouped inbox response from backend to frontend shape.
+ * 
+ * Backend Shape:
+ * [
+ *   {
+ *     section_id,
+ *     section_name,
+ *     org_type,
+ *     supervisor_name,
+ *     pending_count,
+ *     subcases: [{ subcase_id, case_description, patient_name, severity, waiting_days, ... }]
+ *   }
+ * ]
+ * 
+ * Frontend Shape (adds defensive fallbacks):
+ * - Empty sections (pending_count = 0) are filtered out
+ * - Missing supervisor shows "Unassigned"
+ * - Seasonal reports get "NEUTRAL" severity
+ * - Ensures subcases is always an array
+ * 
+ * @param {Array|null|undefined} rawList - Raw backend response array
+ * @returns {Array} Array of section objects with subcases
+ */
+function adaptGroupedInbox(rawList) {
+  // Defensive fallback to prevent UI crash on bad payload
+  if (!Array.isArray(rawList)) {
+    return [];
+  }
+
+  return rawList
+    .filter(section => section != null) // Skip null/undefined sections
+    .filter(section => section.pending_count > 0) // Hide empty sections
+    .map(section => ({
+      section_id: section.section_id,
+      section_name: String(section.section_name ?? 'Unknown Section'),
+      org_type: String(section.org_type ?? 'SECTION'),
+      supervisor_name: String(section.supervisor_name ?? 'Unassigned'),
+      pending_count: Number(section.pending_count) || 0,
+      subcases: Array.isArray(section.subcases) 
+        ? section.subcases.map(subcase => ({
+            subcase_id: subcase.subcase_id,
+            case_type: subcase.case_type,
+            incident_id: subcase.incident_id,
+            seasonal_report_id: subcase.seasonal_report_id,
+            case_description: String(subcase.case_description ?? ''),
+            patient_name: String(subcase.patient_name ?? ''),
+            severity: subcase.severity ?? 'NEUTRAL', // Neutral for seasonal reports
+            severity_id: subcase.severity_id,
+            category: String(subcase.category ?? ''),
+            waiting_days: Number(subcase.waiting_days) || 0,
+            created_at: subcase.created_at,
+            status: subcase.status,
+          }))
+        : [],
+    }));
+}
+
 // ============================================================================
 // EXPORTED API FUNCTIONS
 // ============================================================================
@@ -368,6 +426,45 @@ export async function getStuckCases(daysThreshold) {
   }
 }
 
+/**
+ * Get user workload summary (person-centric view)
+ * @param {Object} filters - Optional filters { orgUnitId, role, minItems, sortBy, sortOrder }
+ * @returns {Promise<Array>} User workload data
+ */
+export async function getUserWorkload(filters = {}) {
+  try {
+    const params = {};
+    if (filters.orgUnitId) params.org_unit_id = filters.orgUnitId;
+    if (filters.role) params.role = filters.role;
+    if (filters.minItems) params.min_items = filters.minItems;
+    if (filters.sortBy) params.sort_by = filters.sortBy;
+    if (filters.sortOrder) params.sort_order = filters.sortOrder;
+    
+    const res = await apiClient.get('/api/v2/insight/user-workload', { params });
+    // Backend returns array directly - no adaptation needed
+    return Array.isArray(res.data) ? res.data : [];
+  } catch (err) {
+    const message = err.response?.data?.detail || 'Failed to load user workload';
+    throw new Error(message);
+  }
+}
+
+/**
+ * Get grouped inbox for administration overview
+ * Shows all sections with pending subcases, supervisor names, and case details
+ * 
+ * @returns {Promise<Array>} Grouped inbox data with sections and subcases
+ */
+export async function getGroupedInbox() {
+  try {
+    const res = await apiClient.get('/api/v2/insight/grouped-inbox');
+    return adaptGroupedInbox(res.data);
+  } catch (err) {
+    const message = err.response?.data?.detail || 'Failed to load grouped inbox';
+    throw new Error(message);
+  }
+}
+
 // ============================================================================
 // TEST EXPORTS (for unit testing only)
 // ============================================================================
@@ -377,6 +474,7 @@ export {
   adaptDistribution, 
   adaptTrend, 
   adaptStuckCases,
+  adaptGroupedInbox,
   buildDistributionRequest,
   buildTrendRequest,
   buildStuckQuery,

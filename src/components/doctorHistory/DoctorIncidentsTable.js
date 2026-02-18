@@ -109,6 +109,11 @@ const DoctorIncidentsTable = ({ incidents }) => {
                 <th onClick={() => handleSort("severity")}>
                   Severity {sortBy === "severity" && (sortOrder === "asc" ? "↑" : "↓")}
                 </th>
+                <th onClick={() => handleSort("classification")}>
+                  Classification {sortBy === "classification" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th>Intent (AR)</th>
+                <th>Intent (EN)</th>
                 <th onClick={() => handleSort("status")}>
                   Status {sortBy === "status" && (sortOrder === "asc" ? "↑" : "↓")}
                 </th>
@@ -146,6 +151,25 @@ const DoctorIncidentsTable = ({ incidents }) => {
                     <Chip size="sm" color={getSeverityColor(incident.severity)}>
                       {incident.severity}
                     </Chip>
+                  </td>
+                  <td>
+                    <Chip
+                      size="sm"
+                      color={
+                        incident.classification === "bad" ? "danger" :
+                        incident.classification === "good" ? "success" : "neutral"
+                      }
+                    >
+                      {incident.classification === "bad" ? "😞 Bad" :
+                       incident.classification === "good" ? "😊 Good" :
+                       incident.classification === "neutral" ? "😐 Neutral" : "—"}
+                    </Chip>
+                  </td>
+                  <td style={{ direction: "rtl" }}>
+                    <Typography level="body-sm">{incident.intent_type_ar || "—"}</Typography>
+                  </td>
+                  <td>
+                    <Typography level="body-sm">{incident.intent_type_en || "—"}</Typography>
                   </td>
                   <td>
                     <Chip size="sm" variant="soft" color={getStatusColor(incident.status)}>

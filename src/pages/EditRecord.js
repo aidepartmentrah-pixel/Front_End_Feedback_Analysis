@@ -1,9 +1,12 @@
 // src/pages/EditRecord.js
-import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Box, Container, Typography, Divider, CircularProgress, Card, Alert } from "@mui/joy";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { Box, Container, Typography, Divider, CircularProgress, Card, Alert, Input, Chip, IconButton, Sheet, FormControl, FormLabel } from "@mui/joy";
 import theme from '../theme';
 import { useNavigate, useParams } from "react-router-dom";
 import { Warning } from "@mui/icons-material";
+import SearchIcon from "@mui/icons-material/Search";
+import CloseIcon from "@mui/icons-material/Close";
+import PersonIcon from "@mui/icons-material/Person";
 
 // Utils
 import { validateIncidentCase } from "../utils/incidentCaseValidation";
@@ -21,7 +24,8 @@ import {
   fetchReferenceData,
   fetchCategories,
   fetchSubcategories,
-  fetchClassifications
+  fetchClassifications,
+  searchEmployees
 } from "../api/insertRecord";
 
 const EditRecord = () => {
@@ -54,6 +58,7 @@ const EditRecord = () => {
     building: null,
     in_out: null,
     doctors: [],
+    employees: [],
     requires_explanation: false,
   });
 
@@ -83,6 +88,62 @@ const EditRecord = () => {
   const [classifications, setClassifications] = useState([]);
   const isLoadingRecordRef = useRef(false);
   const isSubmittingRef = useRef(false); // Prevent double submit
+
+  // Employee search state
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
+  const [employeeSearchResults, setEmployeeSearchResults] = useState([]);
+  const [employeeSearchLoading, setEmployeeSearchLoading] = useState(false);
+  const employeeSearchTimeoutRef = useRef(null);
+
+  // Debounced employee search
+  const handleEmployeeSearch = useCallback(async (query) => {
+    if (!query || query.length < 2) {
+      setEmployeeSearchResults([]);
+      return;
+    }
+    setEmployeeSearchLoading(true);
+    try {
+      const results = await searchEmployees(query);
+      setEmployeeSearchResults(results || []);
+    } catch (err) {
+      console.error("Employee search error:", err);
+      setEmployeeSearchResults([]);
+    } finally {
+      setEmployeeSearchLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (employeeSearchTimeoutRef.current) clearTimeout(employeeSearchTimeoutRef.current);
+    employeeSearchTimeoutRef.current = setTimeout(() => {
+      handleEmployeeSearch(employeeSearchQuery);
+    }, 300);
+    return () => clearTimeout(employeeSearchTimeoutRef.current);
+  }, [employeeSearchQuery, handleEmployeeSearch]);
+
+  const handleAddEmployee = (emp) => {
+    const existing = (formData.employees || []).find(e => e.employee_id === emp.employee_id);
+    if (existing) return; // Already added
+    setFormData(prev => ({
+      ...prev,
+      employees: [...(prev.employees || []), {
+        employee_id: emp.employee_id,
+        full_name: emp.full_name || emp.name || '',
+        job_title: emp.job_title || ''
+      }]
+    }));
+    setEmployeeSearchQuery("");
+    setEmployeeSearchResults([]);
+    setHasChanges(true);
+  };
+
+  const handleRemoveEmployee = (empId) => {
+    setFormData(prev => ({
+      ...prev,
+      employees: (prev.employees || []).filter(e => e.employee_id !== empId)
+    }));
+    setHasChanges(true);
+  };
 
   // Compute form validity
   const isFormValid = useMemo(() => {
@@ -162,9 +223,11 @@ const EditRecord = () => {
             console.error("❌ Error loading classification hierarchy:", err);
           }
 
-          // Map target_departments array to IDs using department_id field
+          // Map target_departments array to IDs using section_id (stored DepartmentID = leaf/section ID)
+          // NOTE: section_id is the actual value stored in APP_IncidentCaseTargetDepartment.DepartmentID
+          // department_id is the PARENT org unit, not what the dropdown uses
           const targetDeptIds = Array.isArray(record.target_departments)
-            ? record.target_departments.map(dept => dept.department_id).filter(Boolean)
+            ? record.target_departments.map(dept => dept.section_id || dept.department_id).filter(Boolean)
             : [];
           
           console.log("📋 Mapped target department IDs:", targetDeptIds);
@@ -174,6 +237,15 @@ const EditRecord = () => {
             ? record.doctors.map(doc => ({
                 doctor_id: doc.id || doc.doctor_id,
                 doctor_name: doc.name || doc.doctor_name
+              }))
+            : [];
+
+          // Map employees array (supervisors/workers)
+          const employeesList = Array.isArray(record.employees)
+            ? record.employees.map(emp => ({
+                employee_id: emp.employee_id || emp.id,
+                full_name: emp.full_name || emp.name || '',
+                job_title: emp.job_title || ''
               }))
             : [];
 
@@ -210,6 +282,7 @@ const EditRecord = () => {
             building: buildingName,
             in_out: inOutValue,
             doctors: doctorsList,
+            employees: employeesList,
             is_inpatient: record.is_inpatient,
             explanation_status_id: record.explanation_status_id || null,
             case_status_id: record.case_status_id || 1,
@@ -439,6 +512,14 @@ const EditRecord = () => {
           }))
         : [];
 
+      const employeesList = Array.isArray(originalRecord.employees)
+        ? originalRecord.employees.map(emp => ({
+            employee_id: emp.employee_id || emp.id,
+            full_name: emp.full_name || emp.name || '',
+            job_title: emp.job_title || ''
+          }))
+        : [];
+
       let buildingName = null;
       if (originalRecord.building_id === 1) buildingName = "RAH";
       else if (originalRecord.building_id === 2) buildingName = "BCI";
@@ -470,6 +551,7 @@ const EditRecord = () => {
         building: buildingName,
         in_out: inOutValue,
         doctors: doctorsList,
+        employees: employeesList,
         is_inpatient: originalRecord.is_inpatient,
         explanation_status_id: originalRecord.explanation_status_id || null,
         case_status_id: originalRecord.case_status_id || 1,
@@ -613,7 +695,130 @@ const EditRecord = () => {
               validationErrors={validationErrors}
             />
 
-            {/* Row 4: Action Buttons */}
+            {/* Row 4: Employees (Supervisor / Worker) */}
+            <Card sx={{ 
+              p: 3, 
+              mt: 3, 
+              mb: 3,
+              background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
+              border: "1px solid rgba(102, 126, 234, 0.15)",
+              borderRadius: "12px"
+            }}>
+              <Typography level="title-md" sx={{ fontWeight: 700, mb: 2, color: theme.colors.primary }}>
+                <PersonIcon sx={{ mr: 1, verticalAlign: "middle" }} />
+                Employees (Supervisor / Worker)
+              </Typography>
+
+              {/* Current linked employees */}
+              {formData.employees && formData.employees.length > 0 && (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
+                  {formData.employees.map((emp) => (
+                    <Chip
+                      key={emp.employee_id}
+                      variant="soft"
+                      color="primary"
+                      endDecorator={
+                        <IconButton
+                          size="sm"
+                          variant="plain"
+                          color="neutral"
+                          onClick={() => handleRemoveEmployee(emp.employee_id)}
+                        >
+                          <CloseIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      }
+                      sx={{ py: 0.5, px: 1 }}
+                    >
+                      <PersonIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                      {emp.full_name}
+                      {emp.job_title ? ` (${emp.job_title})` : ""}
+                    </Chip>
+                  ))}
+                </Box>
+              )}
+
+              {/* Employee search */}
+              <FormControl>
+                <FormLabel>Search & Add Employee</FormLabel>
+                <Input
+                  placeholder="Type employee name to search..."
+                  value={employeeSearchQuery}
+                  onChange={(e) => setEmployeeSearchQuery(e.target.value)}
+                  startDecorator={<SearchIcon sx={{ color: "neutral.400" }} />}
+                  endDecorator={employeeSearchLoading ? <CircularProgress size="sm" /> : null}
+                  sx={{ mb: 1 }}
+                />
+              </FormControl>
+
+              {/* Search results dropdown */}
+              {employeeSearchResults.length > 0 && (
+                <Sheet
+                  variant="outlined"
+                  sx={{
+                    borderRadius: "8px",
+                    maxHeight: 200,
+                    overflowY: "auto",
+                    p: 0
+                  }}
+                >
+                  {employeeSearchResults.map((emp) => {
+                    const empId = emp.employee_id || emp.id;
+                    const empName = emp.full_name || emp.name || `Employee #${empId}`;
+                    const empTitle = emp.job_title || "";
+                    const isAlreadyAdded = (formData.employees || []).some(e => e.employee_id === empId);
+                    return (
+                      <Box
+                        key={empId}
+                        onClick={() => !isAlreadyAdded && handleAddEmployee({
+                          employee_id: empId,
+                          full_name: empName,
+                          job_title: empTitle
+                        })}
+                        sx={{
+                          p: 1.5,
+                          cursor: isAlreadyAdded ? "default" : "pointer",
+                          opacity: isAlreadyAdded ? 0.5 : 1,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          borderBottom: "1px solid",
+                          borderColor: "divider",
+                          "&:hover": !isAlreadyAdded ? {
+                            bgcolor: "primary.softBg"
+                          } : {},
+                          "&:last-child": { borderBottom: "none" }
+                        }}
+                      >
+                        <PersonIcon sx={{ color: "primary.500", fontSize: 20 }} />
+                        <Box>
+                          <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                            {empName}
+                          </Typography>
+                          {empTitle && (
+                            <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                              {empTitle}
+                            </Typography>
+                          )}
+                        </Box>
+                        {isAlreadyAdded && (
+                          <Chip size="sm" variant="soft" color="success" sx={{ ml: "auto" }}>
+                            Added
+                          </Chip>
+                        )}
+                      </Box>
+                    );
+                  })}
+                </Sheet>
+              )}
+
+              {employeeSearchQuery.length >= 2 && employeeSearchResults.length === 0 && !employeeSearchLoading && (
+                <Typography level="body-xs" sx={{ color: "neutral.500", mt: 1 }}>
+                  No employees found for "{employeeSearchQuery}"
+                </Typography>
+              )}
+            </Card>
+
+            {/* Row 5: Action Buttons */}
             <EditActionButtons
               onUpdate={handleUpdateRecord}
               onCancel={handleCancel}

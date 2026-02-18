@@ -1,6 +1,11 @@
 // src/pages/DoctorHistoryPage.js
+// Phase D — Doctor history switched to real V2 profile contract
+// Phase D — V2 seasonal Word download handler
+// Phase D — role guard restricted to software_admin + complaint_department_worker
+// Phase 2 — FAB for reports
 import React, { useState } from "react";
-import { Box, Typography, Alert } from "@mui/joy";
+import { Box, Typography, Alert, CircularProgress, Button, Card, Select, Option } from "@mui/joy";
+import DescriptionIcon from '@mui/icons-material/Description';
 import theme from '../theme';
 import MainLayout from "../components/common/MainLayout";
 import SearchDoctor from "../components/doctorHistory/SearchDoctor";
@@ -8,224 +13,200 @@ import DoctorProfileCard from "../components/doctorHistory/DoctorProfileCard";
 import DoctorStatisticsCards from "../components/doctorHistory/DoctorStatisticsCards";
 import DoctorCharts from "../components/doctorHistory/DoctorCharts";
 import DoctorIncidentsTable from "../components/doctorHistory/DoctorIncidentsTable";
-import DoctorReportActions from "../components/doctorHistory/DoctorReportActions";
+import SeasonSelector from "../components/personReporting/SeasonSelector";
+import { getDoctorFullHistoryV2, exportDoctorCsvV2, exportDoctorJsonV2, exportDoctorWordV2, downloadDoctorSeasonalWordV2, downloadAllDoctorsSeasonalWordV2, downloadBlobFile } from "../api/personApiV2";
+import { useAuth } from "../context/AuthContext";
+import { canViewPersonReporting } from "../utils/roleGuards";
 
 const DoctorHistoryPage = ({ embedded = false }) => {
+  // Phase D — standardized loading and empty states
+  const { user } = useAuth();
   const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [doctorProfile, setDoctorProfile] = useState(null);
+  const [doctorMetrics, setDoctorMetrics] = useState(null);
+  const [doctorItems, setDoctorItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [selectedSeason, setSelectedSeason] = useState(null);
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [reportError, setReportError] = useState(null);
+  
+  // Export state
+  const [exportFormat, setExportFormat] = useState('word');
+  const [exporting, setExporting] = useState(false);
+  
+  // Report scope state - always 'all' for aggregate reports
+  const [reportScope] = useState('all'); // Always ALL doctors
 
-  // Mock doctors data
-  const mockDoctors = [
-    {
-      id: 1,
-      employeeId: "DOC-2024-001",
-      nameEn: "Dr. Ahmed Mohamed",
-      nameAr: "د. أحمد محمد",
-      department: "Cardiology",
-      specialty: "Cardiologist",
-      hireDate: "2020-01-15",
-      status: "active",
-    },
-    {
-      id: 2,
-      employeeId: "DOC-2024-002",
-      nameEn: "Dr. Fatima Ali",
-      nameAr: "د. فاطمة علي",
-      department: "Emergency",
-      specialty: "Emergency Medicine",
-      hireDate: "2019-06-20",
-      status: "active",
-    },
-    {
-      id: 3,
-      employeeId: "DOC-2024-003",
-      nameEn: "Dr. Khaled Hassan",
-      nameAr: "د. خالد حسن",
-      department: "ICU",
-      specialty: "Intensive Care",
-      hireDate: "2021-03-10",
-      status: "active",
-    },
-    {
-      id: 4,
-      employeeId: "DOC-2024-004",
-      nameEn: "Dr. Sara Ibrahim",
-      nameAr: "د. سارة إبراهيم",
-      department: "Pediatrics",
-      specialty: "Pediatrician",
-      hireDate: "2018-09-05",
-      status: "active",
-    },
-  ];
+  // Phase D — role guard: Check authorization
+  const isAuthorized = canViewPersonReporting(user);
 
-  // Mock doctor incidents data
-  const mockDoctorIncidents = {
-    1: { // Dr. Ahmed Mohamed
-      statistics: {
-        total: 12,
-        high: 3,
-        medium: 7,
-        low: 2,
-        redFlags: 1,
-      },
-      categoryBreakdown: [
-        { name: "Medication Errors", count: 4 },
-        { name: "Delayed Diagnosis", count: 3 },
-        { name: "Communication Issues", count: 3 },
-        { name: "Clinical Judgment", count: 2 },
-      ],
-      monthlyTrend: [
-        { month: "Jul", count: 1 },
-        { month: "Aug", count: 2 },
-        { month: "Sep", count: 3 },
-        { month: "Oct", count: 2 },
-        { month: "Nov", count: 3 },
-        { month: "Dec", count: 1 },
-      ],
-      incidents: [
-        {
-          id: 1,
-          date: "2024-12-05",
-          incidentId: "INC-2024-0089",
-          patientId: "P-12345",
-          category: "Medication Error",
-          categoryAr: "خطأ في الدواء",
-          severity: "HIGH",
-          status: "UNDER_REVIEW",
-          isRedFlag: true,
-        },
-        {
-          id: 2,
-          date: "2024-11-22",
-          incidentId: "INC-2024-0078",
-          patientId: "P-12346",
-          category: "Delayed Diagnosis",
-          categoryAr: "تأخر في التشخيص",
-          severity: "MEDIUM",
-          status: "CLOSED",
-          isRedFlag: false,
-        },
-        {
-          id: 3,
-          date: "2024-11-15",
-          incidentId: "INC-2024-0070",
-          patientId: "P-12347",
-          category: "Communication",
-          categoryAr: "مشاكل التواصل",
-          severity: "LOW",
-          status: "CLOSED",
-          isRedFlag: false,
-        },
-        {
-          id: 4,
-          date: "2024-10-30",
-          incidentId: "INC-2024-0062",
-          patientId: "P-12348",
-          category: "Medication Error",
-          categoryAr: "خطأ في الدواء",
-          severity: "HIGH",
-          status: "CLOSED",
-          isRedFlag: false,
-        },
-        {
-          id: 5,
-          date: "2024-10-18",
-          incidentId: "INC-2024-0055",
-          patientId: "P-12349",
-          category: "Clinical Judgment",
-          categoryAr: "حكم سريري",
-          severity: "MEDIUM",
-          status: "CLOSED",
-          isRedFlag: false,
-        },
-        {
-          id: 6,
-          date: "2024-09-25",
-          incidentId: "INC-2024-0048",
-          patientId: "P-12350",
-          category: "Delayed Diagnosis",
-          categoryAr: "تأخر في التشخيص",
-          severity: "MEDIUM",
-          status: "CLOSED",
-          isRedFlag: false,
-        },
-        {
-          id: 7,
-          date: "2024-09-12",
-          incidentId: "INC-2024-0042",
-          patientId: "P-12351",
-          category: "Communication",
-          categoryAr: "مشاكل التواصل",
-          severity: "LOW",
-          status: "CLOSED",
-          isRedFlag: false,
-        },
-        {
-          id: 8,
-          date: "2024-08-28",
-          incidentId: "INC-2024-0035",
-          patientId: "P-12352",
-          category: "Medication Error",
-          categoryAr: "خطأ في الدواء",
-          severity: "MEDIUM",
-          status: "CLOSED",
-          isRedFlag: false,
-        },
-        {
-          id: 9,
-          date: "2024-08-15",
-          incidentId: "INC-2024-0030",
-          patientId: "P-12353",
-          category: "Clinical Judgment",
-          categoryAr: "حكم سريري",
-          severity: "HIGH",
-          status: "CLOSED",
-          isRedFlag: false,
-        },
-        {
-          id: 10,
-          date: "2024-07-20",
-          incidentId: "INC-2024-0022",
-          patientId: "P-12354",
-          category: "Delayed Diagnosis",
-          categoryAr: "تأخر في التشخيص",
-          severity: "MEDIUM",
-          status: "CLOSED",
-          isRedFlag: false,
-        },
-        {
-          id: 11,
-          date: "2024-11-08",
-          incidentId: "INC-2024-0065",
-          patientId: "P-12355",
-          category: "Communication",
-          categoryAr: "مشاكل التواصل",
-          severity: "MEDIUM",
-          status: "OPEN",
-          isRedFlag: false,
-        },
-        {
-          id: 12,
-          date: "2024-09-05",
-          incidentId: "INC-2024-0040",
-          patientId: "P-12356",
-          category: "Medication Error",
-          categoryAr: "خطأ في الدواء",
-          severity: "MEDIUM",
-          status: "CLOSED",
-          isRedFlag: false,
-        },
-      ],
-    },
+  // Fetch doctor full history from V2 API (new unified endpoint)
+  const fetchDoctorData = async (doctorId) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Call V2 API with doctor ID - using new full-history endpoint
+      const data = await getDoctorFullHistoryV2(doctorId);
+      
+      // Extract V2 contract fields: profile, metrics, items, meta
+      setDoctorProfile(data.profile || null);
+      setDoctorMetrics(data.metrics || null);
+      setDoctorItems(data.items || []);
+      
+      console.log("Doctor data loaded successfully (V2)", { 
+        profile: data.profile, 
+        metricsCount: Object.keys(data.metrics || {}).length,
+        itemsCount: (data.items || []).length 
+      });
+    } catch (err) {
+      setError(err.message || "Failed to load doctor data. Please try again.");
+      console.error("Error fetching doctor data:", err);
+      setDoctorProfile(null);
+      setDoctorMetrics(null);
+      setDoctorItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle export using V2 API
+  const handleExport = async (format) => {
+    if (!selectedDoctor) return;
+
+    const doctorId = selectedDoctor.doctor_id || selectedDoctor.employeeId || selectedDoctor.id;
+    if (!doctorId) return;
+
+    try {
+      setExporting(true);
+      let blob;
+      let fileExtension = format;
+      
+      if (format === "csv") {
+        blob = await exportDoctorCsvV2(doctorId);
+      } else if (format === "json") {
+        blob = await exportDoctorJsonV2(doctorId);
+      } else if (format === "word") {
+        blob = await exportDoctorWordV2(doctorId);
+        fileExtension = "docx";
+      }
+
+      // Download the blob
+      const doctorName = doctorProfile?.full_name || doctorProfile?.nameEn || doctorProfile?.name || doctorId;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${doctorName}_history_${new Date().toISOString().split("T")[0]}.${fileExtension}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setSuccess(`Doctor history exported as ${format.toUpperCase()}!`);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(`Failed to export as ${format.toUpperCase()}: ${err.message}`);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleDoctorSelect = (doctor) => {
     setSelectedDoctor(doctor);
+    // Fetch data using doctor_id, employeeId, or id
+    const doctorId = doctor.doctor_id || doctor.employeeId || doctor.id;
+    if (doctorId) {
+      fetchDoctorData(doctorId);
+    }
   };
 
-  const doctorData = selectedDoctor ? mockDoctorIncidents[selectedDoctor.id] : null;
+  // Handle season selection
+  const handleSeasonChange = (season) => {
+    setSelectedSeason(season);
+    setReportError(null);
+  };
+
+  // Generate seasonal Word report
+  const handleGenerateSeasonalReport = async () => {
+    // Validate season selection
+    if (!selectedSeason?.season_start || !selectedSeason?.season_end) {
+      return;
+    }
+
+    // For 'single' scope, require a selected doctor
+    if (reportScope === 'single' && !selectedDoctor) {
+      return;
+    }
+
+    try {
+      setGeneratingReport(true);
+      setReportError(null);
+
+      let blob;
+      let filename;
+
+      if (reportScope === 'all') {
+        // Generate report for ALL doctors
+        console.log("Generating ALL doctors seasonal report:", {
+          season_start: selectedSeason.season_start,
+          season_end: selectedSeason.season_end
+        });
+
+        blob = await downloadAllDoctorsSeasonalWordV2(
+          selectedSeason.season_start,
+          selectedSeason.season_end
+        );
+
+        filename = `all_doctors_seasonal_${selectedSeason.quarter}_${selectedSeason.year}.docx`;
+      } else {
+        // Generate report for single selected doctor
+        const doctorId = selectedDoctor.doctor_id || selectedDoctor.employeeId || selectedDoctor.id;
+        
+        console.log("Generating doctor seasonal report:", {
+          doctorId,
+          season_start: selectedSeason.season_start,
+          season_end: selectedSeason.season_end
+        });
+
+        blob = await downloadDoctorSeasonalWordV2(
+          doctorId,
+          selectedSeason.season_start,
+          selectedSeason.season_end
+        );
+
+        const doctorName = doctorProfile?.full_name || doctorProfile?.nameEn || doctorProfile?.name || doctorId;
+        const sanitizedName = doctorName.replace(/[^a-zA-Z0-9]/g, '_');
+        filename = `doctor_${sanitizedName}_seasonal_${selectedSeason.quarter}_${selectedSeason.year}.docx`;
+      }
+
+      // Trigger download
+      downloadBlobFile(blob, filename);
+
+      console.log("✅ Report downloaded:", filename);
+    } catch (err) {
+      console.error("❌ Error generating seasonal report:", err);
+      setReportError(err.message || "Failed to generate seasonal report. Please try again.");
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
 
   const content = (
       <Box sx={{ p: 3 }}>
+        {/* Phase D — role guard: Not authorized guard */}
+        {!isAuthorized ? (
+          <Alert color="danger" sx={{ textAlign: "center", p: 4 }}>
+            <Typography level="h6" sx={{ mb: 1 }}>
+              🚫 Not Authorized
+            </Typography>
+            <Typography level="body-sm">
+              You do not have permission to view this page. This page is restricted to Software Admins and Complaint Department Workers.
+            </Typography>
+          </Alert>
+        ) : (
+        <>
         {/* Page Header */}
         <Box sx={{ mb: 4 }}>
           <Typography
@@ -246,58 +227,175 @@ const DoctorHistoryPage = ({ embedded = false }) => {
         </Box>
 
         {/* Search Component */}
-        <SearchDoctor onDoctorSelect={handleDoctorSelect} doctors={mockDoctors} />
+        <SearchDoctor onDoctorSelect={handleDoctorSelect} />
 
-        {/* Doctor Data Display */}
-        {selectedDoctor && doctorData ? (
+        {/* Success Alerts */}
+        {success && (
+          <Alert color="success" sx={{ mb: 3 }} onClose={() => setSuccess(null)}>
+            {success}
+          </Alert>
+        )}
+
+        {/* Phase D — standardized loading and empty states */}
+        {/* Conditional render order: error → loading → empty → content */}
+        {error && !loading ? (
+          <Alert color="danger" sx={{ mb: 3 }}>  
+            {error}
+          </Alert>
+        ) : loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
+            <CircularProgress size="lg" />
+            <Typography level="body-md" sx={{ ml: 2, color: "#666" }}>
+              Loading doctor data...
+            </Typography>
+          </Box>
+        ) : selectedDoctor && doctorProfile ? (
           <>
             {/* Doctor Profile Card */}
-            <DoctorProfileCard doctor={selectedDoctor} />
+            <DoctorProfileCard doctor={doctorProfile} />
 
             {/* Statistics Cards */}
-            <DoctorStatisticsCards statistics={doctorData.statistics} />
+            {doctorMetrics && (
+              <DoctorStatisticsCards statistics={doctorMetrics} />
+            )}
 
-            {/* Charts */}
-            <DoctorCharts
-              categoryBreakdown={doctorData.categoryBreakdown}
-              monthlyTrend={doctorData.monthlyTrend}
-            />
+            {/* Charts - only if data available */}
+            {doctorMetrics?.categoryBreakdown && doctorMetrics?.monthlyTrend && (
+              <DoctorCharts
+                categoryBreakdown={doctorMetrics.categoryBreakdown}
+                monthlyTrend={doctorMetrics.monthlyTrend}
+              />
+            )}
 
             {/* Incidents Table */}
-            <DoctorIncidentsTable incidents={doctorData.incidents} />
+            <DoctorIncidentsTable incidents={doctorItems} />
 
-            {/* Report Actions */}
-            <DoctorReportActions doctorName={selectedDoctor.nameEn} />
+            {/* Export Actions - Centered Section */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+              <Card sx={{ p: 3, minWidth: 340, maxWidth: 420, width: '100%', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', boxShadow: '0 8px 32px rgba(102, 126, 234, 0.2)', border: 'none' }}>
+                <Typography
+                  level="body-md"
+                  sx={{ fontWeight: 700, color: 'white', mb: 2, display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}
+                >
+                  <DescriptionIcon sx={{ fontSize: 20 }} />
+                  تصدير بيانات الطبيب
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  <Select
+                    size="sm"
+                    placeholder="اختر الصيغة"
+                    value={exportFormat}
+                    onChange={(e, value) => setExportFormat(value)}
+                    sx={{ width: '100%', background: 'white', '&:hover': { background: 'white' } }}
+                  >
+                    <Option value="word">Word Report (.docx)</Option>
+                    <Option value="csv">CSV</Option>
+                    <Option value="json">JSON</Option>
+                  </Select>
+                  <Button
+                    size="md"
+                    variant="solid"
+                    loading={exporting}
+                    disabled={!exportFormat || exporting}
+                    onClick={() => handleExport(exportFormat)}
+                    sx={{ width: '100%', background: 'white', color: '#667eea', fontWeight: 700, '&:hover': { background: 'rgba(255, 255, 255, 0.9)' } }}
+                  >
+                    تصدير البيانات
+                  </Button>
+                </Box>
+              </Card>
+            </Box>
           </>
-        ) : (
+        ) : selectedDoctor && !doctorProfile && !loading ? (
+          <Alert color="warning" sx={{ mb: 3 }}>
+            No data found for selected doctor
+          </Alert>
+        ) : !selectedDoctor && !loading ? (
           <Alert
             sx={{
               background: "linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)",
               borderColor: "rgba(102, 126, 234, 0.3)",
-              color: theme.colors.primary,
+              textAlign: "center",
+              p: 4,
             }}
           >
-            👆 Please search and select a doctor to view their history and performance data
+            <Typography level="h6" sx={{ color: "#667eea", mb: 1 }}>
+              Select a doctor to view profile and generate report
+            </Typography>
+            <Typography level="body-sm" sx={{ color: "#666" }}>
+              Use the search above to find and select a doctor
+            </Typography>
           </Alert>
-        )}
+        ) : null}
 
-        {/* Info Footer */}
-        <Box
-          sx={{
-            mt: 4,
-            p: 3,
-            background: "linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)",
-            borderRadius: "8px",
-            border: "1px solid rgba(102, 126, 234, 0.2)",
-          }}
-        >
-          <Typography level="body-sm" sx={{ fontWeight: 700, color: theme.colors.primary, mb: 1 }}>
-            💡 Development Mode
+        {/* ALL Doctors Aggregate Report Section - At Bottom */}
+        <Box sx={{ mt: 5, pt: 4, borderTop: '2px solid #eee' }}>
+          <Typography level="h5" sx={{ mb: 3, fontWeight: 700, color: '#667eea', textAlign: 'center' }}>
+            📊 Aggregate Reports for ALL Doctors
           </Typography>
-          <Typography level="body-xs" sx={{ color: "#666" }}>
-            Currently using <strong>mock data</strong>. Once the database is ready, this page will connect to real incident records linked to doctors.
-          </Typography>
+          
+          <Card sx={{ p: 4, background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)', border: '2px solid rgba(102, 126, 234, 0.2)', textAlign: 'center' }}>
+            <Typography level="body-md" sx={{ mb: 3, color: '#666' }}>
+              Generate a comprehensive seasonal report for all doctors in the system
+            </Typography>
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 400, mx: 'auto', alignItems: 'center' }}>
+              <SeasonSelector
+                value={selectedSeason}
+                onChange={handleSeasonChange}
+              />
+
+              <Button
+                size="lg"
+                variant="solid"
+                startDecorator={<DescriptionIcon />}
+                loading={generatingReport}
+                disabled={
+                  !selectedSeason?.season_start || 
+                  !selectedSeason?.season_end || 
+                  generatingReport
+                }
+                onClick={handleGenerateSeasonalReport}
+                sx={{ 
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: '1rem',
+                  py: 1.5,
+                  px: 4,
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #5a6fd6 0%, #6a42a0 100%)',
+                    boxShadow: '0 6px 20px rgba(102, 126, 234, 0.6)',
+                    transform: 'translateY(-2px)',
+                  },
+                  '&:active': {
+                    transform: 'translateY(0)',
+                    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.4)',
+                  },
+                  '&:disabled': {
+                    background: '#ccc',
+                    color: '#999',
+                    boxShadow: 'none',
+                    transform: 'none',
+                  }
+                }}
+              >
+                📄 Generate Report for ALL Doctors
+              </Button>
+
+              {reportError && (
+                <Alert color="danger" size="sm">
+                  {reportError}
+                </Alert>
+              )}
+            </Box>
+          </Card>
         </Box>
+        </>
+        )}
       </Box>
   );
 

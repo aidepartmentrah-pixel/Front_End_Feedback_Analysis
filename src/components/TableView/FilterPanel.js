@@ -37,7 +37,6 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
         background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
         border: `1px solid ${theme.colors.primary}1A`,
         position: "relative",
-        zIndex: 10,
       }}
     >
       {/* Header */}

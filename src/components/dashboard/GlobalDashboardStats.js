@@ -1,6 +1,8 @@
 // src/components/dashboard/GlobalDashboardStats.js
 import React, { useState } from "react";
 import { Grid, Box, Modal, ModalDialog, Typography, Sheet, Button, Select, Option, IconButton, Menu, MenuItem } from "@mui/joy";
+import { useAuth } from "../../context/AuthContext";
+import { hasFullOperationalAccess } from "../../utils/roleGuards";
 import MetricCard from "./MetricCard";
 import ChartCard from "./ChartCard";
 import UniversalChart from "./UniversalChart";
@@ -8,6 +10,7 @@ import RecentActivityFeed from "./RecentActivityFeed";
 import TuneIcon from "@mui/icons-material/Tune";
 
 const GlobalDashboardStats = ({ stats, loading, chartModes = {}, setChartModes = () => {}, chartTypes = {}, setChartTypes = () => {} }) => {
+  const { user } = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState({ title: "", data: [] });
   const [chartMenuAnchor, setChartMenuAnchor] = useState({
@@ -334,8 +337,10 @@ const GlobalDashboardStats = ({ stats, loading, chartModes = {}, setChartModes =
             </Grid>
           </Grid>
 
-          {/* Recent Activity Feed */}
-          <RecentActivityFeed recentActivity={recentActivity} />
+          {/* Recent Activity Feed - Hidden for limited admins (3 monkeys) */}
+          {hasFullOperationalAccess(user) && (
+            <RecentActivityFeed recentActivity={recentActivity} />
+          )}
         </>
       )}
 

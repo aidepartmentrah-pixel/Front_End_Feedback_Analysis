@@ -1,0 +1,64 @@
+.section-card {
+  background: #f8f9fa;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  cursor: pointer;
+  background: white;
+  border-bottom: 1px solid #e9ecef;
+  transition: background-color 0.2s;
+}
+
+.section-header:hover {
+  background-color: #f8f9fa;
+}
+
+.section-info {
+  flex: 1;
+}
+
+.section-name {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  color: #2d3436;
+}
+
+.section-meta {
+  display: flex;
+  gap: 24px;
+  font-size: 14px;
+  color: #636e72;
+}
+
+.supervisor {
+  font-weight: 600;
+}
+
+.pending-count {
+  color: #d63031;
+  font-weight: 700;
+}
+
+.expand-indicator {
+  color: #0984e3;
+  font-weight: 600;
+  font-size: 14px;
+  user-select: none;
+}
+
+.section-body {
+  padding: 16px 20px;
+  background: #f8f9fa;
+}
+
+.subcases-list {
+  /* Subcases are styled by SubcaseCard.css */
+}

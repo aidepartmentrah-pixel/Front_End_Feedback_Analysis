@@ -20,7 +20,20 @@ const DepartmentBreakdownCard = ({ data, loading, error }) => {
     );
   }
 
-  if (!data || !data.departments || data.departments.length === 0) {
+  // Check if data exists first
+  if (!data) {
+    return (
+      <Card sx={{ p: 3, height: '100%' }}>
+        <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>🏥 الرايات الحمراء حسب الإدارة</Typography>
+        <Typography level="body-md" color="neutral">جاري التحميل...</Typography>
+      </Card>
+    );
+  }
+
+  // Map API response (uses 'breakdown' not 'departments')
+  const departments = data.breakdown || data.departments || [];
+  
+  if (departments.length === 0) {
     return (
       <Card sx={{ p: 3, height: '100%' }}>
         <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>🏥 الرايات الحمراء حسب الإدارة</Typography>
@@ -51,12 +64,12 @@ const DepartmentBreakdownCard = ({ data, loading, error }) => {
     <Card sx={{ p: 3, height: '100%' }}>
       <Typography level="h4" sx={{ mb: 1, fontWeight: 600 }}>🏥 الرايات الحمراء حسب الإدارة</Typography>
       <Typography level="body-sm" color="neutral" sx={{ mb: 3 }}>
-        {data.period} • الإجمالي: {data.total}
+        {data.period || 'جميع الفترات'} • الإجمالي: {data.total}
       </Typography>
 
       {/* Department List with Horizontal Bars */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {data.departments.map((dept, index) => (
+        {departments.map((dept, index) => (
           <Box key={index}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
               <Typography level="body-md" fontWeight={600}>
@@ -95,9 +108,9 @@ const DepartmentBreakdownCard = ({ data, loading, error }) => {
         ))}
       </Box>
 
-      {data.departments.length >= 10 && (
+      {departments.length >= 10 && (
         <Typography level="body-xs" color="neutral" sx={{ mt: 2, textAlign: 'center' }}>
-          عرض أعلى {data.departments.length} إدارات
+          عرض أعلى {departments.length} إدارات
         </Typography>
       )}
     </Card>
