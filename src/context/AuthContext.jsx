@@ -24,10 +24,15 @@ export const AuthProvider = ({ children }) => {
       const rawUser = response.data.user;
 
       // Defensive normalization: ensure identity fields always exist
+      // Also normalize role (string) to roles (array) for consistency
       const normalizedUser = {
         ...rawUser,
         display_name: rawUser.display_name ?? rawUser.username ?? null,
-        department_display_name: rawUser.department_display_name ?? null
+        department_display_name: rawUser.department_display_name ?? null,
+        // Normalize role handling: backend may return role_name (string) or roles (array)
+        roles: rawUser.roles 
+          || (rawUser.role_name ? [rawUser.role_name] : null)
+          || (rawUser.role ? [rawUser.role] : []),
       };
 
       setUser(normalizedUser);
@@ -44,10 +49,14 @@ export const AuthProvider = ({ children }) => {
 
   const login = (userData) => {
     // Apply same defensive normalization on login
+    // Normalize role handling: backend may return role_name (string) or roles (array)
     const normalizedUser = {
       ...userData,
       display_name: userData.display_name ?? userData.username ?? null,
-      department_display_name: userData.department_display_name ?? null
+      department_display_name: userData.department_display_name ?? null,
+      roles: userData.roles 
+        || (userData.role_name ? [userData.role_name] : null)
+        || (userData.role ? [userData.role] : []),
     };
     
     setUser(normalizedUser);

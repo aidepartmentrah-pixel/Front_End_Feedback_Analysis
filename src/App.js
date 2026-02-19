@@ -2,6 +2,9 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
+// Internationalization (i18n) - Arabic default
+import './i18n';
+
 // Auth
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";

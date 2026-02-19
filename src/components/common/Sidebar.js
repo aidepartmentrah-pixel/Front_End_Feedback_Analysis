@@ -48,6 +48,7 @@ const Sidebar = () => {
     { name: "📋 Table View", path: "/table-view", canShow: canViewTableView },
     { name: "➕ Insert Record", path: "/insert", canShow: canViewInsertRecord },
     { name: "📋 History", path: "/history", canShow: canViewPersonReporting },
+
     { name: "📝 Drawer Notes", path: "/drawer-notes", canShow: canAccessDrawerNotes },
     { name: "🚩 Critical Issues", path: "/critical-issues", canShow: canViewCriticalIssues },
     { name: "🔄 Data Migration", path: "/migration", canShow: canAccessMigration },

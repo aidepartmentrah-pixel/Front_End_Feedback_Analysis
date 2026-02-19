@@ -159,8 +159,22 @@ const EditUserDialog = ({ open, user, onClose, onSaved }) => {
       onSaved();
       onClose();
     } catch (error) {
-      const errorMessage =
-        error.response?.data?.detail || error.message || "Failed to update user";
+      // Handle different error formats from backend
+      let errorMessage = "Failed to update user";
+      const detail = error.response?.data?.detail;
+      
+      if (typeof detail === 'string') {
+        errorMessage = detail;
+      } else if (Array.isArray(detail)) {
+        // Pydantic validation errors come as array of {type, loc, msg, input}
+        errorMessage = detail.map(err => err.msg || err.message || JSON.stringify(err)).join(', ');
+      } else if (detail && typeof detail === 'object') {
+        // Single error object
+        errorMessage = detail.msg || detail.message || JSON.stringify(detail);
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       setApiError(errorMessage);
     } finally {
       setIsSubmitting(false);

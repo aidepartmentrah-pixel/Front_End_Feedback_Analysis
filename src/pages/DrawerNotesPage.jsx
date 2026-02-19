@@ -19,12 +19,17 @@ import {
   Alert,
   Select,  Option,
   IconButton,
+  Autocomplete,
+  AutocompleteOption,
+  Input,
 } from '@mui/joy';
 import AddIcon from '@mui/icons-material/Add';
 import DescriptionIcon from '@mui/icons-material/Description';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SettingsIcon from '@mui/icons-material/Settings';
+import PersonIcon from '@mui/icons-material/Person';
+import ClearIcon from '@mui/icons-material/Clear';
 
 import MainLayout from '../components/common/MainLayout';
 import { useAuth } from '../context/AuthContext';
@@ -38,6 +43,7 @@ import {
   exportDrawerNotesWord,
 } from '../api/drawerNotesApi';
 import { listDrawerLabels } from '../api/drawerLabelsApi';
+import { searchPatientsV2 } from '../api/personApiV2';
 import { downloadBlob } from '../api/reports';
 import LabelManagerDialog from '../components/drawer/LabelManagerDialog';
 
@@ -64,6 +70,11 @@ const DrawerNotesPage = () => {
 
   // Filter
   const [selectedLabelIds, setSelectedLabelIds] = useState([]);
+  const [filterPatientId, setFilterPatientId] = useState(null);
+  const [filterPatient, setFilterPatient] = useState(null);
+  const [filterPatientOptions, setFilterPatientOptions] = useState([]);
+  const [filterPatientLoading, setFilterPatientLoading] = useState(false);
+  const [filterPatientInput, setFilterPatientInput] = useState('');
 
   // Dialogs
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -74,6 +85,10 @@ const DrawerNotesPage = () => {
   // Form state
   const [noteText, setNoteText] = useState('');
   const [noteLabels, setNoteLabels] = useState([]);
+  const [notePatient, setNotePatient] = useState(null);
+  const [notePatientOptions, setNotePatientOptions] = useState([]);
+  const [notePatientLoading, setNotePatientLoading] = useState(false);
+  const [notePatientInput, setNotePatientInput] = useState('');
   const [currentEditNote, setCurrentEditNote] = useState(null);
   const [noteToDelete, setNoteToDelete] = useState(null);
 
@@ -90,7 +105,7 @@ const DrawerNotesPage = () => {
       loadLabels();
       loadNotes();
     }
-  }, [canAccessDrawerNotes, selectedLabelIds, offset]);
+  }, [canAccessDrawerNotes, selectedLabelIds, filterPatientId, offset]);
 
   useEffect(() => {
     if (success) {
@@ -105,6 +120,7 @@ const DrawerNotesPage = () => {
       setError(null);
       const response = await listDrawerNotes({
         labelIds: selectedLabelIds,
+        patientAdmissionId: filterPatientId,
         limit,
         offset,
       });
@@ -170,11 +186,86 @@ const DrawerNotesPage = () => {
   };
 
   // ============================
+  // PATIENT SEARCH HANDLERS
+  // ============================
+  
+  // Handler for filter patient search
+  const handleFilterPatientInputChange = async (event, newInputValue) => {
+    setFilterPatientInput(newInputValue);
+    
+    if (newInputValue.length < 2) {
+      setFilterPatientOptions([]);
+      return;
+    }
+    
+    try {
+      setFilterPatientLoading(true);
+      const response = await searchPatientsV2(newInputValue, 20);
+      const patients = response.patients || [];
+      setFilterPatientOptions(Array.isArray(patients) ? patients : []);
+    } catch (err) {
+      console.error('Filter patient search error:', err);
+      setFilterPatientOptions([]);
+    } finally {
+      setFilterPatientLoading(false);
+    }
+  };
+  
+  const handleFilterPatientChange = (event, newValue) => {
+    setFilterPatient(newValue);
+    setFilterPatientId(newValue?.patient_id || null);
+    setOffset(0); // Reset pagination when filter changes
+  };
+  
+  const clearPatientFilter = () => {
+    setFilterPatient(null);
+    setFilterPatientId(null);
+    setFilterPatientInput('');
+    setFilterPatientOptions([]);
+    setOffset(0);
+  };
+  
+  // Handler for note patient search (create/edit dialogs)
+  const handleNotePatientInputChange = async (event, newInputValue) => {
+    setNotePatientInput(newInputValue);
+    
+    if (newInputValue.length < 2) {
+      setNotePatientOptions([]);
+      return;
+    }
+    
+    try {
+      setNotePatientLoading(true);
+      const response = await searchPatientsV2(newInputValue, 20);
+      const patients = response.patients || [];
+      setNotePatientOptions(Array.isArray(patients) ? patients : []);
+    } catch (err) {
+      console.error('Note patient search error:', err);
+      setNotePatientOptions([]);
+    } finally {
+      setNotePatientLoading(false);
+    }
+  };
+  
+  const handleNotePatientChange = (event, newValue) => {
+    setNotePatient(newValue);
+  };
+  
+  const clearNotePatient = () => {
+    setNotePatient(null);
+    setNotePatientInput('');
+    setNotePatientOptions([]);
+  };
+
+  // ============================
   // CREATE NOTE
   // ============================
   const handleOpenCreateDialog = () => {
     setNoteText('');
     setNoteLabels([]);
+    setNotePatient(null);
+    setNotePatientInput('');
+    setNotePatientOptions([]);
     setCreateDialogOpen(true);
   };
 
@@ -196,6 +287,7 @@ const DrawerNotesPage = () => {
       await createDrawerNote({
         note_text: noteText.trim(),
         label_ids: noteLabels,
+        patient_admission_id: notePatient?.patient_id || null,
       });
 
       setSuccess('Note created successfully');
@@ -217,6 +309,17 @@ const DrawerNotesPage = () => {
     setCurrentEditNote(note);
     setNoteText(note.note_text || '');
     setNoteLabels(note.label_ids || note.labels?.map(l => l.id) || []);
+    // Set patient if note has one linked
+    if (note.patient_admission_id) {
+      setNotePatient({
+        patient_id: note.patient_admission_id,
+        full_name: note.patient_name || 'Unknown Patient'
+      });
+    } else {
+      setNotePatient(null);
+    }
+    setNotePatientInput('');
+    setNotePatientOptions([]);
     setEditDialogOpen(true);
   };
 
@@ -351,7 +454,7 @@ const DrawerNotesPage = () => {
         {/* Header */}
         <Box sx={{ mb: 3 }}>
           <Typography level="h2" sx={{ fontWeight: 700, mb: 1 }}>
-            📝 Drawer Notes
+          📝 Drawer Notes
           </Typography>
           <Typography level="body-sm" sx={{ color: '#666' }}>
             Unclassified notes repository for internal use only
@@ -438,6 +541,55 @@ const DrawerNotesPage = () => {
                 })}
               </Select>
             </FormControl>
+            
+            {/* Patient Filter */}
+            <FormControl sx={{ flex: 1, minWidth: 280 }}>
+              <FormLabel>Filter by Patient</FormLabel>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Autocomplete
+                  placeholder="Search patient by name or MRN..."
+                  options={filterPatientOptions}
+                  value={filterPatient}
+                  inputValue={filterPatientInput}
+                  onChange={handleFilterPatientChange}
+                  onInputChange={handleFilterPatientInputChange}
+                  loading={filterPatientLoading}
+                  getOptionLabel={(option) => {
+                    const name = option.full_name || 'Unknown';
+                    const mrn = option.mrn || 'N/A';
+                    return `${name} (${mrn})`;
+                  }}
+                  renderOption={(props, option) => (
+                    <AutocompleteOption {...props}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
+                        <PersonIcon sx={{ color: '#667eea', fontSize: '1.2rem' }} />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                            {option.full_name || 'Unknown'}
+                          </Typography>
+                          <Typography level="body-xs" sx={{ color: '#999' }}>
+                            MRN: {option.mrn || 'N/A'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </AutocompleteOption>
+                  )}
+                  endDecorator={filterPatientLoading ? <CircularProgress size="sm" /> : null}
+                  sx={{ flex: 1 }}
+                />
+                {filterPatient && (
+                  <IconButton
+                    size="sm"
+                    variant="plain"
+                    color="neutral"
+                    onClick={clearPatientFilter}
+                    title="Clear patient filter"
+                  >
+                    <ClearIcon />
+                  </IconButton>
+                )}
+              </Box>
+            </FormControl>
           </Box>
         </Card>
 
@@ -450,7 +602,7 @@ const DrawerNotesPage = () => {
           ) : notes.length === 0 ? (
             <Box sx={{ p: 4, textAlign: 'center' }}>
               <Typography level="body-md" sx={{ color: '#999' }}>
-                No notes found. {selectedLabelIds.length > 0 && 'Try adjusting your filters or '}Click "Add Note" to create one.
+                No notes found. {(selectedLabelIds.length > 0 || filterPatient) && 'Try adjusting your filters or '}Click "Add Note" to create one.
               </Typography>
             </Box>
           ) : (
@@ -460,7 +612,8 @@ const DrawerNotesPage = () => {
                   <tr>
                     <th style={{ width: '140px' }}>Created At</th>
                     <th style={{ width: '150px' }}>Author</th>
-                    <th style={{ width: '200px' }}>Labels</th>
+                    <th style={{ width: '180px' }}>Patient</th>
+                    <th style={{ width: '180px' }}>Labels</th>
                     <th>Note Text</th>
                     <th style={{ width: '120px' }}>Actions</th>
                   </tr>
@@ -475,8 +628,22 @@ const DrawerNotesPage = () => {
                       </td>
                       <td>
                         <Typography level="body-sm">
-                          {note.author_name || note.author || user?.display_name || '--'}
+                          {note.created_by_name || note.author_name || note.author || '--'}
                         </Typography>
+                      </td>
+                      <td>
+                        {note.patient_name ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <PersonIcon sx={{ fontSize: '1rem', color: '#667eea' }} />
+                            <Typography level="body-sm" sx={{ fontWeight: 500 }}>
+                              {note.patient_name}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Typography level="body-sm" sx={{ color: '#999', fontStyle: 'italic' }}>
+                            No patient linked
+                          </Typography>
+                        )}
                       </td>
                       <td>
                         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
@@ -554,7 +721,7 @@ const DrawerNotesPage = () => {
 
         {/* Create Note Dialog */}
         <Modal open={createDialogOpen} onClose={() => setCreateDialogOpen(false)}>
-          <ModalDialog sx={{ minWidth: 600, maxWidth: 660 }}>
+          <ModalDialog sx={{ minWidth: 600, maxWidth: 700 }}>
             <ModalClose />
             <Typography level="h4" sx={{ mb: 2 }}>
               Create New Note
@@ -570,7 +737,7 @@ const DrawerNotesPage = () => {
               />
             </FormControl>
 
-            <FormControl sx={{ mb: 3 }}>
+            <FormControl sx={{ mb: 2 }}>
               <FormLabel>Labels * (Select at least one)</FormLabel>
               <Select
                 multiple
@@ -599,6 +766,55 @@ const DrawerNotesPage = () => {
                   ⚠️ No labels found. Click "Manage Labels" button to create labels first.
                 </Typography>
               )}
+            </FormControl>
+            
+            {/* Patient Selection (Optional) */}
+            <FormControl sx={{ mb: 3 }}>
+              <FormLabel>Link to Patient (Optional)</FormLabel>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Autocomplete
+                  placeholder="Search patient by name or MRN..."
+                  options={notePatientOptions}
+                  value={notePatient}
+                  inputValue={notePatientInput}
+                  onChange={handleNotePatientChange}
+                  onInputChange={handleNotePatientInputChange}
+                  loading={notePatientLoading}
+                  getOptionLabel={(option) => {
+                    const name = option.full_name || 'Unknown';
+                    const mrn = option.mrn || 'N/A';
+                    return `${name} (${mrn})`;
+                  }}
+                  renderOption={(props, option) => (
+                    <AutocompleteOption {...props}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
+                        <PersonIcon sx={{ color: '#667eea', fontSize: '1.2rem' }} />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                            {option.full_name || 'Unknown'}
+                          </Typography>
+                          <Typography level="body-xs" sx={{ color: '#999' }}>
+                            MRN: {option.mrn || 'N/A'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </AutocompleteOption>
+                  )}
+                  endDecorator={notePatientLoading ? <CircularProgress size="sm" /> : null}
+                  sx={{ flex: 1 }}
+                />
+                {notePatient && (
+                  <IconButton
+                    size="sm"
+                    variant="plain"
+                    color="neutral"
+                    onClick={clearNotePatient}
+                    title="Clear patient selection"
+                  >
+                    <ClearIcon />
+                  </IconButton>
+                )}
+              </Box>
             </FormControl>
 
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'space-between', alignItems: 'center' }}>
@@ -639,7 +855,7 @@ const DrawerNotesPage = () => {
 
         {/* Edit Note Dialog */}
         <Modal open={editDialogOpen} onClose={() => setEditDialogOpen(false)}>
-          <ModalDialog sx={{ minWidth: 600, maxWidth: 660 }}>
+          <ModalDialog sx={{ minWidth: 600, maxWidth: 700 }}>
             <ModalClose />
             <Typography level="h4" sx={{ mb: 2 }}>
               Edit Note
@@ -655,7 +871,7 @@ const DrawerNotesPage = () => {
               />
             </FormControl>
 
-            <FormControl sx={{ mb: 3 }}>
+            <FormControl sx={{ mb: 2 }}>
               <FormLabel>Labels * (Select at least one)</FormLabel>
               <Select
                 multiple
@@ -682,6 +898,26 @@ const DrawerNotesPage = () => {
               {labels.length === 0 && (
                 <Typography level="body-sm" sx={{ mt: 1, color: 'warning.plainColor' }}>
                   ⚠️ No labels found. Close this dialog and click "Manage Labels" to create labels first.
+                </Typography>
+              )}
+            </FormControl>
+            
+            {/* Patient Selection (Optional) - Note: Patient cannot be changed after creation */}
+            <FormControl sx={{ mb: 3 }}>
+              <FormLabel>Linked Patient</FormLabel>
+              {notePatient ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.5, bgcolor: 'background.level1', borderRadius: 'sm' }}>
+                  <PersonIcon sx={{ color: '#667eea' }} />
+                  <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                    {notePatient.full_name || 'Unknown'}
+                  </Typography>
+                  <Typography level="body-xs" sx={{ color: '#999', ml: 1 }}>
+                    (Patient link cannot be changed after creation)
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography level="body-sm" sx={{ color: '#999', fontStyle: 'italic', p: 1 }}>
+                  No patient linked to this note
                 </Typography>
               )}
             </FormControl>

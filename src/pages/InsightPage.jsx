@@ -66,9 +66,19 @@ const InsightPage = () => {
   const [groupedInbox, setGroupedInbox] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [inboxLoadError, setInboxLoadError] = useState(null); // Track inbox-specific errors
 
   // Filter state
   const [dateRange, setDateRange] = useState('30'); // Default 30 days
+  const [caseTypeFilter, setCaseTypeFilter] = useState('all'); // all, incident, seasonal
+
+  // Expansion state for org type groups and individual sections
+  const [expandedGroups, setExpandedGroups] = useState({
+    SECTION: true,
+    DEPARTMENT: true,
+    ADMINISTRATION: true,
+  });
+  const [expandedSections, setExpandedSections] = useState({});
 
   // ============================
   // LOAD DATA ON MOUNT AND FILTER CHANGE
@@ -95,6 +105,82 @@ const InsightPage = () => {
     return params;
   }
 
+  // Sort grouped inbox by org_type: SECTION → DEPARTMENT → ADMINISTRATION
+  function sortByOrgType(inboxData) {
+    const orgTypeOrder = { SECTION: 1, DEPARTMENT: 2, ADMINISTRATION: 3 };
+    return [...inboxData].sort((a, b) => {
+      const orderA = orgTypeOrder[a.org_type?.toUpperCase()] || 99;
+      const orderB = orgTypeOrder[b.org_type?.toUpperCase()] || 99;
+      return orderA - orderB;
+    });
+  }
+
+  // Group inbox data by org_type for rendering with headers
+  function groupByOrgType(inboxData) {
+    const groups = {
+      SECTION: { key: 'SECTION', title: '📌 Sections', items: [], color: '#00b894', gradient: 'linear-gradient(135deg, #00b894 0%, #00cec9 100%)' },
+      DEPARTMENT: { key: 'DEPARTMENT', title: '🏢 Departments', items: [], color: '#6c5ce7', gradient: 'linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%)' },
+      ADMINISTRATION: { key: 'ADMINISTRATION', title: '🏛️ Administrations', items: [], color: '#e17055', gradient: 'linear-gradient(135deg, #e17055 0%, #fab1a0 100%)' },
+    };
+
+    inboxData.forEach(item => {
+      const type = (item.org_type || 'SECTION').toUpperCase();
+      if (groups[type]) {
+        groups[type].items.push(item);
+      } else {
+        groups.SECTION.items.push(item); // Fallback
+      }
+    });
+
+    // Return only non-empty groups in order
+    return ['SECTION', 'DEPARTMENT', 'ADMINISTRATION']
+      .map(key => groups[key])
+      .filter(group => group.items.length > 0);
+  }
+
+  // Toggle an org type group expansion
+  function toggleOrgGroup(orgType) {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [orgType]: !prev[orgType],
+    }));
+  }
+
+  // Toggle individual section expansion
+  function toggleSectionExpand(sectionId) {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId],
+    }));
+  }
+
+  // Computed grouped data
+  const orgTypeGroups = groupByOrgType(groupedInbox);
+
+  // Filter sections by case type (incident vs seasonal)
+  function filterByCaseType(sections, filterType) {
+    if (filterType === 'all') return sections;
+    
+    return sections
+      .map(section => ({
+        ...section,
+        subcases: section.subcases.filter(subcase => {
+          const isIncident = subcase.case_type === 'incident' || subcase.incident_id;
+          const isSeasonal = subcase.case_type === 'seasonal' || subcase.seasonal_report_id;
+          
+          if (filterType === 'incident') return isIncident;
+          if (filterType === 'seasonal') return isSeasonal;
+          return true;
+        }),
+        pending_count: undefined, // Will be recalculated
+      }))
+      .map(section => ({
+        ...section,
+        pending_count: section.subcases.length,
+      }))
+      .filter(section => section.subcases.length > 0); // Remove empty sections
+  }
+
   async function loadInsightData() {
     try {
       setLoading(true);
@@ -102,26 +188,43 @@ const InsightPage = () => {
 
       const filterParams = buildFilterParams();
 
-      // Load all insight data in parallel
-      const [kpiData, distData, trendData, inboxData] = await Promise.all([
+      // Load all insight data in parallel - with individual error handling
+      // so one failing endpoint doesn't break the entire page
+      const [kpiResult, distResult, trendResult, inboxResult] = await Promise.allSettled([
         getInsightKpis(),
         getInsightDistribution({
           entity: 'subcase',
           dimension: 'status',
-          ...filterParams, // Apply filters to distribution
+          ...filterParams,
         }),
         getInsightTrend({
           entity: 'subcase',
           interval: 'month',
-          ...filterParams, // Apply filters to trend
+          ...filterParams,
         }),
-        getGroupedInbox(), // Load grouped inbox data
+        getGroupedInbox(),
       ]);
 
-      setKpis(kpiData || {});
-      setDistribution(distData || []);
-      setTrend(trendData || []);
-      setGroupedInbox(inboxData || []);
+      // Set data from successful calls, default empty for failed ones
+      setKpis(kpiResult.status === 'fulfilled' ? (kpiResult.value || {}) : {});
+      setDistribution(distResult.status === 'fulfilled' ? (distResult.value || []) : []);
+      setTrend(trendResult.status === 'fulfilled' ? (trendResult.value || []) : []);
+      
+      // Handle grouped inbox separately to track errors
+      if (inboxResult.status === 'fulfilled') {
+        setGroupedInbox(sortByOrgType(inboxResult.value || []));
+        setInboxLoadError(null);
+      } else {
+        setGroupedInbox([]);
+        setInboxLoadError(inboxResult.reason?.message || 'Failed to load grouped inbox data');
+      }
+
+      // Log any failures for debugging but don't block the page
+      if (kpiResult.status === 'rejected') console.warn('KPI load failed:', kpiResult.reason);
+      if (distResult.status === 'rejected') console.warn('Distribution load failed:', distResult.reason);
+      if (trendResult.status === 'rejected') console.warn('Trend load failed:', trendResult.reason);
+      if (inboxResult.status === 'rejected') console.warn('Inbox load failed:', inboxResult.reason);
+
     } catch (e) {
       console.error('Insight Page Error:', e);
       // Detect network errors
@@ -460,32 +563,110 @@ const InsightPage = () => {
           </Box>
         )}
 
-        {/* Workload Overview - Grouped by Section */}
+        {/* Workload Overview - Grouped by Org Type */}
         <Box sx={{ mt: 4 }}>
           <Typography level="h4" sx={{ fontWeight: 700, mb: 1 }}>
-            📊 Workload Overview - Grouped by Section
+            📊 Workload Overview - Grouped by Organization Type
           </Typography>
           <Typography level="body-sm" sx={{ color: 'neutral.600', mb: 3 }}>
-            Sections with pending subcases, supervisor names, and case details
+            Sections, Departments, and Administrations with pending subcases
           </Typography>
 
-          {groupedInbox.length === 0 ? (
+          {inboxLoadError ? (
+            <Card variant="soft" color="danger" sx={{ p: 3 }}>
+              <Typography level="title-md" sx={{ mb: 1, fontWeight: 700 }}>
+                ⚠️ Failed to Load Workload Data
+              </Typography>
+              <Typography level="body-sm" sx={{ mb: 2 }}>
+                {inboxLoadError}
+              </Typography>
+              <Button
+                size="sm"
+                variant="solid"
+                color="danger"
+                onClick={loadInsightData}
+              >
+                Retry
+              </Button>
+            </Card>
+          ) : groupedInbox.length === 0 ? (
             <Card variant="outlined" sx={{ p: 4, textAlign: 'center' }}>
               <Typography level="h4" sx={{ color: 'neutral.500', mb: 1 }}>
                 ✅ No pending subcases found
               </Typography>
               <Typography level="body-sm" sx={{ color: 'neutral.400' }}>
-                All sections are up to date
+                All units are up to date
               </Typography>
             </Card>
           ) : (
-            <Box>
-              {groupedInbox.map((section) => (
-                <SectionCard
-                  key={section.section_id}
-                  section={section}
-                  onForceClose={handleForceClose}
-                />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {orgTypeGroups.map((group) => (
+                <Card
+                  key={group.key}
+                  variant="outlined"
+                  sx={{
+                    overflow: 'hidden',
+                    borderLeft: `4px solid ${group.color}`,
+                  }}
+                >
+                  {/* Group Header */}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      p: 2,
+                      background: group.gradient,
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => toggleOrgGroup(group.key)}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Typography
+                        level="title-lg"
+                        sx={{ fontWeight: 700, color: 'white' }}
+                      >
+                        {group.title}
+                      </Typography>
+                      <Box
+                        sx={{
+                          backgroundColor: 'rgba(255,255,255,0.3)',
+                          px: 1.5,
+                          py: 0.5,
+                          borderRadius: '12px',
+                        }}
+                      >
+                        <Typography level="body-sm" sx={{ fontWeight: 700, color: 'white' }}>
+                          {group.items.length} unit{group.items.length !== 1 ? 's' : ''}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Typography
+                      level="body-md"
+                      sx={{
+                        color: 'white',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {expandedGroups[group.key] ? '▲' : '▼'}
+                    </Typography>
+                  </Box>
+
+                  {/* Group Content */}
+                  {expandedGroups[group.key] && (
+                    <Box sx={{ p: 2, backgroundColor: '#fafafa' }}>
+                      {group.items.map((section) => (
+                        <SectionCard
+                          key={section.section_id}
+                          section={section}
+                          isExpanded={expandedSections[section.section_id] || false}
+                          onToggleExpand={() => toggleSectionExpand(section.section_id)}
+                          onForceClose={handleForceClose}
+                        />
+                      ))}
+                    </Box>
+                  )}
+                </Card>
               ))}
             </Box>
           )}

@@ -4,22 +4,28 @@
 import apiClient from "./apiClient";
 
 /**
- * List drawer notes with optional label filtering and pagination.
+ * List drawer notes with optional label and patient filtering.
  * 
  * @param {Object} params - Query parameters
  * @param {number[]} params.labelIds - Array of label IDs for filtering (AND logic)
+ * @param {number} params.patientAdmissionId - Optional patient admission ID to filter by
  * @param {number} params.limit - Maximum number of results (default 50)
  * @param {number} params.offset - Pagination offset (default 0)
  * @returns {Promise<Object>} Notes list response
  * @throws {Error} Propagates API errors to caller
  */
-export async function listDrawerNotes({ labelIds = [], limit = 50, offset = 0 } = {}) {
+export async function listDrawerNotes({ labelIds = [], patientAdmissionId = null, limit = 50, offset = 0 } = {}) {
   const params = new URLSearchParams();
   
   // Add repeated label_ids params for AND filtering
   labelIds.forEach(id => {
     params.append('label_ids', id);
   });
+  
+  // Add patient filter if provided
+  if (patientAdmissionId) {
+    params.append('patient_admission_id', patientAdmissionId);
+  }
   
   params.append('limit', limit);
   params.append('offset', offset);
@@ -46,14 +52,22 @@ export async function getDrawerNote(noteId) {
  * @param {Object} payload - Note creation payload
  * @param {string} payload.note_text - The note text content (required)
  * @param {number[]} payload.label_ids - Array of label IDs (required, min 1)
+ * @param {number} payload.patient_admission_id - Optional patient admission ID to link
  * @returns {Promise<Object>} Created note response
  * @throws {Error} Propagates API errors to caller
  */
-export async function createDrawerNote({ note_text, label_ids }) {
-  const response = await apiClient.post("/api/v2/drawer-notes", {
+export async function createDrawerNote({ note_text, label_ids, patient_admission_id = null }) {
+  const payload = {
     note_text,
     label_ids,
-  });
+  };
+  
+  // Only include patient_admission_id if provided
+  if (patient_admission_id) {
+    payload.patient_admission_id = patient_admission_id;
+  }
+  
+  const response = await apiClient.post("/api/v2/drawer-notes", payload);
   return response.data;
 }
 

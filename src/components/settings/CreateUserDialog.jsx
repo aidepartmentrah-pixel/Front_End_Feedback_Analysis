@@ -1,5 +1,5 @@
 // src/components/settings/CreateUserDialog.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Modal,
   ModalDialog,
@@ -16,9 +16,12 @@ import {
   FormHelperText,
   Alert,
   Divider,
+  Autocomplete,
+  CircularProgress,
 } from "@mui/joy";
 import SaveIcon from "@mui/icons-material/Save";
 import { createUser } from "../../api/settingsUsersApi";
+import { fetchLeaves } from "../../api/orgUnits";
 
 const CreateUserDialog = ({ open, onClose, onCreated }) => {
   const [formData, setFormData] = useState({
@@ -32,13 +35,49 @@ const CreateUserDialog = ({ open, onClose, onCreated }) => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState(null);
+  
+  // Org units state
+  const [orgUnits, setOrgUnits] = useState([]);
+  const [orgUnitsLoading, setOrgUnitsLoading] = useState(false);
+  const [selectedOrgUnit, setSelectedOrgUnit] = useState(null);
 
-  // Available roles
+  // Available roles - expanded list
   const availableRoles = [
     { id: "SOFTWARE_ADMIN", name: "Software Admin" },
+    { id: "COMPLAINT_SUPERVISOR", name: "Complaint Supervisor" },
+    { id: "ADMINISTRATION_ADMIN", name: "Administration Admin" },
+    { id: "DEPARTMENT_ADMIN", name: "Department Admin" },
     { id: "SECTION_ADMIN", name: "Section Admin" },
     { id: "WORKER", name: "Worker" },
   ];
+
+  // Fetch org units when dialog opens
+  useEffect(() => {
+    if (open && orgUnits.length === 0) {
+      loadOrgUnits();
+    }
+  }, [open]);
+
+  const loadOrgUnits = async () => {
+    setOrgUnitsLoading(true);
+    try {
+      const leaves = await fetchLeaves();
+      // Transform to have consistent structure with id and name
+      const transformed = leaves.map(unit => ({
+        id: unit.org_unit_id || unit.id,
+        name: unit.name || unit.org_unit_name || `Unit ${unit.org_unit_id || unit.id}`,
+        fullPath: unit.full_path || unit.name,
+      }));
+      setOrgUnits(transformed);
+    } catch (err) {
+      console.error("Failed to load org units:", err);
+    } finally {
+      setOrgUnitsLoading(false);
+    }
+  };
+
+  // Memoized options for Autocomplete
+  const orgUnitOptions = useMemo(() => orgUnits, [orgUnits]);
 
   // Validate form
   const validate = () => {
@@ -104,13 +143,29 @@ const CreateUserDialog = ({ open, onClose, onCreated }) => {
         role_id: "",
         org_unit_id: "",
       });
+      setSelectedOrgUnit(null);
       setErrors({});
       
       // Notify parent
       onCreated(newUser);
       onClose();
     } catch (error) {
-      const errorMessage = error.response?.data?.detail || error.message || "Failed to create user";
+      // Handle different error formats from backend
+      let errorMessage = "Failed to create user";
+      const detail = error.response?.data?.detail;
+      
+      if (typeof detail === 'string') {
+        errorMessage = detail;
+      } else if (Array.isArray(detail)) {
+        // Pydantic validation errors come as array of {type, loc, msg, input}
+        errorMessage = detail.map(err => err.msg || err.message || JSON.stringify(err)).join(', ');
+      } else if (detail && typeof detail === 'object') {
+        // Single error object
+        errorMessage = detail.msg || detail.message || JSON.stringify(detail);
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       setApiError(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -128,20 +183,44 @@ const CreateUserDialog = ({ open, onClose, onCreated }) => {
         role_id: "",
         org_unit_id: "",
       });
+      setSelectedOrgUnit(null);
       setErrors({});
       setApiError(null);
       onClose();
     }
   };
 
+  // Handle org unit selection
+  const handleOrgUnitChange = (event, newValue) => {
+    setSelectedOrgUnit(newValue);
+    if (newValue) {
+      handleChange("org_unit_id", newValue.id);
+      // Auto-fill department display name if empty
+      if (!formData.department_display_name) {
+        handleChange("department_display_name", newValue.name);
+      }
+    } else {
+      handleChange("org_unit_id", "");
+    }
+  };
+
   return (
     <Modal open={open} onClose={handleClose} sx={{ zIndex: 9999 }}>
-      <ModalDialog sx={{ minWidth: 500, maxWidth: 600 }}>
+      <ModalDialog 
+        sx={{ 
+          minWidth: 500, 
+          maxWidth: 600,
+          maxHeight: '90vh',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         <ModalClose disabled={isSubmitting} />
         <DialogTitle>Create New User</DialogTitle>
         <Divider />
         
-        <DialogContent>
+        <DialogContent sx={{ overflow: 'auto', flex: 1 }}>
           {apiError && (
             <Alert color="danger" sx={{ mb: 2 }}>
               {apiError}
@@ -205,6 +284,14 @@ const CreateUserDialog = ({ open, onClose, onCreated }) => {
                   value={formData.role_id}
                   onChange={(e, value) => handleChange("role_id", value)}
                   disabled={isSubmitting}
+                  slotProps={{
+                    listbox: {
+                      sx: { zIndex: 10001 }
+                    },
+                    popper: {
+                      sx: { zIndex: 10001 }
+                    }
+                  }}
                 >
                   {availableRoles.map((role) => (
                     <Option key={role.id} value={role.id}>
@@ -217,16 +304,32 @@ const CreateUserDialog = ({ open, onClose, onCreated }) => {
 
               {/* Organization Unit ID */}
               <FormControl error={!!errors.org_unit_id} required>
-                <FormLabel>Organization Unit ID</FormLabel>
-                <Input
-                  type="number"
-                  placeholder="Enter org unit ID"
-                  value={formData.org_unit_id}
-                  onChange={(e) => handleChange("org_unit_id", e.target.value)}
+                <FormLabel>Organization Unit (Section)</FormLabel>
+                <Autocomplete
+                  placeholder="Search and select organization unit..."
+                  options={orgUnitOptions}
+                  value={selectedOrgUnit}
+                  onChange={handleOrgUnitChange}
+                  getOptionLabel={(option) => option.name || ''}
+                  isOptionEqualToValue={(option, value) => option.id === value?.id}
+                  loading={orgUnitsLoading}
                   disabled={isSubmitting}
+                  slotProps={{
+                    listbox: {
+                      sx: { maxHeight: 200, zIndex: 10001 }
+                    },
+                    popper: {
+                      sx: { zIndex: 10001 }
+                    }
+                  }}
+                  endDecorator={orgUnitsLoading ? <CircularProgress size="sm" /> : null}
                 />
                 {errors.org_unit_id && <FormHelperText>{errors.org_unit_id}</FormHelperText>}
-                <FormHelperText>Numeric ID of the organization unit</FormHelperText>
+                <FormHelperText>
+                  {orgUnits.length > 0 
+                    ? `${orgUnits.length} units available - type to search`
+                    : 'Loading organization units...'}
+                </FormHelperText>
               </FormControl>
 
               {/* Action Buttons */}

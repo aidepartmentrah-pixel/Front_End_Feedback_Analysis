@@ -1,6 +1,6 @@
 // src/components/insert/RecordMetadata.js
 
-import React from "react";
+import React, { useState, useMemo } from "react";
 import {
   Card,
   Typography,
@@ -16,10 +16,34 @@ import {
   Radio,
   ListItem,
   ListItemButton,
+  Autocomplete,
+  AutocompleteOption,
 } from "@mui/joy";
 import CloseIcon from "@mui/icons-material/Close";
 
 const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, validationErrors = {} }) => {
+  // Memoize department options for Autocomplete
+  const departmentOptions = useMemo(() => {
+    return (referenceData?.departments || []).map((dept) => ({
+      id: dept.id,
+      label: dept.name || dept.label || dept.department_name || dept.name_en || dept.name_ar || `Department ${dept.id}`,
+    }));
+  }, [referenceData?.departments]);
+
+  // Find selected issuing department option
+  const selectedIssuingDept = useMemo(() => {
+    if (!formData.issuing_department_id) return null;
+    return departmentOptions.find(opt => Number(opt.id) === Number(formData.issuing_department_id)) || null;
+  }, [formData.issuing_department_id, departmentOptions]);
+
+  // Find selected target department options
+  const selectedTargetDepts = useMemo(() => {
+    if (!formData.target_department_ids || formData.target_department_ids.length === 0) return [];
+    return departmentOptions.filter(opt => 
+      formData.target_department_ids.some(id => Number(id) === Number(opt.id))
+    );
+  }, [formData.target_department_ids, departmentOptions]);
+
   // Add department
   const handleAddTargetDepartment = (deptId) => {
     if (!formData.target_department_ids.includes(deptId)) {
@@ -187,21 +211,24 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
 
         {/* ROW 2: Issuing Department, Requires Explanation (6 + 6 = 12) */}
         
-        {/* Issuing Department (Single Select) */}
+        {/* Issuing Department (Single Select with Search) */}
         <Grid xs={12} sm={6} md={6}>
           <FormControl fullWidth error={!!validationErrors.issuing_org_unit_id}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
               🏢 Issuing Department *
             </FormLabel>
-            <Select
-              value={formData.issuing_department_id || ""}
-              placeholder="Select issuing department"
-              onChange={(e, value) =>
-                onInputChange("issuing_department_id", value)
-              }
+            <Autocomplete
+              value={selectedIssuingDept}
+              options={departmentOptions}
+              getOptionLabel={(option) => option?.label || ""}
+              isOptionEqualToValue={(option, value) => option?.id === value?.id}
+              placeholder="Search or select issuing department..."
+              onChange={(e, newValue) => {
+                onInputChange("issuing_department_id", newValue ? newValue.id : null);
+              }}
               slotProps={{
                 listbox: {
-                  sx: { maxHeight: 250, overflowY: "auto" },
+                  sx: { maxHeight: 300, overflowY: "auto" },
                 },
               }}
               sx={{
@@ -210,22 +237,12 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
                     ? "#ff4757"
                     : undefined,
               }}
-            >
-              {(referenceData?.departments || []).map((dept) => {
-                const displayName =
-                  dept.name ||
-                  dept.label ||
-                  dept.department_name ||
-                  dept.name_en ||
-                  dept.name_ar;
-
-                return (
-                  <Option key={dept.id} value={dept.id}>
-                    {displayName}
-                  </Option>
-                );
-              })}
-            </Select>
+              renderOption={(props, option) => (
+                <AutocompleteOption {...props} key={option.id}>
+                  {option.label}
+                </AutocompleteOption>
+              )}
+            />
             {validationErrors.issuing_org_unit_id && (
               <Typography level="body-xs" sx={{ color: "#ff4757", mt: 0.5 }}>
                 {validationErrors.issuing_org_unit_id}
@@ -263,99 +280,60 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
 
         {/* ROW 3: Target Departments (Full Width) */}
         
-        {/* Target Departments (Multi-Select) */}
+        {/* Target Departments (Multi-Select with Search) */}
         <Grid xs={12}>
           <FormControl fullWidth>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
               🏥 Target Departments (Multiple)
             </FormLabel>
-            <Select
+            <Autocomplete
               multiple
-              value={formData.target_department_ids || []}
-              placeholder="Select target departments"
-              onChange={(e, value) => {
-                const normalized = Array.isArray(value)
-                  ? value
-                      .map((v) => (typeof v === "object" ? (v?.value ?? v?.id) : v))
-                      .map((v) => {
-                        const num = Number(v);
-                        return Number.isNaN(num) ? v : num;
-                      })
-                      .filter((v) => v !== null && v !== undefined)
-                  : [];
-                // Remove duplicates while preserving order
-                const unique = [];
-                for (const id of normalized) {
-                  if (!unique.includes(id)) unique.push(id);
-                }
-                onInputChange("target_department_ids", unique);
+              value={selectedTargetDepts}
+              options={departmentOptions}
+              getOptionLabel={(option) => option?.label || ""}
+              isOptionEqualToValue={(option, value) => option?.id === value?.id}
+              placeholder="Search or select target departments..."
+              onChange={(e, newValue) => {
+                const ids = newValue.map(opt => opt.id);
+                onInputChange("target_department_ids", ids);
               }}
-              renderValue={(selected) => (
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                  {(formData.target_department_ids || []).map((deptId) => {
-                    const dept = (referenceData?.departments || []).find((d) => Number(d.id) === Number(deptId));
-                    const displayName =
-                      dept?.name ||
-                      dept?.label ||
-                      dept?.department_name ||
-                      dept?.name_en ||
-                      dept?.name_ar ||
-                      `Department ${deptId}`;
-                    return (
-                      <Chip
-                        key={deptId}
-                        variant="soft"
-                        color="info"
-                        endDecorator={
-                          <CloseIcon
-                            sx={{ 
-                              fontSize: 16, 
-                              cursor: "pointer", 
-                              ml: 0.5, 
-                              '&:hover': { color: "error.main" }
-                            }}
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              e.preventDefault();
-                              const newIds = (formData.target_department_ids || []).filter(id => Number(id) !== Number(deptId));
-                              onInputChange("target_department_ids", newIds);
-                            }}
-                          />
-                        }
-                        sx={{ 
-                          fontWeight: 600,
-                          pointerEvents: "none",
-                          "& .MuiChip-endDecorator": {
-                            pointerEvents: "auto"
-                          }
-                        }}
-                      >
-                        {displayName}
-                      </Chip>
-                    );
-                  })}
-                </Box>
-              )}
               slotProps={{
                 listbox: {
-                  sx: { maxHeight: 250, overflowY: "auto" },
+                  sx: { maxHeight: 300, overflowY: "auto" },
                 },
               }}
-            >
-              {(referenceData?.departments || []).map((dept) => {
-                const displayName =
-                  dept.name ||
-                  dept.label ||
-                  dept.department_name ||
-                  dept.name_en ||
-                  dept.name_ar;
-                return (
-                  <Option key={dept.id} value={Number(dept.id)}>
-                    {displayName}
-                  </Option>
-                );
-              })}
-            </Select>
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                  <Chip
+                    key={option.id}
+                    variant="soft"
+                    color="info"
+                    endDecorator={
+                      <CloseIcon
+                        sx={{ 
+                          fontSize: 16, 
+                          cursor: "pointer", 
+                          ml: 0.5, 
+                          '&:hover': { color: "error.main" }
+                        }}
+                        onClick={() => {
+                          const newIds = (formData.target_department_ids || []).filter(id => Number(id) !== Number(option.id));
+                          onInputChange("target_department_ids", newIds);
+                        }}
+                      />
+                    }
+                    sx={{ fontWeight: 600 }}
+                  >
+                    {option.label}
+                  </Chip>
+                ))
+              }
+              renderOption={(props, option) => (
+                <AutocompleteOption {...props} key={option.id}>
+                  {option.label}
+                </AutocompleteOption>
+              )}
+            />
           </FormControl>
         </Grid>
       </Grid>
@@ -364,8 +342,7 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
         level="body-xs"
         sx={{ mt: 2, color: "#1565c0", fontStyle: "italic" }}
       >
-        ℹ️ You can select multiple target departments. NER extraction will suggest
-        departments from the complaint text.
+        ℹ️ You can search and select multiple target departments. Type to filter.
       </Typography>
     </Card>
   );

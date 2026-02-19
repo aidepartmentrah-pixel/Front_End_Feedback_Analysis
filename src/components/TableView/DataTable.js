@@ -166,53 +166,54 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
   };
 
   // Define all available columns with their mapping
+  // widthFlex: relative width multiplier (default 1, complaint_text uses 3 for 3x width)
   const allColumnsDefinition = [
-    { key: "complaint_number", label: "Complaint #", sortable: true, showKey: "ShowIncidentRequestCaseID" },
-    { key: "complaint_text", label: "Complaint Text", sortable: false, showKey: "ShowComplaintText" },
-    { key: "immediate_action", label: "Immediate Action", sortable: false, showKey: "ShowImmediateAction" },
-    { key: "taken_action", label: "Taken Action", sortable: false, showKey: "ShowTakenAction" },
-    { key: "received_date", label: "Received Date", sortable: true, showKey: "ShowFeedbackRecievedDate" },
-    { key: "patient_name", label: "Patient Name", sortable: false, showKey: "ShowPatientName" },
-    { key: "issuing_org_unit_name", label: "Issuing Dept", sortable: false, showKey: "ShowIssuingOrgUnitID" },
-    { key: "created_at", label: "Created At", sortable: false, showKey: "ShowCreatedAt" },
-    { key: "created_by_user_id", label: "Created By", sortable: false, showKey: "ShowCreatedByUserID" },
-    { key: "is_in_patient", label: "In Patient", sortable: false, showKey: "ShowIsInPatient" },
-    { key: "clinical_risk_type_name", label: "Clinical Risk", sortable: false, showKey: "ShowClinicalRiskTypeID" },
-    { key: "feedback_intent_type_name", label: "Feedback Intent", sortable: false, showKey: "ShowFeedbackIntentTypeID" },
-    { key: "building_name", label: "Building", sortable: false, showKey: "ShowBuildingID" },
-    { key: "domain_name", label: "Domain", sortable: false, showKey: "ShowDomainID" },
-    { key: "category_name", label: "Category", sortable: false, showKey: "ShowCategoryID" },
-    { key: "subcategory_name", label: "Subcategory", sortable: false, showKey: "ShowSubCategoryID" },
-    { key: "classification_name", label: "Classification", sortable: false, showKey: "ShowClassificationID" },
-    { key: "severity_name", label: "Severity", sortable: false, showKey: "ShowSeverityID" },
-    { key: "stage_name", label: "Stage", sortable: false, showKey: "ShowStageID" },
-    { key: "harm_level", label: "Harm Level", sortable: false, showKey: "ShowHarmLevelID" },
-    { key: "status_name", label: "Status", sortable: false, showKey: "ShowCaseStatusID" },
-    { key: "source_name", label: "Source", sortable: false, showKey: "ShowSourceID" },
-    { key: "explanation_status_name", label: "Explanation Status", sortable: false, showKey: "ShowExplanationStatusID" },
+    { key: "complaint_number", label: "Complaint #", sortable: true, showKey: "ShowIncidentRequestCaseID", widthFlex: 1 },
+    { key: "complaint_text", label: "Complaint Text", sortable: false, showKey: "ShowComplaintText", widthFlex: 3 },
+    { key: "immediate_action", label: "Immediate Action", sortable: false, showKey: "ShowImmediateAction", widthFlex: 1 },
+    { key: "taken_action", label: "Taken Action", sortable: false, showKey: "ShowTakenAction", widthFlex: 1 },
+    { key: "received_date", label: "Received Date", sortable: true, showKey: "ShowFeedbackRecievedDate", widthFlex: 1 },
+    { key: "patient_name", label: "Patient Name", sortable: false, showKey: "ShowPatientName", widthFlex: 1 },
+    { key: "issuing_org_unit_name", label: "Issuing Dept", sortable: false, showKey: "ShowIssuingOrgUnitID", widthFlex: 1 },
+    { key: "created_at", label: "Created At", sortable: false, showKey: "ShowCreatedAt", widthFlex: 1 },
+    { key: "created_by_user_id", label: "Created By", sortable: false, showKey: "ShowCreatedByUserID", widthFlex: 1 },
+    { key: "is_in_patient", label: "In Patient", sortable: false, showKey: "ShowIsInPatient", widthFlex: 1 },
+    { key: "clinical_risk_type_name", label: "Clinical Risk", sortable: false, showKey: "ShowClinicalRiskTypeID", widthFlex: 1 },
+    { key: "feedback_intent_type_name", label: "Feedback Intent", sortable: false, showKey: "ShowFeedbackIntentTypeID", widthFlex: 1 },
+    { key: "building_name", label: "Building", sortable: false, showKey: "ShowBuildingID", widthFlex: 1 },
+    { key: "domain_name", label: "Domain", sortable: false, showKey: "ShowDomainID", widthFlex: 1 },
+    { key: "category_name", label: "Category", sortable: false, showKey: "ShowCategoryID", widthFlex: 1 },
+    { key: "subcategory_name", label: "Subcategory", sortable: false, showKey: "ShowSubCategoryID", widthFlex: 1 },
+    { key: "classification_name", label: "Classification", sortable: false, showKey: "ShowClassificationID", widthFlex: 1 },
+    { key: "severity_name", label: "Severity", sortable: false, showKey: "ShowSeverityID", widthFlex: 1 },
+    { key: "stage_name", label: "Stage", sortable: false, showKey: "ShowStageID", widthFlex: 1 },
+    { key: "harm_level", label: "Harm Level", sortable: false, showKey: "ShowHarmLevelID", widthFlex: 1 },
+    { key: "status_name", label: "Status", sortable: false, showKey: "ShowCaseStatusID", widthFlex: 1 },
+    { key: "source_name", label: "Source", sortable: false, showKey: "ShowSourceID", widthFlex: 1 },
+    { key: "explanation_status_name", label: "Explanation Status", sortable: false, showKey: "ShowExplanationStatusID", widthFlex: 1 },
   ];
 
   // Define columns based on view mode or custom view
   const completeViewColumns = [
-    { key: "complaint_number", label: "Complaint #", sortable: true },
-    { key: "received_date", label: "Received Date", sortable: true },
-    { key: "patient_name", label: "Patient Name", sortable: false },
-    { key: "issuing_org_unit_name", label: "Issuing Dept", sortable: false },
-    { key: "domain_name", label: "Domain", sortable: false },
-    { key: "category_name", label: "Category", sortable: false },
-    { key: "subcategory_name", label: "Subcategory", sortable: false },
-    { key: "classification_name", label: "Classification", sortable: false },
-    { key: "severity_name", label: "Severity", sortable: false },
-    { key: "stage_name", label: "Stage", sortable: false },
-    { key: "harm_level", label: "Harm Level", sortable: false },
-    { key: "status_name", label: "Status", sortable: false },
+    { key: "complaint_number", label: "Complaint #", sortable: true, widthFlex: 1 },
+    { key: "received_date", label: "Received Date", sortable: true, widthFlex: 1 },
+    { key: "patient_name", label: "Patient Name", sortable: false, widthFlex: 1 },
+    { key: "issuing_org_unit_name", label: "Issuing Dept", sortable: false, widthFlex: 1 },
+    { key: "domain_name", label: "Domain", sortable: false, widthFlex: 1 },
+    { key: "category_name", label: "Category", sortable: false, widthFlex: 1 },
+    { key: "subcategory_name", label: "Subcategory", sortable: false, widthFlex: 1 },
+    { key: "classification_name", label: "Classification", sortable: false, widthFlex: 1 },
+    { key: "severity_name", label: "Severity", sortable: false, widthFlex: 1 },
+    { key: "stage_name", label: "Stage", sortable: false, widthFlex: 1 },
+    { key: "harm_level", label: "Harm Level", sortable: false, widthFlex: 1 },
+    { key: "status_name", label: "Status", sortable: false, widthFlex: 1 },
   ];
 
   const simplifiedViewColumns = [
-    { key: "complaint_number", label: "Complaint #", sortable: true },
-    { key: "received_date", label: "Received Date", sortable: true },
-    { key: "severity_name", label: "Severity", sortable: false },
-    { key: "status_name", label: "Status", sortable: false },
+    { key: "complaint_number", label: "Complaint #", sortable: true, widthFlex: 1 },
+    { key: "received_date", label: "Received Date", sortable: true, widthFlex: 1 },
+    { key: "severity_name", label: "Severity", sortable: false, widthFlex: 1 },
+    { key: "status_name", label: "Status", sortable: false, widthFlex: 1 },
   ];
 
   // If custom view is selected, filter columns based on ShowX flags
@@ -224,7 +225,10 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
   }
   
   // Add Actions column at the end
-  columns = [...columns, { key: "actions", label: "Actions", sortable: false }];
+  columns = [...columns, { key: "actions", label: "Actions", sortable: false, widthFlex: 1 }];
+
+  // Calculate total flex units for percentage-based widths
+  const totalFlex = columns.reduce((sum, col) => sum + (col.widthFlex || 1), 0);
 
   return (
     <Box
@@ -238,6 +242,7 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
     >
       <Table
         sx={{
+          tableLayout: "fixed",
           "& thead th": {
             bgcolor: "#fafafa",
             fontWeight: 600,
@@ -270,9 +275,19 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
             py: 2,
             px: 2,
             fontSize: "0.875rem",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
           },
         }}
       >
+        <colgroup>
+          {columns.map((col) => (
+            <col 
+              key={col.key} 
+              style={{ width: `${((col.widthFlex || 1) / totalFlex) * 100}%` }} 
+            />
+          ))}
+        </colgroup>
         <thead>
           <tr>
             {columns.map((col) =>
@@ -333,6 +348,25 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
                       }}
                     >
                       {complaint[col.key]}
+                    </Box>
+                  ) : col.key === "complaint_text" ? (
+                    <Box 
+                      sx={{ 
+                        fontSize: "0.8125rem", 
+                        color: "#4b5563",
+                        textAlign: "center",
+                        whiteSpace: "normal",
+                        wordBreak: "break-word",
+                        lineHeight: 1.5,
+                        maxHeight: "4.5em",
+                        overflow: "hidden",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 3,
+                        WebkitBoxOrient: "vertical",
+                      }}
+                      title={complaint[col.key] || ""}
+                    >
+                      {complaint[col.key] || "-"}
                     </Box>
                   ) : col.key === "domain_name" ? (
                     <Box

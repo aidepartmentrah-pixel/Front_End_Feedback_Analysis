@@ -17,6 +17,7 @@ export const ROLES = {
   DEPARTMENT_ADMIN: 'DEPARTMENT_ADMIN',
   SECTION_ADMIN: 'SECTION_ADMIN',
   WORKER: 'WORKER',
+  UNIVERSAL_SECTION: 'UNIVERSAL_SECTION',  // Operational bridge role
 };
 
 // ============================================================================
@@ -139,6 +140,16 @@ export const rolePageVisibilityMap = {
     PAGE_KEYS.TREND_MONITORING,
     PAGE_KEYS.CRITICAL_ISSUES,
   ],
+  
+  // UNIVERSAL_SECTION - Operational bridge role (same as SECTION_ADMIN)
+  // Can see all section-level subcases without scope filter + direct approve capability
+  [ROLES.UNIVERSAL_SECTION]: [
+    PAGE_KEYS.DASHBOARD,
+    PAGE_KEYS.INBOX,
+    PAGE_KEYS.FOLLOW_UP,
+    PAGE_KEYS.TREND_MONITORING,
+    PAGE_KEYS.CRITICAL_ISSUES,
+  ],
 };
 
 // ============================================================================
@@ -181,6 +192,7 @@ export const roleSettingsTabVisibilityMap = {
   [ROLES.ADMINISTRATION_ADMIN]: [],
   [ROLES.DEPARTMENT_ADMIN]: [],
   [ROLES.SECTION_ADMIN]: [],
+  [ROLES.UNIVERSAL_SECTION]: [],
 };
 
 // ============================================================================

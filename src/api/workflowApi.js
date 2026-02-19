@@ -413,3 +413,25 @@ export const getSeasonalReportDetail = async (seasonalReportId) => {
     throw mapWorkflowError(error);
   }
 };
+
+/**
+ * Get incident detail data for the inbox "view" action (read-only)
+ *
+ * Endpoint: GET /api/v2/workflow/incident/{incident_id}
+ *
+ * Authorization:
+ * - SOFTWARE_ADMIN, COMPLAINT_SUPERVISOR, ADMINISTRATION_ADMIN: can view any incident
+ * - Others: must have an active subcase for this incident in their org unit scope
+ *
+ * @param {number} incidentId - The IncidentRequestCasesID
+ * @returns {Promise<Object>} Incident detail data
+ * @throws {Error} Normalized error (403/404)
+ */
+export const getWorkflowIncidentDetail = async (incidentId) => {
+  try {
+    const response = await apiClient.get(`/api/v2/workflow/incident/${incidentId}`);
+    return response.data;
+  } catch (error) {
+    throw mapWorkflowError(error);
+  }
+};

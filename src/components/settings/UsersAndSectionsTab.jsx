@@ -153,7 +153,16 @@ const UsersAndSectionsTab = () => {
         color: "success",
       });
     } catch (err) {
-      setError(err.response?.data?.detail || "Failed to create section");
+      const detail = err.response?.data?.detail;
+      let errorMsg = "Failed to create section";
+      if (typeof detail === 'string') {
+        errorMsg = detail;
+      } else if (Array.isArray(detail)) {
+        errorMsg = detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+      } else if (detail && typeof detail === 'object') {
+        errorMsg = detail.msg || detail.message || JSON.stringify(detail);
+      }
+      setError(errorMsg);
       console.error(err);
     } finally {
       setLoading(false);
@@ -183,9 +192,18 @@ const UsersAndSectionsTab = () => {
       });
       await loadUsers();
     } catch (err) {
+      const detail = err.response?.data?.detail;
+      let errorMsg = "Failed to delete user";
+      if (typeof detail === 'string') {
+        errorMsg = detail;
+      } else if (Array.isArray(detail)) {
+        errorMsg = detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+      } else if (detail && typeof detail === 'object') {
+        errorMsg = detail.msg || detail.message || JSON.stringify(detail);
+      }
       setSnackbar({
         open: true,
-        message: err.response?.data?.detail || "Failed to delete user",
+        message: errorMsg,
         color: "danger",
       });
       console.error(err);
@@ -212,9 +230,18 @@ const UsersAndSectionsTab = () => {
         color: "success",
       });
     } catch (err) {
+      const detail = err.response?.data?.detail;
+      let errorMsg = "Failed to recreate admin";
+      if (typeof detail === 'string') {
+        errorMsg = detail;
+      } else if (Array.isArray(detail)) {
+        errorMsg = detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+      } else if (detail && typeof detail === 'object') {
+        errorMsg = detail.msg || detail.message || JSON.stringify(detail);
+      }
       setSnackbar({
         open: true,
-        message: err.response?.data?.detail || "Failed to recreate admin",
+        message: errorMsg,
         color: "danger",
       });
       console.error(err);

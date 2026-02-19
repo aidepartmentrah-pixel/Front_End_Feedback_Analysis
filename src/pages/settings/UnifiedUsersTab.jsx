@@ -65,10 +65,17 @@ const UnifiedUsersTab = () => {
         loadCredentialUsers(),
       ]);
     } catch (err) {
-      const errorMsg = err.response?.data?.detail?.message || 
-                      err.response?.data?.detail || 
-                      err.message || 
-                      "Failed to load data";
+      const detail = err.response?.data?.detail;
+      let errorMsg = "Failed to load data";
+      if (typeof detail === 'string') {
+        errorMsg = detail;
+      } else if (Array.isArray(detail)) {
+        errorMsg = detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+      } else if (detail && typeof detail === 'object') {
+        errorMsg = detail.msg || detail.message || JSON.stringify(detail);
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
       setError(errorMsg);
       console.error('Load error:', err);
     } finally {
@@ -148,7 +155,17 @@ const UnifiedUsersTab = () => {
       setTimeout(() => setSuccess(null), 3000);
       await loadAllData();
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || err.message || "Failed to delete users";
+      const detail = err.response?.data?.detail;
+      let errorMsg = "Failed to delete users";
+      if (typeof detail === 'string') {
+        errorMsg = detail;
+      } else if (Array.isArray(detail)) {
+        errorMsg = detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+      } else if (detail && typeof detail === 'object') {
+        errorMsg = detail.msg || detail.message || JSON.stringify(detail);
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
       setError(errorMsg);
       setTimeout(() => setError(null), 5000);
     }

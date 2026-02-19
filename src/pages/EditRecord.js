@@ -25,7 +25,8 @@ import {
   fetchCategories,
   fetchSubcategories,
   fetchClassifications,
-  searchEmployees
+  searchEmployees,
+  searchDoctors
 } from "../api/insertRecord";
 
 const EditRecord = () => {
@@ -145,6 +146,62 @@ const EditRecord = () => {
     setHasChanges(true);
   };
 
+  // Doctor search state
+  const [doctorSearchQuery, setDoctorSearchQuery] = useState("");
+  const [doctorSearchResults, setDoctorSearchResults] = useState([]);
+  const [doctorSearchLoading, setDoctorSearchLoading] = useState(false);
+  const doctorSearchTimeoutRef = useRef(null);
+
+  // Debounced doctor search
+  const handleDoctorSearch = useCallback(async (query) => {
+    if (!query || query.length < 2) {
+      setDoctorSearchResults([]);
+      return;
+    }
+    setDoctorSearchLoading(true);
+    try {
+      const results = await searchDoctors(query);
+      setDoctorSearchResults(results || []);
+    } catch (err) {
+      console.error("Doctor search error:", err);
+      setDoctorSearchResults([]);
+    } finally {
+      setDoctorSearchLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (doctorSearchTimeoutRef.current) clearTimeout(doctorSearchTimeoutRef.current);
+    doctorSearchTimeoutRef.current = setTimeout(() => {
+      handleDoctorSearch(doctorSearchQuery);
+    }, 300);
+    return () => clearTimeout(doctorSearchTimeoutRef.current);
+  }, [doctorSearchQuery, handleDoctorSearch]);
+
+  const handleAddDoctor = (doc) => {
+    const docId = doc.doctor_id || doc.id || doc.employee_id;
+    const existing = (formData.doctors || []).find(d => (d.doctor_id || d.id) === docId);
+    if (existing) return; // Already added
+    setFormData(prev => ({
+      ...prev,
+      doctors: [...(prev.doctors || []), {
+        doctor_id: docId,
+        doctor_name: doc.doctor_name || doc.full_name || doc.name || ''
+      }]
+    }));
+    setDoctorSearchQuery("");
+    setDoctorSearchResults([]);
+    setHasChanges(true);
+  };
+
+  const handleRemoveDoctor = (docId) => {
+    setFormData(prev => ({
+      ...prev,
+      doctors: (prev.doctors || []).filter(d => (d.doctor_id || d.id) !== docId)
+    }));
+    setHasChanges(true);
+  };
+
   // Compute form validity
   const isFormValid = useMemo(() => {
     const validation = validateIncidentCase(formData);
@@ -234,25 +291,33 @@ const EditRecord = () => {
 
           // Map doctors array
           const doctorsList = Array.isArray(record.doctors)
-            ? record.doctors.map(doc => ({
-                doctor_id: doc.id || doc.doctor_id,
-                doctor_name: doc.name || doc.doctor_name
-              }))
+            ? record.doctors.map(doc => {
+                const docId = doc.id || doc.doctor_id || doc.employee_id;
+                const docName = doc.name || doc.doctor_name || doc.full_name || `Doctor #${docId}`;
+                return {
+                  doctor_id: docId,
+                  doctor_name: docName
+                };
+              })
             : [];
 
           // Map employees array (supervisors/workers)
           const employeesList = Array.isArray(record.employees)
-            ? record.employees.map(emp => ({
-                employee_id: emp.employee_id || emp.id,
-                full_name: emp.full_name || emp.name || '',
-                job_title: emp.job_title || ''
-              }))
+            ? record.employees.map(emp => {
+                const empId = emp.employee_id || emp.id;
+                const empName = emp.full_name || emp.employee_name || emp.name || `Employee #${empId}`;
+                return {
+                  employee_id: empId,
+                  full_name: empName,
+                  job_title: emp.job_title || ''
+                };
+              })
             : [];
 
-          // Map building_id to building name (RAH/BCI)
+          // Map building_id to building name (RAH/BIC)
           let buildingName = null;
           if (record.building_id === 1) buildingName = "RAH";
-          else if (record.building_id === 2) buildingName = "BCI";
+          else if (record.building_id === 2) buildingName = "BIC";
           else if (record.building_name) buildingName = record.building_name;
 
           // Map in_out from is_inpatient or in_out field
@@ -506,23 +571,31 @@ const EditRecord = () => {
         : [];
 
       const doctorsList = Array.isArray(originalRecord.doctors)
-        ? originalRecord.doctors.map(doc => ({
-            doctor_id: doc.id || doc.doctor_id,
-            doctor_name: doc.name || doc.doctor_name
-          }))
+        ? originalRecord.doctors.map(doc => {
+            const docId = doc.id || doc.doctor_id || doc.employee_id;
+            const docName = doc.name || doc.doctor_name || doc.full_name || `Doctor #${docId}`;
+            return {
+              doctor_id: docId,
+              doctor_name: docName
+            };
+          })
         : [];
 
       const employeesList = Array.isArray(originalRecord.employees)
-        ? originalRecord.employees.map(emp => ({
-            employee_id: emp.employee_id || emp.id,
-            full_name: emp.full_name || emp.name || '',
-            job_title: emp.job_title || ''
-          }))
+        ? originalRecord.employees.map(emp => {
+            const empId = emp.employee_id || emp.id;
+            const empName = emp.full_name || emp.employee_name || emp.name || `Employee #${empId}`;
+            return {
+              employee_id: empId,
+              full_name: empName,
+              job_title: emp.job_title || ''
+            };
+          })
         : [];
 
       let buildingName = null;
       if (originalRecord.building_id === 1) buildingName = "RAH";
-      else if (originalRecord.building_id === 2) buildingName = "BCI";
+      else if (originalRecord.building_id === 2) buildingName = "BIC";
       else if (originalRecord.building_name) buildingName = originalRecord.building_name;
 
       let inOutValue = null;
@@ -712,28 +785,31 @@ const EditRecord = () => {
               {/* Current linked employees */}
               {formData.employees && formData.employees.length > 0 && (
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
-                  {formData.employees.map((emp) => (
-                    <Chip
-                      key={emp.employee_id}
-                      variant="soft"
-                      color="primary"
-                      endDecorator={
-                        <IconButton
-                          size="sm"
-                          variant="plain"
-                          color="neutral"
-                          onClick={() => handleRemoveEmployee(emp.employee_id)}
-                        >
-                          <CloseIcon sx={{ fontSize: 16 }} />
-                        </IconButton>
-                      }
-                      sx={{ py: 0.5, px: 1 }}
-                    >
-                      <PersonIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                      {emp.full_name}
-                      {emp.job_title ? ` (${emp.job_title})` : ""}
-                    </Chip>
-                  ))}
+                  {formData.employees.map((emp) => {
+                    const empName = emp.full_name || emp.employee_name || emp.name || `Employee #${emp.employee_id}`;
+                    return (
+                      <Chip
+                        key={emp.employee_id}
+                        variant="soft"
+                        color="primary"
+                        endDecorator={
+                          <IconButton
+                            size="sm"
+                            variant="plain"
+                            color="neutral"
+                            onClick={() => handleRemoveEmployee(emp.employee_id)}
+                          >
+                            <CloseIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        }
+                        sx={{ py: 0.5, px: 1 }}
+                      >
+                        <PersonIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                        {empName}
+                        {emp.job_title ? ` (${emp.job_title})` : ""}
+                      </Chip>
+                    );
+                  })}
                 </Box>
               )}
 
@@ -818,7 +894,124 @@ const EditRecord = () => {
               )}
             </Card>
 
-            {/* Row 5: Action Buttons */}
+            {/* Row 5: Doctors */}
+            <Card sx={{ 
+              p: 3, 
+              mt: 3, 
+              mb: 3,
+              background: "linear-gradient(135deg, #e8f5e9 0%, #fff 100%)",
+              border: "1px solid rgba(76, 175, 80, 0.15)",
+              borderRadius: "12px"
+            }}>
+              <Typography level="title-md" sx={{ fontWeight: 700, mb: 2, color: "#2e7d32" }}>
+                🩺 Doctors
+              </Typography>
+
+              {/* Current linked doctors */}
+              {formData.doctors && formData.doctors.length > 0 && (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
+                  {formData.doctors.map((doc) => {
+                    const docId = doc.doctor_id || doc.id;
+                    const docName = doc.doctor_name || doc.name || `Doctor #${docId}`;
+                    return (
+                      <Chip
+                        key={docId}
+                        variant="soft"
+                        color="success"
+                        endDecorator={
+                          <IconButton
+                            size="sm"
+                            variant="plain"
+                            color="neutral"
+                            onClick={() => handleRemoveDoctor(docId)}
+                          >
+                            <CloseIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        }
+                        sx={{ py: 0.5, px: 1 }}
+                      >
+                        🩺 {docName}
+                      </Chip>
+                    );
+                  })}
+                </Box>
+              )}
+
+              {/* Doctor search */}
+              <FormControl>
+                <FormLabel>Search & Add Doctor</FormLabel>
+                <Input
+                  placeholder="Type doctor name to search..."
+                  value={doctorSearchQuery}
+                  onChange={(e) => setDoctorSearchQuery(e.target.value)}
+                  startDecorator={<SearchIcon sx={{ color: "neutral.400" }} />}
+                  endDecorator={doctorSearchLoading ? <CircularProgress size="sm" /> : null}
+                  sx={{ mb: 1 }}
+                />
+              </FormControl>
+
+              {/* Search results dropdown */}
+              {doctorSearchResults.length > 0 && (
+                <Sheet
+                  variant="outlined"
+                  sx={{
+                    borderRadius: "8px",
+                    maxHeight: 200,
+                    overflowY: "auto",
+                    p: 0
+                  }}
+                >
+                  {doctorSearchResults.map((doc) => {
+                    const docId = doc.doctor_id || doc.id || doc.employee_id;
+                    const docName = doc.doctor_name || doc.full_name || doc.name || `Doctor #${docId}`;
+                    const isAlreadyAdded = (formData.doctors || []).some(d => (d.doctor_id || d.id) === docId);
+                    return (
+                      <Box
+                        key={docId}
+                        onClick={() => !isAlreadyAdded && handleAddDoctor({
+                          doctor_id: docId,
+                          doctor_name: docName
+                        })}
+                        sx={{
+                          p: 1.5,
+                          cursor: isAlreadyAdded ? "default" : "pointer",
+                          opacity: isAlreadyAdded ? 0.5 : 1,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          borderBottom: "1px solid",
+                          borderColor: "divider",
+                          "&:hover": !isAlreadyAdded ? {
+                            bgcolor: "success.softBg"
+                          } : {},
+                          "&:last-child": { borderBottom: "none" }
+                        }}
+                      >
+                        <Box sx={{ fontSize: 20 }}>🩺</Box>
+                        <Box>
+                          <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                            {docName}
+                          </Typography>
+                        </Box>
+                        {isAlreadyAdded && (
+                          <Chip size="sm" variant="soft" color="success" sx={{ ml: "auto" }}>
+                            Added
+                          </Chip>
+                        )}
+                      </Box>
+                    );
+                  })}
+                </Sheet>
+              )}
+
+              {doctorSearchQuery.length >= 2 && doctorSearchResults.length === 0 && !doctorSearchLoading && (
+                <Typography level="body-xs" sx={{ color: "neutral.500", mt: 1 }}>
+                  No doctors found for "{doctorSearchQuery}"
+                </Typography>
+              )}
+            </Card>
+
+            {/* Row 6: Action Buttons */}
             <EditActionButtons
               onUpdate={handleUpdateRecord}
               onCancel={handleCancel}

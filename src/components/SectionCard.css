@@ -2,8 +2,13 @@
   background: #f8f9fa;
   border: 2px solid #dee2e6;
   border-radius: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   overflow: hidden;
+  transition: box-shadow 0.2s ease, transform 0.1s ease;
+}
+
+.section-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .section-header {
@@ -25,10 +30,63 @@
   flex: 1;
 }
 
+.section-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.org-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.org-type-section {
+  background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+  color: white;
+  border: 1px solid rgba(0, 184, 148, 0.3);
+}
+
+.org-type-department {
+  background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+  color: white;
+  border: 1px solid rgba(108, 92, 231, 0.3);
+}
+
+.org-type-administration {
+  background: linear-gradient(135deg, #e17055 0%, #fab1a0 100%);
+  color: white;
+  border: 1px solid rgba(225, 112, 85, 0.3);
+}
+
+/* Section card border accent based on org type */
+.section-card.org-section {
+  border-left: 4px solid #00b894;
+}
+
+.section-card.org-department {
+  border-left: 4px solid #6c5ce7;
+}
+
+.section-card.org-administration {
+  border-left: 4px solid #e17055;
+}
+
 .section-name {
-  margin: 0 0 8px 0;
+  margin: 0;
   font-size: 18px;
   color: #2d3436;
+  font-weight: 600;
 }
 
 .section-meta {
@@ -52,6 +110,14 @@
   font-weight: 600;
   font-size: 14px;
   user-select: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: #e8f4fc;
+  transition: background-color 0.2s;
+}
+
+.expand-indicator:hover {
+  background: #d4ebf9;
 }
 
 .section-body {

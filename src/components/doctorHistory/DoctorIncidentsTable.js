@@ -99,11 +99,11 @@ const DoctorIncidentsTable = ({ incidents }) => {
                 <th onClick={() => handleSort("date")}>
                   Date {sortBy === "date" && (sortOrder === "asc" ? "↑" : "↓")}
                 </th>
-                <th onClick={() => handleSort("incidentId")}>
-                  Incident ID {sortBy === "incidentId" && (sortOrder === "asc" ? "↑" : "↓")}
+                <th onClick={() => handleSort("incident_id")}>
+                  Incident ID {sortBy === "incident_id" && (sortOrder === "asc" ? "↑" : "↓")}
                 </th>
-                <th onClick={() => handleSort("patientId")}>
-                  Patient ID {sortBy === "patientId" && (sortOrder === "asc" ? "↑" : "↓")}
+                <th onClick={() => handleSort("patient_id")}>
+                  Patient ID {sortBy === "patient_id" && (sortOrder === "asc" ? "↑" : "↓")}
                 </th>
                 <th>Category</th>
                 <th onClick={() => handleSort("severity")}>
@@ -123,46 +123,50 @@ const DoctorIncidentsTable = ({ incidents }) => {
             <tbody>
               {sortedIncidents.map((incident) => (
                 <tr
-                  key={incident.id}
+                  key={incident.incident_id || incident.id}
                   style={{
-                    background: incident.isRedFlag ? "#ffebee" : "white",
-                    borderLeft: incident.isRedFlag ? "4px solid #d32f2f" : "none",
+                    background: incident.is_red_flag ? "#ffebee" : "white",
+                    borderLeft: incident.is_red_flag ? "4px solid #d32f2f" : "none",
                   }}
                 >
                   <td>
-                    <Typography level="body-sm">{incident.date}</Typography>
-                  </td>
-                  <td>
-                    <Typography level="body-sm" sx={{ fontWeight: 600, color: "#667eea" }}>
-                      {incident.isRedFlag && "🚩 "}
-                      {incident.incidentId}
+                    <Typography level="body-sm">
+                      {incident.date || incident.incident_date || incident.created_at 
+                        ? new Date(incident.date || incident.incident_date || incident.created_at).toLocaleDateString() 
+                        : "—"}
                     </Typography>
                   </td>
                   <td>
-                    <Typography level="body-sm">{incident.patientId}</Typography>
+                    <Typography level="body-sm" sx={{ fontWeight: 600, color: "#667eea" }}>
+                      {incident.is_red_flag && "🚩 "}
+                      {incident.incident_id}
+                    </Typography>
                   </td>
                   <td>
-                    <Typography level="body-sm">{incident.category}</Typography>
+                    <Typography level="body-sm">{incident.patient_id || "—"}</Typography>
+                  </td>
+                  <td>
+                    <Typography level="body-sm">{incident.category_en || incident.category}</Typography>
                     <Typography level="body-xs" sx={{ color: "#999", dir: "rtl" }}>
-                      {incident.categoryAr}
+                      {incident.category_ar || incident.categoryAr}
                     </Typography>
                   </td>
                   <td>
                     <Chip size="sm" color={getSeverityColor(incident.severity)}>
-                      {incident.severity}
+                      {incident.severity || "—"}
                     </Chip>
                   </td>
                   <td>
                     <Chip
                       size="sm"
                       color={
-                        incident.classification === "bad" ? "danger" :
-                        incident.classification === "good" ? "success" : "neutral"
+                        (incident.doctor_classification || incident.classification) === "bad" ? "danger" :
+                        (incident.doctor_classification || incident.classification) === "good" ? "success" : "neutral"
                       }
                     >
-                      {incident.classification === "bad" ? "😞 Bad" :
-                       incident.classification === "good" ? "😊 Good" :
-                       incident.classification === "neutral" ? "😐 Neutral" : "—"}
+                      {(incident.doctor_classification || incident.classification) === "bad" ? "😞 Bad" :
+                       (incident.doctor_classification || incident.classification) === "good" ? "😊 Good" :
+                       (incident.doctor_classification || incident.classification) === "neutral" ? "😐 Neutral" : "—"}
                     </Chip>
                   </td>
                   <td style={{ direction: "rtl" }}>
@@ -173,11 +177,11 @@ const DoctorIncidentsTable = ({ incidents }) => {
                   </td>
                   <td>
                     <Chip size="sm" variant="soft" color={getStatusColor(incident.status)}>
-                      {incident.status.replace("_", " ")}
+                      {(incident.status || "—").replace("_", " ")}
                     </Chip>
                   </td>
                   <td>
-                    {incident.isRedFlag ? (
+                    {incident.is_red_flag ? (
                       <Typography level="body-sm" sx={{ color: "#d32f2f", fontWeight: 700 }}>
                         🚩 YES
                       </Typography>

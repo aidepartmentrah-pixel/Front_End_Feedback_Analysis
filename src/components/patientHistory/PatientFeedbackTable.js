@@ -1,5 +1,6 @@
 // src/components/patientHistory/PatientFeedbackTable.js
 // Phase R-P — Normalized doctor field: doctor_name (from DoctorName join fix)
+// Phase Satisfaction — Added satisfaction column and modal
 import React, { useState, useMemo } from "react";
 import {
   Table,
@@ -8,13 +9,21 @@ import {
   Typography,
   IconButton,
   Tooltip,
+  Button,
+  Chip,
 } from "@mui/joy";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import AddIcon from "@mui/icons-material/Add";
+import SatisfactionModal from "./SatisfactionModal";
 
-const PatientFeedbackTable = ({ feedbacks }) => {
+const PatientFeedbackTable = ({ feedbacks, onRefresh }) => {
   const [sortConfig, setSortConfig] = useState({ key: "date", direction: "desc" });
   const [page, setPage] = useState(0);
   const [rowsPerPage] = useState(5);
+  
+  // Satisfaction modal state
+  const [satisfactionModalOpen, setSatisfactionModalOpen] = useState(false);
+  const [selectedCase, setSelectedCase] = useState(null);
 
   // Sort feedbacks
   const sortedFeedbacks = useMemo(() => {
@@ -84,6 +93,35 @@ const PatientFeedbackTable = ({ feedbacks }) => {
     return styleMap[status?.toLowerCase()] || { background: "#999", color: "white" };
   };
 
+  // Get satisfaction status style and label
+  const getSatisfactionDisplay = (satisfaction) => {
+    if (!satisfaction || !satisfaction.exists) {
+      return { label: "Not Set", color: "neutral", variant: "outlined" };
+    }
+    switch (satisfaction.satisfaction_status_id) {
+      case 1: return { label: "Not Present", color: "neutral", variant: "soft" };
+      case 2: return { label: "Satisfied", color: "success", variant: "solid" };
+      case 3: return { label: "Not Satisfied", color: "danger", variant: "solid" };
+      default: return { label: "Unknown", color: "neutral", variant: "outlined" };
+    }
+  };
+
+  // Handle opening satisfaction modal
+  const handleOpenSatisfaction = (feedback) => {
+    setSelectedCase({
+      id: feedback.id || feedback.incident_case_id,
+      name: `Case #${feedback.id || feedback.incident_case_id}`,
+    });
+    setSatisfactionModalOpen(true);
+  };
+
+  // Handle satisfaction success
+  const handleSatisfactionSuccess = () => {
+    setSatisfactionModalOpen(false);
+    setSelectedCase(null);
+    if (onRefresh) onRefresh();
+  };
+
   const totalPages = Math.ceil(sortedFeedbacks.length / rowsPerPage);
 
   return (
@@ -135,12 +173,13 @@ const PatientFeedbackTable = ({ feedbacks }) => {
               <th>Status</th>
               <th>Description</th>
               <th style={{ width: "80px", textAlign: "center" }}>Action</th>
+              <th style={{ width: "120px", textAlign: "center" }}>Satisfaction</th>
             </tr>
           </thead>
           <tbody>
             {paginatedFeedbacks.length === 0 ? (
               <tr>
-                <td colSpan="8" style={{ textAlign: "center", padding: "40px" }}>
+                <td colSpan="9" style={{ textAlign: "center", padding: "40px" }}>
                   <Typography level="body-md" sx={{ color: "#999" }}>
                     No feedback records found
                   </Typography>
@@ -221,6 +260,29 @@ const PatientFeedbackTable = ({ feedbacks }) => {
                       </Tooltip>
                     </Box>
                   </td>
+                  <td>
+                    <Box sx={{ display: "flex", justifyContent: "center" }}>
+                      {fb.satisfaction?.exists ? (
+                        <Chip
+                          size="sm"
+                          color={getSatisfactionDisplay(fb.satisfaction).color}
+                          variant={getSatisfactionDisplay(fb.satisfaction).variant}
+                        >
+                          {getSatisfactionDisplay(fb.satisfaction).label}
+                        </Chip>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outlined"
+                          color="primary"
+                          startDecorator={<AddIcon sx={{ fontSize: "16px" }} />}
+                          onClick={() => handleOpenSatisfaction(fb)}
+                        >
+                          Add
+                        </Button>
+                      )}
+                    </Box>
+                  </td>
                 </tr>
               ))
             )}
@@ -264,6 +326,17 @@ const PatientFeedbackTable = ({ feedbacks }) => {
           </IconButton>
         </Box>
       </Box>
+
+      {/* Satisfaction Modal */}
+      <SatisfactionModal
+        open={satisfactionModalOpen}
+        onClose={() => {
+          setSatisfactionModalOpen(false);
+          setSelectedCase(null);
+        }}
+        caseData={selectedCase}
+        onSuccess={handleSatisfactionSuccess}
+      />
     </Sheet>
   );
 };

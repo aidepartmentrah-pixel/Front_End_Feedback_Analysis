@@ -2,6 +2,7 @@
 // Phase D — Patient history mapped to V2 unified profile contract
 // Phase 2 — FAB for export actions
 // Phase R-P — Normalized field names, V2 export endpoints, removed fallback chaos
+// Phase 7 — Patient Feedback Seasonal Report widget integrated
 import React, { useState, useEffect } from "react";
 import { Box, Alert, CircularProgress, Typography, Button, Card, Select, Option } from "@mui/joy";
 import DescriptionIcon from '@mui/icons-material/Description';
@@ -11,12 +12,16 @@ import SearchPatient from "../components/patientHistory/SearchPatient";
 import PatientInfoCard from "../components/patientHistory/PatientInfoCard";
 import PatientFeedbackTable from "../components/patientHistory/PatientFeedbackTable";
 import PatientActions from "../components/patientHistory/PatientActions";
+import SeasonSelector from "../components/personReporting/SeasonSelector";
 
 // API imports
-import { getPatientFullHistoryV2, exportPatientCsvV2, exportPatientJsonV2, exportPatientWordV2 } from "../api/personApiV2";
+import { getPatientFullHistoryV2, exportPatientCsvV2, exportPatientJsonV2, exportPatientWordV2, downloadPatientFeedbackSeasonalWordV2, downloadBlobFile } from "../api/personApiV2";
+import { useAuth } from "../context/AuthContext";
+import { canViewPersonReporting } from "../utils/roleGuards";
 
 const PatientHistoryPage = ({ embedded = false }) => {
   // Phase D — standardized loading and empty states
+  const { user } = useAuth();
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [patientProfile, setPatientProfile] = useState(null);
   const [feedbackList, setFeedbackList] = useState([]);
@@ -29,6 +34,14 @@ const PatientHistoryPage = ({ embedded = false }) => {
   const [fabExpanded, setFabExpanded] = useState(false);
   const [exportFormat, setExportFormat] = useState('word');
   const [exporting, setExporting] = useState(false);
+  
+  // Phase 7 — Patient Feedback Seasonal Report state
+  const [selectedSeason, setSelectedSeason] = useState(null);
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [reportError, setReportError] = useState(null);
+  
+  // Role guard for reporting
+  const canViewReporting = canViewPersonReporting(user);
 
   // Fetch patient full history (profile + items + metrics)
   const fetchPatientData = async (patientId) => {
@@ -116,6 +129,47 @@ const PatientHistoryPage = ({ embedded = false }) => {
     // Don't load any data initially - wait for user to search
   }, []);
 
+  // Phase 7 — Handle season selection
+  const handleSeasonChange = (season) => {
+    setSelectedSeason(season);
+    setReportError(null);
+  };
+
+  // Phase 7 — Generate Patient Feedback Seasonal Word Report
+  const handleGenerateFeedbackReport = async () => {
+    if (!selectedSeason?.season_start || !selectedSeason?.season_end) {
+      return;
+    }
+
+    try {
+      setGeneratingReport(true);
+      setReportError(null);
+
+      console.log("Generating Patient Feedback Seasonal Report:", {
+        season_start: selectedSeason.season_start,
+        season_end: selectedSeason.season_end
+      });
+
+      const blob = await downloadPatientFeedbackSeasonalWordV2(
+        selectedSeason.season_start,
+        selectedSeason.season_end
+      );
+
+      const filename = `patient_feedback_report_${selectedSeason.quarter}_${selectedSeason.year}.docx`;
+      downloadBlobFile(blob, filename);
+
+      setSuccess("Patient Feedback Report generated successfully!");
+      setTimeout(() => setSuccess(null), 3000);
+
+      console.log("✅ Report downloaded:", filename);
+    } catch (err) {
+      console.error("❌ Error generating Patient Feedback Seasonal Report:", err);
+      setReportError(err.message || "Failed to generate report. Please try again.");
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
   const content = (
       <Box sx={{ p: 3 }}>
         {/* Page Header */}
@@ -186,7 +240,7 @@ const PatientHistoryPage = ({ embedded = false }) => {
 
             {/* Feedback Table */}
             <Box sx={{ mb: 3 }}>
-              <PatientFeedbackTable feedbacks={feedbackList} />
+              <PatientFeedbackTable feedbacks={feedbackList} onRefresh={handleRefresh} />
             </Box>
           </>
         ) : (
@@ -240,6 +294,75 @@ const PatientHistoryPage = ({ embedded = false }) => {
                 >
                   تصدير البيانات
                 </Button>
+              </Box>
+            </Card>
+          </Box>
+        )}
+
+        {/* Phase 7 — Patient Feedback Seasonal Report Section */}
+        {canViewReporting && (
+          <Box sx={{ mt: 5, pt: 4, borderTop: '2px solid #eee' }}>
+            <Typography level="h5" sx={{ mb: 3, fontWeight: 700, color: '#667eea', textAlign: 'center' }}>
+              📊 تقرير ملاحظات المرضى الموسمي (Patient Feedback Report)
+            </Typography>
+            
+            <Card sx={{ p: 4, background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)', border: '2px solid rgba(102, 126, 234, 0.2)', textAlign: 'center' }}>
+              <Typography level="body-md" sx={{ mb: 3, color: '#666' }}>
+                Generate a comprehensive seasonal report analyzing Root Cause Analysis (RCA) and Patient Satisfaction data
+              </Typography>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 400, mx: 'auto', alignItems: 'center' }}>
+                <SeasonSelector
+                  value={selectedSeason}
+                  onChange={handleSeasonChange}
+                />
+
+                <Button
+                  size="lg"
+                  variant="solid"
+                  startDecorator={<DescriptionIcon />}
+                  loading={generatingReport}
+                  disabled={
+                    !selectedSeason?.season_start || 
+                    !selectedSeason?.season_end || 
+                    generatingReport
+                  }
+                  onClick={handleGenerateFeedbackReport}
+                  sx={{ 
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: '1rem',
+                    py: 1.5,
+                    px: 4,
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #5a6fd6 0%, #6a42a0 100%)',
+                      boxShadow: '0 6px 20px rgba(102, 126, 234, 0.6)',
+                      transform: 'translateY(-2px)',
+                    },
+                    '&:active': {
+                      transform: 'translateY(0)',
+                      boxShadow: '0 2px 8px rgba(102, 126, 234, 0.4)',
+                    },
+                    '&:disabled': {
+                      background: '#ccc',
+                      color: '#999',
+                      boxShadow: 'none',
+                      transform: 'none',
+                    }
+                  }}
+                >
+                  📄 إنشاء التقرير / Generate Report
+                </Button>
+
+                {reportError && (
+                  <Alert color="danger" size="sm">
+                    {reportError}
+                  </Alert>
+                )}
               </Box>
             </Card>
           </Box>

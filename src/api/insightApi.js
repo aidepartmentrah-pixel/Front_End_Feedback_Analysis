@@ -321,23 +321,91 @@ function buildStuckQuery(daysThreshold) {
  * - Missing supervisor shows "Unassigned"
  * - Seasonal reports get "NEUTRAL" severity
  * - Ensures subcases is always an array
+ * - Infers org_type from section_name if not provided by backend
  * 
  * @param {Array|null|undefined} rawList - Raw backend response array
  * @returns {Array} Array of section objects with subcases
  */
 function adaptGroupedInbox(rawList) {
+  // Debug: log raw data to help diagnose issues
+  console.log('[adaptGroupedInbox] Raw data received:', rawList);
+  console.log('[adaptGroupedInbox] Is array:', Array.isArray(rawList));
+  console.log('[adaptGroupedInbox] Length:', rawList?.length);
+  
   // Defensive fallback to prevent UI crash on bad payload
   if (!Array.isArray(rawList)) {
+    console.warn('[adaptGroupedInbox] Data is not an array, returning empty');
     return [];
   }
 
-  return rawList
-    .filter(section => section != null) // Skip null/undefined sections
+  /**
+   * Infer org_type from section_name using Arabic/English pattern matching.
+   * Used as fallback when backend doesn't provide org_type correctly.
+   */
+  function inferOrgType(sectionName, backendOrgType) {
+    // Safely convert to string (backend may return numeric type codes like 323)
+    const orgTypeStr = backendOrgType != null ? String(backendOrgType).toUpperCase() : '';
+    
+    // If backend provided a valid org_type string, use it
+    if (['DEPARTMENT', 'ADMINISTRATION'].includes(orgTypeStr)) {
+      return orgTypeStr;
+    }
+
+    const name = (sectionName || '').toLowerCase();
+    
+    // Administration patterns (Arabic/English)
+    // الادارة، الإدارة، ادارة، إدارة = Administration
+    const adminPatterns = [
+      'الادارة', 'الإدارة', 'ادارة', 'إدارة', // Arabic with/without ال
+      'administration', 'admin', 'الادارية', 'الإدارية'
+    ];
+    
+    // Department patterns (Arabic/English)
+    // دائرة، الدائرة، department
+    const deptPatterns = [
+      'دائرة', 'الدائرة', 'department', 'dept'
+    ];
+    
+    // Check for administration
+    for (const pattern of adminPatterns) {
+      if (name.includes(pattern)) {
+        return 'ADMINISTRATION';
+      }
+    }
+    
+    // Check for department
+    for (const pattern of deptPatterns) {
+      if (name.includes(pattern)) {
+        return 'DEPARTMENT';
+      }
+    }
+    
+    // Default to SECTION (includes قسم patterns)
+    return 'SECTION';
+  }
+
+  const nonNull = rawList.filter(section => section != null);
+  console.log('[adaptGroupedInbox] Non-null sections:', nonNull.length);
+  
+  const withPending = nonNull.filter(section => section.pending_count > 0);
+  console.log('[adaptGroupedInbox] Sections with pending_count > 0:', withPending.length);
+  
+  // Log first section to see structure
+  if (rawList.length > 0) {
+    console.log('[adaptGroupedInbox] First section structure:', {
+      section_id: rawList[0]?.section_id,
+      section_name: rawList[0]?.section_name,
+      pending_count: rawList[0]?.pending_count,
+      subcases_length: rawList[0]?.subcases?.length
+    });
+  }
+
+  return nonNull
     .filter(section => section.pending_count > 0) // Hide empty sections
     .map(section => ({
       section_id: section.section_id,
       section_name: String(section.section_name ?? 'Unknown Section'),
-      org_type: String(section.org_type ?? 'SECTION'),
+      org_type: inferOrgType(section.section_name, section.org_type),
       supervisor_name: String(section.supervisor_name ?? 'Unassigned'),
       pending_count: Number(section.pending_count) || 0,
       subcases: Array.isArray(section.subcases) 
@@ -457,9 +525,15 @@ export async function getUserWorkload(filters = {}) {
  */
 export async function getGroupedInbox() {
   try {
+    console.log('[getGroupedInbox] Calling /api/v2/insight/grouped-inbox...');
     const res = await apiClient.get('/api/v2/insight/grouped-inbox');
+    console.log('[getGroupedInbox] Response status:', res.status);
+    console.log('[getGroupedInbox] Response data type:', typeof res.data);
+    console.log('[getGroupedInbox] Response data:', res.data);
     return adaptGroupedInbox(res.data);
   } catch (err) {
+    console.error('[getGroupedInbox] API Error:', err);
+    console.error('[getGroupedInbox] Error response:', err.response?.data);
     const message = err.response?.data?.detail || 'Failed to load grouped inbox';
     throw new Error(message);
   }

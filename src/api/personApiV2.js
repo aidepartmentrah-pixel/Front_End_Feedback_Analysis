@@ -561,6 +561,39 @@ export const downloadAllWorkersSeasonalWordV2 = async (season_start, season_end)
 };
 
 // ============================================================
+// PATIENT FEEDBACK SEASONAL REPORT
+// ============================================================
+
+/**
+ * Download Patient Feedback Seasonal Report (RCA + Satisfaction analysis)
+ * GET /api/person-reports/patient-feedback/seasonal-word
+ * @param {string} season_start - Season start date (YYYY-MM-DD)
+ * @param {string} season_end - Season end date (YYYY-MM-DD)
+ * @returns {Promise<Blob>} Word (.docx) file blob with RCA + Satisfaction report
+ */
+export const downloadPatientFeedbackSeasonalWordV2 = async (season_start, season_end) => {
+  try {
+    console.log("📄 Downloading Patient Feedback Seasonal Report (V2)");
+    
+    const params = new URLSearchParams({
+      season_start,
+      season_end
+    });
+    
+    const response = await apiClient.get(
+      `/api/person-reports/patient-feedback/seasonal-word?${params.toString()}`,
+      { responseType: 'blob' }
+    );
+    
+    console.log("✅ Patient Feedback Seasonal Report downloaded (V2)");
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error downloading Patient Feedback Seasonal Report (V2):", error);
+    throw error;
+  }
+};
+
+// ============================================================
 // BLOB DOWNLOAD HELPER
 // ============================================================
 

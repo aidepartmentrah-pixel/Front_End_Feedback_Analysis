@@ -199,9 +199,14 @@ const SectionCreationPanel = () => {
         return detail;
       }
       
-      // If detail is array, join messages
+      // If detail is array, join messages (pydantic validation errors come as {type, loc, msg, input})
       if (Array.isArray(detail)) {
-        return detail.map(err => err.msg || err).join(', ');
+        return detail.map(err => err.msg || err.message || JSON.stringify(err)).join(', ');
+      }
+      
+      // If detail is a single object
+      if (typeof detail === 'object') {
+        return detail.msg || detail.message || JSON.stringify(detail);
       }
     }
     

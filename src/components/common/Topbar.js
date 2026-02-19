@@ -38,6 +38,10 @@ const TopBar = () => {
         return "📈 Reporting";
       case "/export":
         return "📤 Export";
+      case "/insight":
+        return "🔍 Workflow Insight";
+      case "/inbox":
+        return "📥 Workflow Inbox";
       default:
         return "📊 Dashboard";
     }
