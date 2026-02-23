@@ -8,277 +8,220 @@ import {
   Box,
   Chip,
   Divider,
-  Grid,
   Card,
 } from "@mui/joy";
 import WarningIcon from "@mui/icons-material/Warning";
+import PersonIcon from "@mui/icons-material/Person";
+import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import BusinessIcon from "@mui/icons-material/Business";
+import CategoryIcon from "@mui/icons-material/Category";
 
 const DetailsModal = ({ open, onClose, neverEvent, loading }) => {
   if (!neverEvent && !loading) return null;
 
-  const getStatusColor = (status) => {
-    if (status === "OPEN") return "primary";
-    if (status === "UNDER_REVIEW") return "warning";
-    if (status === "FINISHED") return "success";
+  const getSeverityColor = (severity) => {
+    const s = (severity || "").toUpperCase();
+    if (s === "CRITICAL" || s === "HIGH") return "danger";
+    if (s === "MEDIUM") return "warning";
     return "neutral";
   };
 
-  const getStatusLabel = (status) => {
-    if (status === "OPEN") return "Open";
-    if (status === "UNDER_REVIEW") return "Under Review";
-    if (status === "IN_PROGRESS" || status === "In Progress") return "In Progress";
-    if (status === "FINISHED") return "Finished";
-    if (status === "CLOSED" || status === "Closed") return "Closed";
-    return status;
+  const getStatusColor = (status) => {
+    const s = (status || "").toUpperCase();
+    if (s === "OPEN") return "primary";
+    if (s === "UNDER_REVIEW" || s === "IN_PROGRESS") return "warning";
+    if (s === "FINISHED" || s === "CLOSED") return "success";
+    return "neutral";
   };
+
+  // Handle both nested (never_event.xxx) and direct (xxx) data structures
+  const data = neverEvent?.never_event || neverEvent || {};
+  
+  // Extract fields with fallbacks
+  const caseId = data.id || data.recordID || neverEvent?.id;
+  const patientName = data.patientName || data.patient_name || data.patient_full_name || "-";
+  const date = data.date;
+  const department = data.department || "-";
+  const category = data.neverEventCategory || data.category || "-";
+  const eventType = data.neverEventTypeAr || data.neverEventType || data.description || "-";
+  const severity = data.severity || "HIGH";
+  const status = data.status || "-";
+  const description = data.description || data.neverEventTypeAr || data.neverEventType || 
+                      neverEvent?.incident_details?.complaint_text || "-";
 
   return (
     <Modal open={open} onClose={onClose} sx={{ zIndex: 9999 }}>
       <ModalDialog
         sx={{
-          maxWidth: 900,
-          width: "90%",
-          maxHeight: "90vh",
+          maxWidth: 600,
+          width: "95%",
+          maxHeight: "85vh",
           overflow: "auto",
+          borderRadius: "16px",
+          p: 0,
           zIndex: 10000,
         }}
       >
-        <ModalClose />
+        <ModalClose sx={{ top: 16, right: 16, zIndex: 10, color: "white" }} />
+        
         {loading ? (
-          <Box sx={{ p: 4, textAlign: "center" }}>
-            <Typography>جاري التحميل...</Typography>
+          <Box sx={{ p: 6, textAlign: "center" }}>
+            <Typography level="body-lg">Loading...</Typography>
           </Box>
         ) : (
           <>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-              <WarningIcon sx={{ color: "#dc2626", fontSize: 28 }} />
-              <Typography level="h4">
-                تفاصيل الحدث الذي لا يجب أن يحدث
+            {/* Header */}
+            <Box
+              sx={{
+                background: "linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)",
+                color: "white",
+                p: 3,
+                borderRadius: "16px 16px 0 0",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+                <WarningIcon sx={{ fontSize: 28 }} />
+                <Typography level="h4" sx={{ color: "white", fontWeight: 700 }}>
+                  Never Event
+                </Typography>
+              </Box>
+              <Typography level="h2" sx={{ color: "white", fontWeight: 700 }}>
+                Case #{caseId}
               </Typography>
             </Box>
 
-            {/* Basic Info */}
-            <Card variant="outlined" sx={{ mb: 2, p: 2 }}>
-              <Grid container spacing={2}>
-                <Grid xs={12} sm={6}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    رقم السجل
-                  </Typography>
+            {/* Content */}
+            <Box sx={{ p: 3 }}>
+              {/* Key Info Cards */}
+              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 3 }}>
+                <Card variant="soft" color="neutral" sx={{ p: 2 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                    <PersonIcon sx={{ fontSize: 18, color: "#6b7280" }} />
+                    <Typography level="body-xs" sx={{ color: "#6b7280" }}>Patient</Typography>
+                  </Box>
                   <Typography level="title-md" sx={{ fontWeight: 600 }}>
-                    {neverEvent.never_event?.recordID}
+                    {patientName}
                   </Typography>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    التاريخ
-                  </Typography>
-                  <Typography level="title-md">
-                    {new Date(neverEvent.never_event?.date).toLocaleDateString("ar-SA")}
-                  </Typography>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    اسم المريض
-                  </Typography>
-                  <Typography level="title-md">{neverEvent.never_event?.patientName}</Typography>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    رقم المريض
-                  </Typography>
-                  <Typography level="title-md">{neverEvent.never_event?.patientID || "-"}</Typography>
-                </Grid>
-                <Grid xs={12}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    نوع الحدث
-                  </Typography>
-                  <Box
-                    sx={{
-                      mt: 0.5,
-                      display: "inline-block",
-                      px: 1.5,
-                      py: 0.5,
-                      borderRadius: "4px",
-                      bgcolor: "#fef2f2",
-                      color: "#991b1b",
-                      border: "1px solid #fecaca",
-                    }}
-                  >
-                    <Typography level="title-md">
-                      {neverEvent.never_event?.neverEventTypeAr || neverEvent.never_event?.neverEventType}
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid xs={12} sm={4}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    الفئة
-                  </Typography>
-                  <Typography level="title-md">{neverEvent.never_event?.neverEventCategory}</Typography>
-                </Grid>
-                <Grid xs={12} sm={4}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    القسم
-                  </Typography>
-                  <Typography level="title-md">{neverEvent.never_event?.department}</Typography>
-                </Grid>
-                <Grid xs={12} sm={4}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    القسم الفرعي
-                  </Typography>
-                  <Typography level="title-md">{neverEvent.never_event?.qism || "-"}</Typography>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    الخطورة
-                  </Typography>
-                  <Box sx={{ mt: 0.5 }}>
-                    <Chip color="danger" size="sm">
-                      {neverEvent.never_event?.severity || "HIGH"}
-                    </Chip>
-                  </Box>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    الحالة
-                  </Typography>
-                  <Box sx={{ mt: 0.5 }}>
-                    <Chip color={getStatusColor(neverEvent.never_event?.status)} size="sm">
-                      {getStatusLabel(neverEvent.never_event?.status)}
-                    </Chip>
-                  </Box>
-                </Grid>
-                {neverEvent.never_event?.incidentID && (
-                  <Grid xs={12}>
-                    <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                      رقم الحادثة المرتبطة
-                    </Typography>
-                    <Typography level="title-md" sx={{ color: "#3b82f6" }}>
-                      {neverEvent.never_event.incidentID}
-                    </Typography>
-                  </Grid>
-                )}
-              </Grid>
-            </Card>
-
-            {/* Incident Details */}
-            {neverEvent.incident_details && (
-              <>
-                <Divider sx={{ my: 2 }} />
-                <Typography level="title-lg" sx={{ mb: 2 }}>
-                  تفاصيل الحادثة
-                </Typography>
-                <Card variant="outlined" sx={{ mb: 2, p: 2 }}>
-                  {neverEvent.incident_details.complaint_text && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography level="body-sm" sx={{ color: "text.secondary", mb: 1 }}>
-                        وصف الحادثة
-                      </Typography>
-                      <Typography>{neverEvent.incident_details.complaint_text}</Typography>
-                    </Box>
-                  )}
-                  {neverEvent.incident_details.immediate_action && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography level="body-sm" sx={{ color: "text.secondary", mb: 1 }}>
-                        الإجراء الفوري
-                      </Typography>
-                      <Typography>{neverEvent.incident_details.immediate_action}</Typography>
-                    </Box>
-                  )}
-                  {neverEvent.incident_details.actions_taken && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography level="body-sm" sx={{ color: "text.secondary", mb: 1 }}>
-                        الإجراءات المتخذة
-                      </Typography>
-                      <Typography>{neverEvent.incident_details.actions_taken}</Typography>
-                    </Box>
-                  )}
-                  {neverEvent.incident_details.root_cause && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography level="body-sm" sx={{ color: "text.secondary", mb: 1 }}>
-                        السبب الجذري
-                      </Typography>
-                      <Typography>{neverEvent.incident_details.root_cause}</Typography>
-                    </Box>
-                  )}
                 </Card>
-              </>
-            )}
 
-            {/* Timeline */}
-            {neverEvent.timeline && neverEvent.timeline.length > 0 && (
-              <>
-                <Divider sx={{ my: 2 }} />
-                <Typography level="title-lg" sx={{ mb: 2 }}>
-                  الخط الزمني
-                </Typography>
-                <Card variant="outlined" sx={{ mb: 2, p: 2 }}>
-                  {neverEvent.timeline.map((item, index) => (
-                    <Box key={index} sx={{ mb: index < neverEvent.timeline.length - 1 ? 2 : 0 }}>
-                      <Box sx={{ display: "flex", gap: 1, alignItems: "center", mb: 0.5 }}>
-                        <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-                          {new Date(item.date).toLocaleDateString("ar-SA")}
-                        </Typography>
-                        <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                          • {item.event}
-                        </Typography>
-                      </Box>
-                      {item.details && (
-                        <Typography level="body-sm" sx={{ color: "text.secondary", pl: 2 }}>
-                          {item.details}
-                        </Typography>
-                      )}
-                    </Box>
-                  ))}
+                <Card variant="soft" color="neutral" sx={{ p: 2 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                    <CalendarTodayIcon sx={{ fontSize: 18, color: "#6b7280" }} />
+                    <Typography level="body-xs" sx={{ color: "#6b7280" }}>Date</Typography>
+                  </Box>
+                  <Typography level="title-md" sx={{ fontWeight: 600 }}>
+                    {date ? new Date(date).toLocaleDateString("en-GB") : "-"}
+                  </Typography>
                 </Card>
-              </>
-            )}
 
-            {/* Related Actions */}
-            {neverEvent.related_actions && neverEvent.related_actions.length > 0 && (
-              <>
-                <Divider sx={{ my: 2 }} />
-                <Typography level="title-lg" sx={{ mb: 2 }}>
-                  الإجراءات ذات الصلة
-                </Typography>
-                <Card variant="outlined" sx={{ p: 2 }}>
-                  {neverEvent.related_actions.map((action, index) => (
-                    <Box
-                      key={index}
-                      sx={{
-                        mb: index < neverEvent.related_actions.length - 1 ? 2 : 0,
-                        pb: index < neverEvent.related_actions.length - 1 ? 2 : 0,
-                        borderBottom:
-                          index < neverEvent.related_actions.length - 1
-                            ? "1px solid #e5e7eb"
-                            : "none",
-                      }}
-                    >
-                      <Typography level="title-sm" sx={{ mb: 1 }}>
-                        {action.action}
-                      </Typography>
-                      <Grid container spacing={1}>
-                        <Grid xs={12} sm={4}>
-                          <Typography level="body-xs" sx={{ color: "text.secondary" }}>
-                            المسؤول: {action.responsible}
-                          </Typography>
-                        </Grid>
-                        <Grid xs={12} sm={4}>
-                          <Typography level="body-xs" sx={{ color: "text.secondary" }}>
-                            الموعد النهائي:{" "}
-                            {new Date(action.deadline).toLocaleDateString("ar-SA")}
-                          </Typography>
-                        </Grid>
-                        <Grid xs={12} sm={4}>
-                          <Chip size="sm" variant="soft">
-                            {action.status}
-                          </Chip>
-                        </Grid>
-                      </Grid>
-                    </Box>
-                  ))}
+                <Card variant="soft" color="neutral" sx={{ p: 2 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                    <BusinessIcon sx={{ fontSize: 18, color: "#6b7280" }} />
+                    <Typography level="body-xs" sx={{ color: "#6b7280" }}>Department</Typography>
+                  </Box>
+                  <Typography level="title-md" sx={{ fontWeight: 600 }}>
+                    {department}
+                  </Typography>
                 </Card>
-              </>
-            )}
+
+                <Card variant="soft" color="neutral" sx={{ p: 2 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                    <CategoryIcon sx={{ fontSize: 18, color: "#6b7280" }} />
+                    <Typography level="body-xs" sx={{ color: "#6b7280" }}>Category</Typography>
+                  </Box>
+                  <Typography level="title-md" sx={{ fontWeight: 600 }}>
+                    {category}
+                  </Typography>
+                </Card>
+              </Box>
+
+              {/* Status Row */}
+              <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography level="body-xs" sx={{ color: "#6b7280", mb: 0.5 }}>Severity</Typography>
+                  <Chip color={getSeverityColor(severity)} size="lg" sx={{ fontWeight: 700 }}>
+                    {severity}
+                  </Chip>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography level="body-xs" sx={{ color: "#6b7280", mb: 0.5 }}>Status</Typography>
+                  <Chip color={getStatusColor(status)} variant="soft" size="lg" sx={{ fontWeight: 600 }}>
+                    {status}
+                  </Chip>
+                </Box>
+              </Box>
+
+              {/* Event Type */}
+              <Divider sx={{ my: 2 }} />
+              <Typography level="title-sm" sx={{ color: "#374151", mb: 1, fontWeight: 600 }}>
+                ⚠️ Event Type
+              </Typography>
+              <Card variant="outlined" sx={{ p: 2, bgcolor: "#fef2f2", borderColor: "#fecaca" }}>
+                <Typography level="body-md" sx={{ lineHeight: 1.8, color: "#991b1b" }}>
+                  {eventType}
+                </Typography>
+              </Card>
+
+              {/* Description / Complaint Text */}
+              {description && description !== "-" && description !== eventType && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography level="title-sm" sx={{ color: "#374151", mb: 1, fontWeight: 600 }}>
+                    📝 Complaint
+                  </Typography>
+                  <Card variant="outlined" sx={{ p: 2, bgcolor: "#fafafa" }}>
+                    <Typography level="body-md" sx={{ lineHeight: 1.8 }}>
+                      {description}
+                    </Typography>
+                  </Card>
+                </>
+              )}
+
+              {/* Immediate Action - check both direct and nested */}
+              {(data?.immediate_action || neverEvent?.incident_details?.immediate_action) && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography level="title-sm" sx={{ color: "#374151", mb: 1, fontWeight: 600 }}>
+                    ⚡ Immediate Action
+                  </Typography>
+                  <Card variant="outlined" sx={{ p: 2, bgcolor: "#fafafa" }}>
+                    <Typography level="body-md" sx={{ lineHeight: 1.8 }}>
+                      {data?.immediate_action || neverEvent?.incident_details?.immediate_action}
+                    </Typography>
+                  </Card>
+                </>
+              )}
+
+              {/* Root Cause - check both direct and nested */}
+              {(data?.root_cause || neverEvent?.incident_details?.root_cause) && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography level="title-sm" sx={{ color: "#374151", mb: 1, fontWeight: 600 }}>
+                    🔍 Root Cause
+                  </Typography>
+                  <Card variant="outlined" sx={{ p: 2, bgcolor: "#fafafa" }}>
+                    <Typography level="body-md" sx={{ lineHeight: 1.8 }}>
+                      {data?.root_cause || neverEvent?.incident_details?.root_cause}
+                    </Typography>
+                  </Card>
+                </>
+              )}
+
+              {/* Actions Taken - check both direct and nested */}
+              {(data?.actions_taken || neverEvent?.incident_details?.actions_taken) && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography level="title-sm" sx={{ color: "#374151", mb: 1, fontWeight: 600 }}>
+                    🏥 Actions Taken
+                  </Typography>
+                  <Card variant="outlined" sx={{ p: 2, bgcolor: "#fafafa" }}>
+                    <Typography level="body-md" sx={{ lineHeight: 1.8 }}>
+                      {data?.actions_taken || neverEvent?.incident_details?.actions_taken}
+                    </Typography>
+                  </Card>
+                </>
+              )}
+            </Box>
           </>
         )}
       </ModalDialog>

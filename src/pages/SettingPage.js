@@ -1,7 +1,6 @@
 // src/pages/SettingPage.js
 import React, { useState, useEffect, useMemo } from "react";
-import { Box, Typography, Tabs, TabList, Tab, TabPanel, Alert, Card, Button, ButtonGroup } from "@mui/joy";
-import LanguageIcon from '@mui/icons-material/Language';
+import { Box, Typography, Tabs, TabList, Tab, TabPanel, Alert } from "@mui/joy";
 import theme from '../theme';
 import MainLayout from "../components/common/MainLayout";
 import DepartmentTable from "../components/settings/DepartmentTable";
@@ -12,27 +11,16 @@ import PatientTable from "../components/settings/PatientTable";
 import AddPatientForm from "../components/settings/AddPatientForm";
 import PolicyConfiguration from "../components/settings/PolicyConfiguration";
 import Training from "../components/settings/Training";
+import HardwareConfigTab from "../components/settings/HardwareConfigTab"; // Hardware deployment config
 import UnifiedUsersTab from "./settings/UnifiedUsersTab";
 import SectionCreationPanel from "../components/settings/SectionCreationPanel"; // PHASE C — Production Section Creation Tool
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import { canRoleSeeSettingsTab, SETTINGS_TAB_KEYS } from "../security/roleVisibilityMap";
-import { useTranslation } from 'react-i18next';
-import { changeLanguage, getCurrentLanguage } from '../i18n';
 
 const SettingPage = () => {
   // Auth context for role checking
   const { user } = useAuth();
-  
-  // i18n translation hook
-  const { t, i18n } = useTranslation();
-  const [currentLang, setCurrentLang] = useState(getCurrentLanguage());
-  
-  // Handle language change
-  const handleLanguageChange = (lang) => {
-    changeLanguage(lang);
-    setCurrentLang(lang);
-  };
   
   // Helper to get primary role from user
   const getPrimaryRole = (user) => {
@@ -74,8 +62,11 @@ const SettingPage = () => {
       key: SETTINGS_TAB_KEYS.USERS,
       label: "� Users Management",
       component: 6
-    },
-  ], []);
+    },    {
+      key: SETTINGS_TAB_KEYS.HARDWARE_CONFIG,
+      label: "🔧 Hardware Config",
+      component: 7
+    },  ], []);
   
   // Filter tabs based on role visibility
   const visibleTabs = useMemo(() => {
@@ -377,34 +368,6 @@ const SettingPage = () => {
         </Alert>
       )}
 
-      {/* Language Settings */}
-      <Card sx={{ mb: 3, p: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <LanguageIcon sx={{ color: '#667eea', fontSize: '1.5rem' }} />
-          <Typography level="title-md" sx={{ fontWeight: 600 }}>
-            Language / اللغة
-          </Typography>
-          <Box sx={{ ml: 'auto' }}>
-            <ButtonGroup variant="outlined" size="sm">
-              <Button
-                variant={currentLang === 'ar' ? 'solid' : 'outlined'}
-                color={currentLang === 'ar' ? 'primary' : 'neutral'}
-                onClick={() => handleLanguageChange('ar')}
-              >
-                العربية
-              </Button>
-              <Button
-                variant={currentLang === 'en' ? 'solid' : 'outlined'}
-                color={currentLang === 'en' ? 'primary' : 'neutral'}
-                onClick={() => handleLanguageChange('en')}
-              >
-                English
-              </Button>
-            </ButtonGroup>
-          </Box>
-        </Box>
-      </Card>
-
       {/* Tabs */}
       <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
         <TabList>
@@ -503,6 +466,15 @@ const SettingPage = () => {
             return (
               <TabPanel key={`panel-${tab.key}-${index}`} value={index} sx={{ p: 3 }}>
                 <UnifiedUsersTab />
+              </TabPanel>
+            );
+          }
+          
+          // Hardware Configuration Tab (SOFTWARE_ADMIN only)
+          if (tab.component === 7) {
+            return (
+              <TabPanel key={`panel-${tab.key}-${index}`} value={index} sx={{ p: 3 }}>
+                <HardwareConfigTab />
               </TabPanel>
             );
           }

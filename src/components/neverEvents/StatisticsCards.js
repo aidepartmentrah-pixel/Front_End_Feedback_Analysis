@@ -10,7 +10,7 @@ const StatisticsCards = ({ statistics, loading }) => {
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Grid key={i} xs={12} sm={6} md={4} lg={2}>
               <Card sx={{ height: "100%", minHeight: 120 }}>
-                <Typography level="body-sm">جاري التحميل...</Typography>
+                <Typography level="body-sm">Loading...</Typography>
               </Card>
             </Grid>
           ))}
@@ -31,37 +31,37 @@ const StatisticsCards = ({ statistics, loading }) => {
 
   const cards = [
     {
-      label: "إجمالي الأحداث",
+      label: "Total Never Events",
       value: totalNeverEvents,
       color: "#dc2626",
       icon: "⚠️",
     },
     {
-      label: "غير منتهي",
+      label: "Open",
       value: unfinishedCount,
       color: "#f59e0b",
       icon: "⏳",
     },
     {
-      label: "منتهي",
+      label: "Closed",
       value: finishedCount,
       color: "#10b981",
       icon: "✓",
     },
     {
-      label: "حرج",
+      label: "Critical",
       value: criticalCount,
       color: "#dc2626",
       icon: "🔴",
     },
     {
-      label: "عالي",
+      label: "High",
       value: highCount,
       color: "#f97316",
       icon: "🟠",
     },
     {
-      label: "الشهر الحالي",
+      label: "This Month",
       value: currentMonthCount,
       color: "#3b82f6",
       icon: "📅",

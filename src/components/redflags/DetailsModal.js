@@ -8,280 +8,212 @@ import {
   Box,
   Chip,
   Divider,
-  Grid,
   Card,
 } from "@mui/joy";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import FlagIcon from "@mui/icons-material/Flag";
+import PersonIcon from "@mui/icons-material/Person";
+import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import BusinessIcon from "@mui/icons-material/Business";
+import CategoryIcon from "@mui/icons-material/Category";
 
 const DetailsModal = ({ open, onClose, redFlag, loading }) => {
   if (!redFlag && !loading) return null;
 
   const getSeverityColor = (severity) => {
-    if (severity === "CRITICAL") return "danger";
-    if (severity === "HIGH") return "warning";
+    const s = (severity || "").toUpperCase();
+    if (s === "CRITICAL" || s === "HIGH") return "danger";
+    if (s === "MEDIUM") return "warning";
     return "neutral";
   };
 
   const getStatusColor = (status) => {
-    if (status === "OPEN") return "primary";
-    if (status === "UNDER_REVIEW") return "warning";
-    if (status === "FINISHED") return "success";
+    const s = (status || "").toUpperCase();
+    if (s === "OPEN") return "primary";
+    if (s === "UNDER_REVIEW" || s === "IN_PROGRESS") return "warning";
+    if (s === "FINISHED" || s === "CLOSED") return "success";
     return "neutral";
   };
 
-  const getStatusLabel = (status) => {
-    if (status === "OPEN") return "مفتوح";
-    if (status === "UNDER_REVIEW") return "قيد المراجعة";
-    if (status === "FINISHED") return "منتهي";
-    return status;
-  };
-
-  const getSeverityLabel = (severity) => {
-    if (severity === "CRITICAL") return "حرج";
-    if (severity === "HIGH") return "عالي";
-    return severity;
-  };
+  // Use the actual database ID (IncidentRequestCaseID), not the formatted case_id
+  const caseId = redFlag?.id || redFlag?.incident_id || redFlag?.IncidentRequestCaseID;
 
   return (
     <Modal open={open} onClose={onClose} sx={{ zIndex: 9999 }}>
       <ModalDialog
         sx={{
-          maxWidth: 900,
-          width: "90%",
-          maxHeight: "90vh",
+          maxWidth: 600,
+          width: "95%",
+          maxHeight: "85vh",
           overflow: "auto",
+          borderRadius: "16px",
+          p: 0,
           zIndex: 10000,
         }}
       >
-        <ModalClose />
+        <ModalClose sx={{ top: 16, right: 16, zIndex: 10 }} />
+        
         {loading ? (
-          <Box sx={{ p: 4, textAlign: "center" }}>
-            <Typography>جاري التحميل...</Typography>
+          <Box sx={{ p: 6, textAlign: "center" }}>
+            <Typography level="body-lg">Loading...</Typography>
           </Box>
         ) : (
           <>
-            <Typography level="h4" sx={{ mb: 2 }}>
-              تفاصيل العلم الأحمر
-            </Typography>
+            {/* Header */}
+            <Box
+              sx={{
+                background: "linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)",
+                color: "white",
+                p: 3,
+                borderRadius: "16px 16px 0 0",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+                <FlagIcon sx={{ fontSize: 28 }} />
+                <Typography level="h4" sx={{ color: "white", fontWeight: 700 }}>
+                  Red Flag
+                </Typography>
+              </Box>
+              <Typography level="h2" sx={{ color: "white", fontWeight: 700 }}>
+                Case #{caseId}
+              </Typography>
+            </Box>
 
-            {/* Basic Info */}
-            <Card variant="outlined" sx={{ mb: 2, p: 2 }}>
-              <Grid container spacing={2}>
-                <Grid xs={12} sm={6}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    رقم السجل
-                  </Typography>
+            {/* Content */}
+            <Box sx={{ p: 3 }}>
+              {/* Key Info Cards */}
+              <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 3 }}>
+                <Card variant="soft" color="neutral" sx={{ p: 2 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                    <PersonIcon sx={{ fontSize: 18, color: "#6b7280" }} />
+                    <Typography level="body-xs" sx={{ color: "#6b7280" }}>Patient</Typography>
+                  </Box>
                   <Typography level="title-md" sx={{ fontWeight: 600 }}>
-                    {redFlag.case_id || redFlag.recordID}
+                    {redFlag?.patient_name || redFlag?.patient_full_name || "-"}
                   </Typography>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    اسم المريض
-                  </Typography>
-                  <Typography level="title-md">{redFlag.patient_name}</Typography>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    تاريخ الاستلام
-                  </Typography>
-                  <Typography level="title-md">
-                    {redFlag.date ? new Date(redFlag.date).toLocaleDateString("ar-SA") : "-"}
-                  </Typography>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    القسم
-                  </Typography>
-                  <Typography level="title-md">{redFlag.department}</Typography>
-                </Grid>
-                <Grid xs={12} sm={4}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    التصنيف
-                  </Typography>
-                  <Typography level="title-md">{redFlag.category}</Typography>
-                </Grid>
-                <Grid xs={12} sm={4}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    التصنيف الفرعي
-                  </Typography>
-                  <Typography level="title-md">
-                    {redFlag.subcategory || "-"}
-                  </Typography>
-                </Grid>
-                <Grid xs={12} sm={4}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    الخطورة
-                  </Typography>
-                  <Box sx={{ mt: 0.5 }}>
-                    <Chip color={getSeverityColor(redFlag.severity)} size="sm">
-                      {getSeverityLabel(redFlag.severity)}
-                    </Chip>
-                  </Box>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    الحالة
-                  </Typography>
-                  <Box sx={{ mt: 0.5 }}>
-                    <Chip color={getStatusColor(redFlag.status)} size="sm">
-                      {getStatusLabel(redFlag.status)}
-                    </Chip>
-                  </Box>
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    حدث لا يجب أن يحدث
-                  </Typography>
-                  <Box sx={{ mt: 0.5 }}>
-                    {redFlag.is_never_event ? (
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <CheckCircleIcon sx={{ color: "#dc2626", fontSize: 20 }} />
-                        <Typography sx={{ color: "#dc2626", fontWeight: 600 }}>
-                          نعم
-                        </Typography>
-                      </Box>
-                    ) : (
-                      <Typography sx={{ color: "#6b7280" }}>لا</Typography>
-                    )}
-                  </Box>
-                </Grid>
-              </Grid>
-            </Card>
-
-            {/* Incident Details */}
-            {(redFlag.description || redFlag.root_cause || redFlag.corrective_action) && (
-              <>
-                <Divider sx={{ my: 2 }} />
-                <Typography level="title-lg" sx={{ mb: 2 }}>
-                  تفاصيل الحادثة
-                </Typography>
-                <Card variant="outlined" sx={{ mb: 2, p: 2 }}>
-                  {redFlag.description && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography level="body-sm" sx={{ color: "text.secondary", mb: 1 }}>
-                        الوصف
-                      </Typography>
-                      <Typography>{redFlag.description}</Typography>
-                    </Box>
-                  )}
-                  {redFlag.root_cause && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography level="body-sm" sx={{ color: "text.secondary", mb: 1 }}>
-                        السبب الجذري
-                      </Typography>
-                      <Typography>{redFlag.root_cause}</Typography>
-                    </Box>
-                  )}
-                  {redFlag.corrective_action && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography level="body-sm" sx={{ color: "text.secondary", mb: 1 }}>
-                        الإجراء التصحيحي
-                      </Typography>
-                      <Typography>{redFlag.corrective_action}</Typography>
-                    </Box>
-                  )}
-                  <Grid container spacing={2}>
-                    {redFlag.harm_level && (
-                      <Grid xs={12} sm={6}>
-                        <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                          مستوى الضرر
-                        </Typography>
-                        <Typography level="title-sm">
-                          {redFlag.harm_level}
-                        </Typography>
-                      </Grid>
-                    )}
-                    {redFlag.stage && (
-                      <Grid xs={12} sm={6}>
-                        <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                          المرحلة
-                        </Typography>
-                        <Typography level="title-sm">
-                          {redFlag.stage}
-                        </Typography>
-                      </Grid>
-                    )}
-                  </Grid>
                 </Card>
-              </>
-            )}
 
-            {/* Timeline */}
-            {redFlag.timeline && redFlag.timeline.length > 0 && (
-              <>
-                <Divider sx={{ my: 2 }} />
-                <Typography level="title-lg" sx={{ mb: 2 }}>
-                  الخط الزمني
-                </Typography>
-                <Card variant="outlined" sx={{ mb: 2, p: 2 }}>
-                  {redFlag.timeline.map((item, index) => (
-                    <Box key={index} sx={{ mb: index < redFlag.timeline.length - 1 ? 2 : 0 }}>
-                      <Box sx={{ display: "flex", gap: 1, alignItems: "center", mb: 0.5 }}>
-                        <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-                          {new Date(item.date).toLocaleDateString("ar-SA")}
-                        </Typography>
-                        <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                          • {item.action || item.event}
-                        </Typography>
-                      </Box>
-                      {(item.details || item.notes) && (
-                        <Typography level="body-sm" sx={{ color: "text.secondary", pl: 2 }}>
-                          {item.details || item.notes}
-                        </Typography>
-                      )}
-                    </Box>
-                  ))}
+                <Card variant="soft" color="neutral" sx={{ p: 2 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                    <CalendarTodayIcon sx={{ fontSize: 18, color: "#6b7280" }} />
+                    <Typography level="body-xs" sx={{ color: "#6b7280" }}>Date</Typography>
+                  </Box>
+                  <Typography level="title-md" sx={{ fontWeight: 600 }}>
+                    {redFlag?.date ? new Date(redFlag.date).toLocaleDateString("en-GB") : "-"}
+                  </Typography>
                 </Card>
-              </>
-            )}
 
-            {/* Related Actions */}
-            {redFlag.related_actions && redFlag.related_actions.length > 0 && (
-              <>
-                <Divider sx={{ my: 2 }} />
-                <Typography level="title-lg" sx={{ mb: 2 }}>
-                  الإجراءات ذات الصلة
-                </Typography>
-                <Card variant="outlined" sx={{ p: 2 }}>
-                  {redFlag.related_actions.map((action, index) => (
-                    <Box
-                      key={index}
-                      sx={{
-                        mb: index < redFlag.related_actions.length - 1 ? 2 : 0,
-                        pb: index < redFlag.related_actions.length - 1 ? 2 : 0,
-                        borderBottom:
-                          index < redFlag.related_actions.length - 1
-                            ? "1px solid #e5e7eb"
-                            : "none",
-                      }}
-                    >
-                      <Typography level="title-sm" sx={{ mb: 1 }}>
-                        {action.action}
-                      </Typography>
-                      <Grid container spacing={1}>
-                        <Grid xs={12} sm={4}>
-                          <Typography level="body-xs" sx={{ color: "text.secondary" }}>
-                            المسؤول: {action.responsible}
-                          </Typography>
-                        </Grid>
-                        <Grid xs={12} sm={4}>
-                          <Typography level="body-xs" sx={{ color: "text.secondary" }}>
-                            الموعد النهائي:{" "}
-                            {new Date(action.deadline).toLocaleDateString("ar-SA")}
-                          </Typography>
-                        </Grid>
-                        <Grid xs={12} sm={4}>
-                          <Chip size="sm" variant="soft">
-                            {action.status}
-                          </Chip>
-                        </Grid>
-                      </Grid>
-                    </Box>
-                  ))}
+                <Card variant="soft" color="neutral" sx={{ p: 2 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                    <BusinessIcon sx={{ fontSize: 18, color: "#6b7280" }} />
+                    <Typography level="body-xs" sx={{ color: "#6b7280" }}>Department</Typography>
+                  </Box>
+                  <Typography level="title-md" sx={{ fontWeight: 600 }}>
+                    {redFlag?.department || "-"}
+                  </Typography>
                 </Card>
-              </>
-            )}
+
+                <Card variant="soft" color="neutral" sx={{ p: 2 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                    <CategoryIcon sx={{ fontSize: 18, color: "#6b7280" }} />
+                    <Typography level="body-xs" sx={{ color: "#6b7280" }}>Category</Typography>
+                  </Box>
+                  <Typography level="title-md" sx={{ fontWeight: 600 }}>
+                    {redFlag?.category || "-"}
+                  </Typography>
+                </Card>
+              </Box>
+
+              {/* Status Row */}
+              <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography level="body-xs" sx={{ color: "#6b7280", mb: 0.5 }}>Severity</Typography>
+                  <Chip color={getSeverityColor(redFlag?.severity)} size="lg" sx={{ fontWeight: 700 }}>
+                    {redFlag?.severity || "-"}
+                  </Chip>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography level="body-xs" sx={{ color: "#6b7280", mb: 0.5 }}>Status</Typography>
+                  <Chip color={getStatusColor(redFlag?.status)} variant="soft" size="lg" sx={{ fontWeight: 600 }}>
+                    {redFlag?.status || "-"}
+                  </Chip>
+                </Box>
+              </Box>
+
+              {/* Complaint Text */}
+              {(redFlag?.complaint_text || redFlag?.description) && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography level="title-sm" sx={{ color: "#374151", mb: 1, fontWeight: 600 }}>
+                    📝 Complaint
+                  </Typography>
+                  <Card variant="outlined" sx={{ p: 2, bgcolor: "#fafafa" }}>
+                    <Typography level="body-md" sx={{ lineHeight: 1.8 }}>
+                      {redFlag?.complaint_text || redFlag?.description}
+                    </Typography>
+                  </Card>
+                </>
+              )}
+
+              {/* Immediate Action */}
+              {redFlag?.immediate_action && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography level="title-sm" sx={{ color: "#374151", mb: 1, fontWeight: 600 }}>
+                    ⚡ Immediate Action
+                  </Typography>
+                  <Card variant="outlined" sx={{ p: 2, bgcolor: "#fafafa" }}>
+                    <Typography level="body-md" sx={{ lineHeight: 1.8 }}>
+                      {redFlag.immediate_action}
+                    </Typography>
+                  </Card>
+                </>
+              )}
+
+              {/* Actions Taken */}
+              {redFlag?.actions_taken && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography level="title-sm" sx={{ color: "#374151", mb: 1, fontWeight: 600 }}>
+                    🏥 Actions Taken
+                  </Typography>
+                  <Card variant="outlined" sx={{ p: 2, bgcolor: "#fafafa" }}>
+                    <Typography level="body-md" sx={{ lineHeight: 1.8 }}>
+                      {redFlag.actions_taken}
+                    </Typography>
+                  </Card>
+                </>
+              )}
+
+              {/* Root Cause */}
+              {redFlag?.root_cause && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography level="title-sm" sx={{ color: "#374151", mb: 1, fontWeight: 600 }}>
+                    🔍 Root Cause
+                  </Typography>
+                  <Card variant="outlined" sx={{ p: 2, bgcolor: "#fafafa" }}>
+                    <Typography level="body-md" sx={{ lineHeight: 1.8 }}>
+                      {redFlag.root_cause}
+                    </Typography>
+                  </Card>
+                </>
+              )}
+
+              {/* Corrective Action */}
+              {redFlag?.corrective_action && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography level="title-sm" sx={{ color: "#374151", mb: 1, fontWeight: 600 }}>
+                    🛠️ Corrective Action
+                  </Typography>
+                  <Card variant="outlined" sx={{ p: 2, bgcolor: "#fafafa" }}>
+                    <Typography level="body-md" sx={{ lineHeight: 1.8 }}>
+                      {redFlag.corrective_action}
+                    </Typography>
+                  </Card>
+                </>
+              )}
+            </Box>
           </>
         )}
       </ModalDialog>

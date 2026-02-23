@@ -10,6 +10,7 @@ import {
 import { Link, useLocation } from "react-router-dom";
 import logo from "../../assests/logo.png";
 import { useAuth } from "../../context/AuthContext";
+import APP_CONFIG from "../../config/appConfig";
 import { 
   canViewDashboard,
   canViewInbox, 
@@ -120,7 +121,7 @@ const Sidebar = () => {
             fontSize: "24px",
           }}
         >
-          Feedback System
+          {APP_CONFIG.name}
         </Typography>
 
         <Typography

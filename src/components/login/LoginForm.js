@@ -117,19 +117,7 @@ const LoginForm = () => {
         {loading ? "جاري تسجيل الدخول..." : "تسجيل الدخول (Sign In)"}
       </Button>
 
-      <Box
-        sx={{
-          p: 2,
-          background: theme.colors.infoLight,
-          borderRadius: "8px",
-          border: `1px solid ${theme.colors.info}`,
-          opacity: 0.8,
-        }}
-      >
-        <Typography level="body-xs" sx={{ color: theme.colors.textSecondary, textAlign: "center" }}>
-          � <strong>Secure Login:</strong> Enter your credentials to access the system
-        </Typography>
-      </Box>
+
     </Box>
   );
 };

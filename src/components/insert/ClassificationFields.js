@@ -25,13 +25,13 @@ const ClassificationFields = ({
       sx={{
         mb: 3,
         p: 3,
-        background: "linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)",
-        border: "2px solid #ff9800",
-        boxShadow: "0 4px 12px rgba(255, 152, 0, 0.1)",
+        background: "#c8e4e6",
+        border: "1px solid rgba(31, 111, 115, 0.3)",
+        boxShadow: "0 4px 12px rgba(31, 111, 115, 0.1)",
       }}
     >
-      <Typography level="h3" sx={{ color: "#e65100", fontWeight: 700, mb: 2 }}>
-        Step 4: AI Classification & Severity Fields
+      <Typography level="h3" sx={{ color: "#1F6F73", fontWeight: 700, mb: 2 }}>
+        Classification Fields
       </Typography>
 
       <Grid container spacing={2}>
@@ -394,16 +394,6 @@ const ClassificationFields = ({
         </Grid>
       </Grid>
 
-      <Typography
-        level="body-xs"
-        sx={{
-          mt: 2,
-          color: "#e65100",
-          fontStyle: "italic",
-        }}
-      >
-        ℹ️ Complete all classification and severity fields. These help categorize incident impact and improvement opportunities.
-      </Typography>
     </Card>
   );
 };

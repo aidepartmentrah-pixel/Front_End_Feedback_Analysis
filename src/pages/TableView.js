@@ -336,7 +336,7 @@ const TableView = () => {
                 mb: 1,
               }}
             >
-              📋 جدول البلاغات (Complaints Table)
+              📋 Table View
             </Typography>
             <Typography level="body-md" sx={{ color: "#666" }}>
               View and filter all submitted complaints

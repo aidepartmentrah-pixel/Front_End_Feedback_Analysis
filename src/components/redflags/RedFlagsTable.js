@@ -45,7 +45,7 @@ const RedFlagsTable = ({ redFlags, loading, onRowClick }) => {
   if (loading) {
     return (
       <Box sx={{ p: 4, textAlign: "center" }}>
-        <Typography>جاري التحميل...</Typography>
+        <Typography>Loading...</Typography>
       </Box>
     );
   }
@@ -53,7 +53,7 @@ const RedFlagsTable = ({ redFlags, loading, onRowClick }) => {
   if (!redFlags || redFlags.length === 0) {
     return (
       <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
-        <Typography>لا توجد أعلام حمراء</Typography>
+        <Typography>No Red Flags found</Typography>
       </Box>
     );
   }
@@ -109,15 +109,14 @@ const RedFlagsTable = ({ redFlags, loading, onRowClick }) => {
       >
         <thead>
           <tr>
-            <th style={{ width: "8%" }}>رقم الحالة</th>
-            <th style={{ width: "9%" }}>التاريخ</th>
-            <th style={{ width: "12%" }}>اسم المريض</th>
-            <th style={{ width: "20%" }}>نص الشكوى</th>
-            <th style={{ width: "13%" }}>القسم</th>
-            <th style={{ width: "10%" }}>التصنيف</th>
-            <th style={{ width: "8%" }}>الخطورة</th>
-            <th style={{ width: "8%" }}>الحالة</th>
-            <th style={{ width: "12%" }}>ملخص الشكوى</th>
+            <th style={{ width: "10%" }}>Case ID</th>
+            <th style={{ width: "10%" }}>Date</th>
+            <th style={{ width: "14%" }}>Patient Name</th>
+            <th style={{ width: "26%" }}>Complaint</th>
+            <th style={{ width: "15%" }}>Department</th>
+            <th style={{ width: "10%" }}>Category</th>
+            <th style={{ width: "8%" }}>Severity</th>
+            <th style={{ width: "7%" }}>Status</th>
           </tr>
         </thead>
         <tbody>
@@ -127,13 +126,13 @@ const RedFlagsTable = ({ redFlags, loading, onRowClick }) => {
               onClick={() => onRowClick(redFlag.id)}
             >
               <td>
-                <Box sx={{ fontWeight: 600, color: "#0f172a", fontSize: "0.75rem", textAlign: "center" }}>
-                  {redFlag.case_id}
+                <Box sx={{ fontWeight: 600, color: "#0f172a", fontSize: "0.85rem", textAlign: "center" }}>
+                  {redFlag.id}
                 </Box>
               </td>
               <td>
                 <Box sx={{ color: "#6b7280", fontSize: "0.75rem", textAlign: "center" }}>
-                  {redFlag.date ? new Date(redFlag.date).toLocaleDateString("ar-SA", {
+                  {redFlag.date ? new Date(redFlag.date).toLocaleDateString("en-GB", {
                     year: "numeric",
                     month: "short",
                     day: "numeric",
@@ -198,11 +197,6 @@ const RedFlagsTable = ({ redFlags, loading, onRowClick }) => {
                 >
                   {getStatusLabel(redFlag.status)}
                 </Chip>
-              </td>
-              <td>
-                <Box sx={{ color: "#6b7280", fontSize: "0.75rem", textAlign: "center", whiteSpace: "normal", wordBreak: "break-word" }}>
-                  {redFlag.complaint_summary || redFlag.title || "-"}
-                </Box>
               </td>
             </tr>
           ))}

@@ -8,47 +8,34 @@ import { mockRedFlags } from "../../data/redflagsData";
 const RedFlagStats = () => {
   // Calculate stats from actual data
   const totalFlags = mockRedFlags.length;
-  const unfinishedFlags = mockRedFlags.filter(flag => flag.status !== "FINISHED").length;
   const finishedFlags = mockRedFlags.filter(flag => flag.status === "FINISHED").length;
   const openFlags = mockRedFlags.filter(flag => flag.status === "OPEN").length;
   const closedFlags = mockRedFlags.filter(flag => flag.status === "CLOSED").length;
 
   const stats = [
     {
-      label: "غير منتهية",
-      labelEn: "Unfinished",
-      value: unfinishedFlags.toString(),
-      icon: <WarningAmberIcon />,
-      color: "#ff4757",
-      bgColor: "rgba(255, 71, 87, 0.1)",
-    },
-    {
-      label: "مفتوحة",
-      labelEn: "Open",
+      label: "Open",
       value: openFlags.toString(),
       icon: <WarningAmberIcon />,
       color: "#ffa502",
       bgColor: "rgba(255, 165, 2, 0.1)",
     },
     {
-      label: "مغلقة (لكن غير منتهية)",
-      labelEn: "Closed (Not Finished)",
+      label: "Closed",
       value: closedFlags.toString(),
       icon: <WarningAmberIcon />,
       color: "#999",
       bgColor: "rgba(153, 153, 153, 0.1)",
     },
     {
-      label: "منتهية",
-      labelEn: "Finished",
+      label: "Finished",
       value: finishedFlags.toString(),
       icon: <CheckCircleIcon />,
       color: "#2ed573",
       bgColor: "rgba(46, 213, 115, 0.1)",
     },
     {
-      label: "الإجمالي",
-      labelEn: "Total",
+      label: "Total",
       value: totalFlags.toString(),
       icon: <WarningAmberIcon />,
       color: "#667eea",
@@ -91,11 +78,8 @@ const RedFlagStats = () => {
                 {stat.value}
               </Typography>
             </Box>
-            <Typography level="body-sm" sx={{ fontWeight: 700, color: "#333", mb: 0.5 }}>
+            <Typography level="body-sm" sx={{ fontWeight: 700, color: "#333" }}>
               {stat.label}
-            </Typography>
-            <Typography level="body-xs" sx={{ color: "#666" }}>
-              {stat.labelEn}
             </Typography>
           </Card>
         </Grid>

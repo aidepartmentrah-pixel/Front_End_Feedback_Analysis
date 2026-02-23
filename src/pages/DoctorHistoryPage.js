@@ -12,7 +12,7 @@ import SearchDoctor from "../components/doctorHistory/SearchDoctor";
 import DoctorProfileCard from "../components/doctorHistory/DoctorProfileCard";
 import DoctorStatisticsCards from "../components/doctorHistory/DoctorStatisticsCards";
 import DoctorCharts from "../components/doctorHistory/DoctorCharts";
-import DoctorIncidentsTable from "../components/doctorHistory/DoctorIncidentsTable";
+import UniversalIncidentsTable from "../components/common/UniversalIncidentsTable";
 import SeasonSelector from "../components/personReporting/SeasonSelector";
 import { getDoctorFullHistoryV2, exportDoctorCsvV2, exportDoctorJsonV2, exportDoctorWordV2, downloadDoctorSeasonalWordV2, downloadAllDoctorsSeasonalWordV2, downloadBlobFile } from "../api/personApiV2";
 import { useAuth } from "../context/AuthContext";
@@ -268,7 +268,12 @@ const DoctorHistoryPage = ({ embedded = false }) => {
             )}
 
             {/* Incidents Table */}
-            <DoctorIncidentsTable incidents={doctorItems} />
+            <UniversalIncidentsTable
+              incidents={doctorItems}
+              context="doctor"
+              title="🩺 Incidents Involving This Doctor"
+              emptyMessage="No incidents found for this doctor"
+            />
 
             {/* Export Actions - Centered Section */}
             <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>

@@ -27,8 +27,8 @@ const CategoryBreakdownCard = ({ data, loading, error }) => {
   if (!data) {
     return (
       <Card sx={{ p: 3, height: '100%' }}>
-        <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>📊 الرايات الحمراء حسب الفئة</Typography>
-        <Typography level="body-md" color="neutral">جاري التحميل...</Typography>
+        <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>📊 Red Flags by Category</Typography>
+        <Typography level="body-md" color="neutral">Loading...</Typography>
       </Card>
     );
   }
@@ -39,8 +39,8 @@ const CategoryBreakdownCard = ({ data, loading, error }) => {
   if (categories.length === 0) {
     return (
       <Card sx={{ p: 3, height: '100%' }}>
-        <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>📊 الرايات الحمراء حسب الفئة</Typography>
-        <Typography level="body-md" color="neutral">لا توجد بيانات متاحة</Typography>
+        <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>📊 Red Flags by Category</Typography>
+        <Typography level="body-md" color="neutral">No data available</Typography>
       </Card>
     );
   }
@@ -53,9 +53,9 @@ const CategoryBreakdownCard = ({ data, loading, error }) => {
 
   return (
     <Card sx={{ p: 3, height: '100%' }}>
-      <Typography level="h4" sx={{ mb: 1, fontWeight: 600 }}>📊 الرايات الحمراء حسب الفئة</Typography>
+      <Typography level="h4" sx={{ mb: 1, fontWeight: 600 }}>📊 Red Flags by Category</Typography>
       <Typography level="body-sm" color="neutral" sx={{ mb: 3 }}>
-        {data.period || 'جميع الفترات'} • الإجمالي: {data.total}
+        {data.period || 'All Periods'} • Total: {data.total}
       </Typography>
 
       {/* Pie Chart */}
@@ -108,12 +108,12 @@ const CategoryBreakdownCard = ({ data, loading, error }) => {
               <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
                 {category.severity_breakdown.CRITICAL > 0 && (
                   <Chip size="sm" color="danger" variant="soft">
-                    حرج: {category.severity_breakdown.CRITICAL}
+                    Critical: {category.severity_breakdown.CRITICAL}
                   </Chip>
                 )}
                 {category.severity_breakdown.HIGH > 0 && (
                   <Chip size="sm" color="warning" variant="soft">
-                    عالي: {category.severity_breakdown.HIGH}
+                    High: {category.severity_breakdown.HIGH}
                   </Chip>
                 )}
               </Box>

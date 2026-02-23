@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { Button } from "@mui/joy";
 import LogoutIcon from "@mui/icons-material/Logout";
 import theme from "../theme";
+import APP_CONFIG from "../config/appConfig";
 
 const TopBar = ({ pageTitle }) => {
   const { user, logout } = useAuth();

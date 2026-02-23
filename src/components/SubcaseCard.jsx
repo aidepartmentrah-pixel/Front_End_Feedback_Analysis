@@ -44,9 +44,19 @@ function SubcaseCard({ subcase, onForceClose }) {
   };
 
   return (
-    <div className="subcase-card">
+    <div className={`subcase-card ${subcase.is_red_flag ? 'subcase-red-flag' : ''} ${subcase.is_never_event ? 'subcase-never-event' : ''}`}>
       <div className="subcase-header">
         <SeverityBadge severity={subcase.severity} />
+        {subcase.is_red_flag && (
+          <span className="red-flag-badge">
+            🚩 Red Flag
+          </span>
+        )}
+        {subcase.is_never_event && (
+          <span className="never-event-badge">
+            ⚠️ Never Event
+          </span>
+        )}
         {subcase.status === 'RETURNED_TO_SECTION_FOR_REVISION' && (
           <span className="returned-badge">
             🔄 Returned for Revision
@@ -61,7 +71,10 @@ function SubcaseCard({ subcase, onForceClose }) {
           ⏱️ Waiting {subcase.waiting_days} day{subcase.waiting_days !== 1 ? 's' : ''}
         </span>
         <span className="case-id">
-          Case #{subcase.incident_id || subcase.seasonal_report_id}
+          Case #{subcase.incident_id || subcase.seasonal_report_id || '—'}
+        </span>
+        <span className="subcase-id">
+          Subcase #{subcase.subcase_id}
         </span>
       </div>
 

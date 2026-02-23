@@ -67,17 +67,13 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
       sx={{
         mb: 3,
         p: 3,
-        background: "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)",
-        border: "2px solid #2196f3",
-        boxShadow: "0 4px 12px rgba(33, 150, 243, 0.1)",
+        background: "#c8e4e6",
+        border: "1px solid rgba(31, 111, 115, 0.3)",
+        boxShadow: "0 4px 12px rgba(31, 111, 115, 0.1)",
       }}
     >
-      <Typography level="h3" sx={{ color: "#0d47a1", fontWeight: 700, mb: 2 }}>
-        Step 2: Metadata (Date, Source, Departments)
-      </Typography>
-
-      <Typography level="body-sm" sx={{ color: "#1565c0", mb: 2 }}>
-        Provide administrative details about the feedback record.
+      <Typography level="h3" sx={{ color: "#1F6F73", fontWeight: 700, mb: 2 }}>
+        Record Metadata
       </Typography>
 
       <Grid container spacing={2}>
@@ -215,14 +211,14 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
         <Grid xs={12} sm={6} md={6}>
           <FormControl fullWidth error={!!validationErrors.issuing_org_unit_id}>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              🏢 Issuing Department *
+              🏢 القسم الصادر *
             </FormLabel>
             <Autocomplete
               value={selectedIssuingDept}
               options={departmentOptions}
               getOptionLabel={(option) => option?.label || ""}
               isOptionEqualToValue={(option, value) => option?.id === value?.id}
-              placeholder="Search or select issuing department..."
+              placeholder="ابحث أو اختر القسم الصادر..."
               onChange={(e, newValue) => {
                 onInputChange("issuing_department_id", newValue ? newValue.id : null);
               }}
@@ -284,7 +280,7 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
         <Grid xs={12}>
           <FormControl fullWidth>
             <FormLabel sx={{ fontSize: "12px", fontWeight: 600, mb: 1 }}>
-              🏥 Target Departments (Multiple)
+              🏥 الأقسام المسؤولة (متعدد)
             </FormLabel>
             <Autocomplete
               multiple
@@ -292,7 +288,7 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
               options={departmentOptions}
               getOptionLabel={(option) => option?.label || ""}
               isOptionEqualToValue={(option, value) => option?.id === value?.id}
-              placeholder="Search or select target departments..."
+              placeholder="ابحث أو اختر الأقسام المسؤولة..."
               onChange={(e, newValue) => {
                 const ids = newValue.map(opt => opt.id);
                 onInputChange("target_department_ids", ids);
@@ -338,12 +334,6 @@ const RecordMetadata = ({ formData, onInputChange, referenceData, errorField, va
         </Grid>
       </Grid>
 
-      <Typography
-        level="body-xs"
-        sx={{ mt: 2, color: "#1565c0", fontStyle: "italic" }}
-      >
-        ℹ️ You can search and select multiple target departments. Type to filter.
-      </Typography>
     </Card>
   );
 };

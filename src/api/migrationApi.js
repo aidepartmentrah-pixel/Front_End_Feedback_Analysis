@@ -62,10 +62,11 @@ export const fetchMigrationProgress = async () => {
     console.log("Migration progress received:", data);
     
     // Normalize response structure
+    // Backend returns: total_cases, migrated_cases, percent_complete
     return {
-      total: data.total_legacy || data.total || 0,
-      migrated: data.migrated_total || data.migrated || 0,
-      percent: data.percent || 0,
+      total: data.total_cases || data.total_legacy || data.total || 0,
+      migrated: data.migrated_cases || data.migrated_total || data.migrated || 0,
+      percent: data.percent_complete || data.percent || 0,
     };
   } catch (error) {
     console.error("Error fetching migration progress:", error);

@@ -54,7 +54,7 @@ const NeverEventsSummaryCard = () => {
                 Never Events
               </Typography>
               <Typography level="body-xs" sx={{ color: "#666" }}>
-                أحداث صفر تسامح - Zero Tolerance Events
+                Zero Tolerance Events
               </Typography>
             </Box>
           </Box>
@@ -72,7 +72,7 @@ const NeverEventsSummaryCard = () => {
                 {totalEvents}
               </Typography>
               <Typography level="body-xs" sx={{ color: "#666" }}>
-                إجمالي الأحداث<br />Total Events
+                Total Events
               </Typography>
             </Box>
 
@@ -88,7 +88,7 @@ const NeverEventsSummaryCard = () => {
                 {openEvents}
               </Typography>
               <Typography level="body-xs" sx={{ color: "#666" }}>
-                أحداث مفتوحة<br />Open Events
+                Open Events
               </Typography>
             </Box>
 
@@ -104,14 +104,14 @@ const NeverEventsSummaryCard = () => {
                 {recentEvents}
               </Typography>
               <Typography level="body-xs" sx={{ color: "#666" }}>
-                آخر 30 يوم<br />Last 30 Days
+                Last 30 Days
               </Typography>
             </Box>
           </Box>
 
           <Typography level="body-sm" sx={{ color: "#666", mb: 2, lineHeight: 1.6 }}>
-            Never Events هي أحداث خطيرة يمكن الوقاية منها بشكل كامل ولا ينبغي أن تحدث أبداً في بيئة الرعاية الصحية.
-            تتطلب هذه الأحداث تحقيقات فورية وإجراءات تصحيحية صارمة.
+            Never Events are serious preventable events that should never occur in a healthcare setting.
+            These events require immediate investigation and strict corrective actions.
           </Typography>
         </Box>
 
@@ -129,7 +129,7 @@ const NeverEventsSummaryCard = () => {
             },
           }}
         >
-          عرض Never Events
+          View Never Events
         </Button>
       </Box>
     </Card>

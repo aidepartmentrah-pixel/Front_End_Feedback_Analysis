@@ -412,7 +412,7 @@ const DashboardPage = () => {
           >
             {/* Scope Selector */}
             <FormControl>
-              <FormLabel sx={{ fontWeight: 600 }}>Dashboard Level</FormLabel>
+              <FormLabel sx={{ fontWeight: 600 }}>مستوى العرض</FormLabel>
               <Select
                 value={scope}
                 onChange={(e, newValue) => {
@@ -423,17 +423,17 @@ const DashboardPage = () => {
                 }}
                 size="lg"
               >
-                <Option value="hospital">🏥 Hospital</Option>
-                <Option value="administration">📋 Administration</Option>
-                <Option value="department">🏢 Department</Option>
-                <Option value="section">📌 Section</Option>
+                <Option value="hospital">🏥 المستشفى</Option>
+                <Option value="administration">📋 الإدارة</Option>
+                <Option value="department">🏢 الدائرة</Option>
+                <Option value="section">📌 القسم</Option>
               </Select>
             </FormControl>
 
             {/* Administration Selector */}
             <FormControl>
               <FormLabel sx={{ fontWeight: 600 }}>
-                📋 Administration
+                📋 الإدارة
               </FormLabel>
               <Select
                 value={selectedAdmin}
@@ -441,7 +441,7 @@ const DashboardPage = () => {
                 size="lg"
                 disabled={loadingHierarchy || scope === "hospital"}
               >
-                <Option value="">All Administrations</Option>
+                <Option value="">جميع الإدارات</Option>
                 {(hierarchy?.Administration || []).map((admin) => (
                   <Option key={admin.id} value={admin.id}>
                     {admin.nameAr} ({admin.nameEn})
@@ -453,7 +453,7 @@ const DashboardPage = () => {
             {/* Department Selector */}
             <FormControl>
               <FormLabel sx={{ fontWeight: 600 }}>
-                🏢 Department
+                🏢 الدائرة
               </FormLabel>
               <Select
                 value={selectedDept}
@@ -461,7 +461,7 @@ const DashboardPage = () => {
                 size="lg"
                 disabled={!selectedAdmin || loadingHierarchy}
               >
-                <Option value="">All Departments</Option>
+                <Option value="">جميع الدوائر</Option>
                 {getDepartments().map((dept) => (
                   <Option key={dept.id} value={dept.id}>
                     {dept.nameAr} ({dept.nameEn})
@@ -473,7 +473,7 @@ const DashboardPage = () => {
             {/* Section Selector */}
             <FormControl>
               <FormLabel sx={{ fontWeight: 600 }}>
-                📌 Section
+                📌 القسم
               </FormLabel>
               <Select
                 value={selectedSection}
@@ -481,7 +481,7 @@ const DashboardPage = () => {
                 size="lg"
                 disabled={!selectedDept || loadingHierarchy}
               >
-                <Option value="">All Sections</Option>
+                <Option value="">جميع الأقسام</Option>
                 {getSections().map((section) => (
                   <Option key={section.id} value={section.id}>
                     {section.nameAr} ({section.nameEn})
@@ -566,28 +566,23 @@ const DashboardPage = () => {
         <Box sx={{ mt: 3 }}>
           <Card
             sx={{
-              p: 2.5,
-              background: "linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)",
-              border: "2px solid rgba(102, 126, 234, 0.3)",
+              p: 3,
+              background: theme.colors.primary,
               cursor: "pointer",
               transition: "all 0.3s ease",
               "&:hover": {
                 transform: "translateY(-2px)",
-                boxShadow: "0 8px 24px rgba(102, 126, 234, 0.2)",
+                boxShadow: "0 8px 24px rgba(102, 126, 234, 0.3)",
+                opacity: 0.9,
               },
             }}
             onClick={() => window.location.href = "/trend-monitoring"}
           >
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Box>
-                <Typography level="h5" sx={{ fontWeight: 700, color: theme.colors.primary, mb: 0.5 }}>
-                  📊 عرض تحليل الاتجاهات (View Trend Analysis)
-                </Typography>
-                <Typography level="body-sm" sx={{ color: "#666" }}>
-                  تتبع الاتجاهات الشهرية لاكتشاف أنماط التدهور والتحسين
-                </Typography>
-              </Box>
-              <ArrowForwardIcon sx={{ fontSize: "32px", color: theme.colors.primary }} />
+              <Typography level="h4" sx={{ fontWeight: 700, color: "#fff" }}>
+                📊 Trend Analysis
+              </Typography>
+              <ArrowForwardIcon sx={{ fontSize: "28px", color: "#fff" }} />
             </Box>
           </Card>
         </Box>

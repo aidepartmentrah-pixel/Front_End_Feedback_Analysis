@@ -412,7 +412,7 @@ function adaptGroupedInbox(rawList) {
         ? section.subcases.map(subcase => ({
             subcase_id: subcase.subcase_id,
             case_type: subcase.case_type,
-            incident_id: subcase.incident_id,
+            incident_id: subcase.incident_request_case_id || subcase.incident_id, // Backend sends incident_request_case_id
             seasonal_report_id: subcase.seasonal_report_id,
             case_description: String(subcase.case_description ?? ''),
             patient_name: String(subcase.patient_name ?? ''),
@@ -422,6 +422,8 @@ function adaptGroupedInbox(rawList) {
             waiting_days: Number(subcase.waiting_days) || 0,
             created_at: subcase.created_at,
             status: subcase.status,
+            is_red_flag: Boolean(subcase.is_red_flag),
+            is_never_event: Boolean(subcase.is_never_event),
           }))
         : [],
     }));

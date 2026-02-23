@@ -392,6 +392,123 @@ const MigrationViewPage = () => {
             </Card>
 
             {/* ========================================
+                SECTION D — LEGACY REFERENCE DATA (for copy during migration)
+            ======================================== */}
+            {legacyData.legacy_data && (
+              <Card variant="outlined" sx={{ mb: 3, backgroundColor: 'warning.softBg' }}>
+                <Typography level="h4" sx={{ mb: 1 }}>
+                  📋 Legacy Reference Data
+                </Typography>
+                <Typography level="body-sm" color="neutral" sx={{ mb: 2 }}>
+                  These fields are from the old system. Copy values manually to the migration form as needed.
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr 1fr' },
+                    gap: 2,
+                  }}
+                >
+                  {/* Source Department ID */}
+                  <Box>
+                    <Typography level="body-xs" fontWeight={600} color="neutral" sx={{ mb: 0.5 }}>
+                      SourceDepartmentID
+                    </Typography>
+                    <Sheet variant="soft" sx={{ p: 1, borderRadius: 'sm', fontFamily: 'monospace', fontSize: '0.875rem' }}>
+                      {legacyData.legacy_data.source_department_id ?? 'N/A'}
+                    </Sheet>
+                  </Box>
+
+                  {/* Source Department Name */}
+                  <Box>
+                    <Typography level="body-xs" fontWeight={600} color="neutral" sx={{ mb: 0.5 }}>
+                      SourceDepartmentName
+                    </Typography>
+                    <Sheet variant="soft" sx={{ p: 1, borderRadius: 'sm', fontFamily: 'monospace', fontSize: '0.875rem' }}>
+                      {legacyData.legacy_data.source_department_name || 'N/A'}
+                    </Sheet>
+                  </Box>
+
+                  {/* Source Building */}
+                  <Box>
+                    <Typography level="body-xs" fontWeight={600} color="neutral" sx={{ mb: 0.5 }}>
+                      SourceBuilding
+                    </Typography>
+                    <Sheet variant="soft" sx={{ p: 1, borderRadius: 'sm', fontFamily: 'monospace', fontSize: '0.875rem' }}>
+                      {legacyData.legacy_data.source_building || 'N/A'}
+                    </Sheet>
+                  </Box>
+
+                  {/* Case Building */}
+                  <Box>
+                    <Typography level="body-xs" fontWeight={600} color="neutral" sx={{ mb: 0.5 }}>
+                      CaseBuilding
+                    </Typography>
+                    <Sheet variant="soft" sx={{ p: 1, borderRadius: 'sm', fontFamily: 'monospace', fontSize: '0.875rem' }}>
+                      {legacyData.legacy_data.case_building || 'N/A'}
+                    </Sheet>
+                  </Box>
+
+                  {/* Doctor ID */}
+                  <Box>
+                    <Typography level="body-xs" fontWeight={600} color="neutral" sx={{ mb: 0.5 }}>
+                      DoctorID
+                    </Typography>
+                    <Sheet variant="soft" sx={{ p: 1, borderRadius: 'sm', fontFamily: 'monospace', fontSize: '0.875rem' }}>
+                      {legacyData.legacy_data.doctor_id || 'N/A'}
+                    </Sheet>
+                  </Box>
+
+                  {/* Employee ID */}
+                  <Box>
+                    <Typography level="body-xs" fontWeight={600} color="neutral" sx={{ mb: 0.5 }}>
+                      EmployeeID
+                    </Typography>
+                    <Sheet variant="soft" sx={{ p: 1, borderRadius: 'sm', fontFamily: 'monospace', fontSize: '0.875rem' }}>
+                      {legacyData.legacy_data.employee_id ?? 'N/A'}
+                    </Sheet>
+                  </Box>
+
+                  {/* Is InPatient */}
+                  <Box>
+                    <Typography level="body-xs" fontWeight={600} color="neutral" sx={{ mb: 0.5 }}>
+                      IsInPatient
+                    </Typography>
+                    <Sheet variant="soft" sx={{ p: 1, borderRadius: 'sm', fontFamily: 'monospace', fontSize: '0.875rem' }}>
+                      {legacyData.legacy_data.is_inpatient === true ? 'Yes (1)' : legacyData.legacy_data.is_inpatient === false ? 'No (0)' : 'N/A'}
+                    </Sheet>
+                  </Box>
+                </Box>
+
+                {/* Problem Reason - Full Width */}
+                {legacyData.legacy_data.problem_reason && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography level="body-xs" fontWeight={600} color="neutral" sx={{ mb: 0.5 }}>
+                      ProblemReason (from Actions)
+                    </Typography>
+                    <Sheet
+                      variant="soft"
+                      sx={{
+                        p: 2,
+                        borderRadius: 'sm',
+                        maxHeight: '150px',
+                        overflowY: 'auto',
+                        whiteSpace: 'pre-wrap',
+                        fontFamily: 'monospace',
+                        fontSize: '0.875rem',
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      {legacyData.legacy_data.problem_reason}
+                    </Sheet>
+                  </Box>
+                )}
+              </Card>
+            )}
+
+            {/* ========================================
                 NAVIGATION BUTTONS
             ======================================== */}
             <Box 

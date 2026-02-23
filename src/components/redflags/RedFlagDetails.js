@@ -28,7 +28,7 @@ const RedFlagDetails = ({ redflag, onExportPDF }) => {
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
           <WarningAmberIcon sx={{ fontSize: "28px", color: "#ff4757" }} />
           <Typography level="h5" sx={{ fontWeight: 700, color: "#ff4757" }}>
-            علامة حمراء (Red Flag)
+            Red Flag
           </Typography>
         </Box>
         <Typography level="h6" sx={{ fontWeight: 700 }}>
@@ -43,19 +43,19 @@ const RedFlagDetails = ({ redflag, onExportPDF }) => {
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid xs={6}>
           <Typography level="body-xs" sx={{ fontWeight: 700, color: "#666", mb: 0.5 }}>
-            القسم المرسل:
+            Sending Department:
           </Typography>
           <Typography level="body-sm">{redflag.sendingDepartment}</Typography>
         </Grid>
         <Grid xs={6}>
           <Typography level="body-xs" sx={{ fontWeight: 700, color: "#666", mb: 0.5 }}>
-            القسم المستهدف:
+            Target Department:
           </Typography>
           <Typography level="body-sm">{redflag.targetDepartment}</Typography>
         </Grid>
         <Grid xs={6}>
           <Typography level="body-xs" sx={{ fontWeight: 700, color: "#666", mb: 0.5 }}>
-            المجال:
+            Domain:
           </Typography>
           <Typography level="body-sm" sx={{ fontWeight: 700, color: "#667eea" }}>
             {redflag.domain}
@@ -63,7 +63,7 @@ const RedFlagDetails = ({ redflag, onExportPDF }) => {
         </Grid>
         <Grid xs={6}>
           <Typography level="body-xs" sx={{ fontWeight: 700, color: "#666", mb: 0.5 }}>
-            الشدة:
+            Severity:
           </Typography>
           <Chip sx={{ ...getSeverityStyle(redflag.severity), fontWeight: 700, fontSize: "11px" }}>
             {redflag.severity}
@@ -76,7 +76,7 @@ const RedFlagDetails = ({ redflag, onExportPDF }) => {
       {/* Department Hierarchy */}
       <Box sx={{ mb: 3 }}>
         <Typography level="body-xs" sx={{ fontWeight: 700, color: "#666", mb: 1 }}>
-          التسلسل الإداري (Department Hierarchy):
+          Department Hierarchy:
         </Typography>
         <Box sx={{ p: 2, background: "#f9fafb", borderRadius: "4px" }}>
           <Typography level="body-sm">
@@ -88,14 +88,14 @@ const RedFlagDetails = ({ redflag, onExportPDF }) => {
       {/* Classification */}
       <Box sx={{ mb: 3 }}>
         <Typography level="body-xs" sx={{ fontWeight: 700, color: "#666", mb: 1 }}>
-          التصنيف (Classification):
+          Classification:
         </Typography>
         <Box sx={{ p: 2, background: "#f9fafb", borderRadius: "4px" }}>
           <Typography level="body-sm" sx={{ mb: 1, fontWeight: 700 }}>
-            عربي: {redflag.classificationAr}
+            AR: {redflag.classificationAr}
           </Typography>
           <Typography level="body-sm">
-            English: {redflag.classificationEn}
+            EN: {redflag.classificationEn}
           </Typography>
         </Box>
       </Box>
@@ -103,7 +103,7 @@ const RedFlagDetails = ({ redflag, onExportPDF }) => {
       {/* Raw Content */}
       <Box sx={{ mb: 3 }}>
         <Typography level="body-xs" sx={{ fontWeight: 700, color: "#666", mb: 1 }}>
-          محتوى الشكوى (Complaint Content):
+          Complaint Content:
         </Typography>
         <Box sx={{ p: 2, background: "#fff", border: "1px solid #e0e0e0", borderRadius: "4px" }}>
           <Typography level="body-sm">{redflag.rawContent}</Typography>
@@ -113,7 +113,7 @@ const RedFlagDetails = ({ redflag, onExportPDF }) => {
       {/* Harm */}
       <Box sx={{ mb: 3 }}>
         <Typography level="body-xs" sx={{ fontWeight: 700, color: "#666", mb: 1 }}>
-          الضرر (Harm):
+          Harm:
         </Typography>
         <Box
           sx={{
@@ -132,7 +132,7 @@ const RedFlagDetails = ({ redflag, onExportPDF }) => {
       {/* Red Flag Reason */}
       <Box sx={{ mb: 3 }}>
         <Typography level="body-xs" sx={{ fontWeight: 700, color: "#666", mb: 1 }}>
-          سبب العلامة الحمراء (Red Flag Reason):
+          Red Flag Reason:
         </Typography>
         <Box
           sx={{
@@ -151,7 +151,7 @@ const RedFlagDetails = ({ redflag, onExportPDF }) => {
       {/* Immediate Action */}
       <Box sx={{ mb: 3 }}>
         <Typography level="body-xs" sx={{ fontWeight: 700, color: "#666", mb: 1 }}>
-          الإجراء الفوري (Immediate Action):
+          Immediate Action:
         </Typography>
         <Box sx={{ p: 2, background: "#f9fafb", borderRadius: "4px" }}>
           <Typography level="body-sm">{redflag.immediateAction}</Typography>
@@ -161,7 +161,7 @@ const RedFlagDetails = ({ redflag, onExportPDF }) => {
       {/* Department Notes */}
       <Box sx={{ mb: 3 }}>
         <Typography level="body-xs" sx={{ fontWeight: 700, color: "#666", mb: 1 }}>
-          ملاحظات القسم (Department Notes):
+          Department Notes:
         </Typography>
         <Box sx={{ p: 2, background: "#f9fafb", borderRadius: "4px" }}>
           <Typography level="body-sm">{redflag.departmentNotes}</Typography>
@@ -181,7 +181,7 @@ const RedFlagDetails = ({ redflag, onExportPDF }) => {
             fontWeight: 700,
           }}
         >
-          تصدير PDF (Export PDF)
+          Export PDF
         </Button>
       </Box>
     </Box>

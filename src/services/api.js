@@ -125,11 +125,10 @@ const api = {
 
   // Delete doctor
   deleteDoctor: async (id) => {
-    // Placeholder: replace with actual API call
-    return { success: true };
-    // return apiCall(`/settings/doctors/${id}`, {
-    //   method: "DELETE",
-    // });
+    // Soft delete: deactivates doctor (IsActive=0) - preserves data integrity
+    return apiCall(`/api/settings/doctors/${id}`, {
+      method: "DELETE"
+    });
   },
 
   // ==================== PATIENTS API ====================

@@ -115,7 +115,7 @@ const SatisfactionModal = ({ open, onClose, caseId, caseName, onSuccess }) => {
   };
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} sx={{ zIndex: 9999 }}>
       <ModalDialog
         variant="outlined"
         sx={{
@@ -123,6 +123,7 @@ const SatisfactionModal = ({ open, onClose, caseId, caseName, onSuccess }) => {
           width: '90%',
           maxHeight: '90vh',
           overflow: 'auto',
+          zIndex: 10000,
         }}
       >
         <ModalClose disabled={loading} />
@@ -159,6 +160,11 @@ const SatisfactionModal = ({ open, onClose, caseId, caseName, onSuccess }) => {
                 onChange={(e, value) => setSatisfactionStatusId(value)}
                 disabled={loading}
                 color={getStatusColor(satisfactionStatusId)}
+                slotProps={{
+                  listbox: {
+                    sx: { zIndex: 10001 }
+                  }
+                }}
               >
                 {statuses.map((status) => (
                   <Option key={status.satisfaction_status_id} value={status.satisfaction_status_id}>

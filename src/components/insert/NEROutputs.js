@@ -279,17 +279,13 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, va
       sx={{
         mb: 3,
         p: 3,
-        background: "linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%)",
-        border: "2px solid #4caf50",
-        boxShadow: "0 4px 12px rgba(76, 175, 80, 0.1)",
+        background: "#c8e4e6",
+        border: "1px solid rgba(31, 111, 115, 0.3)",
+        boxShadow: "0 4px 12px rgba(31, 111, 115, 0.1)",
       }}
     >
-      <Typography level="h3" sx={{ color: "#2d5016", fontWeight: 700, mb: 2 }}>
-        Step 3: Named Entity Recognition (NER)
-      </Typography>
-
-      <Typography level="body-sm" sx={{ color: "#558b2f", mb: 2 }}>
-        Extract patient and doctor names from the complaint text or search manually.
+      <Typography level="h3" sx={{ color: "#1F6F73", fontWeight: 700, mb: 2 }}>
+        Patient & Staff
       </Typography>
 
       <Grid container spacing={2}>

@@ -1,9 +1,16 @@
 // src/components/neverEvents/NeverEventsTable.js
 import React from "react";
 import { Box, Table, Chip, Typography } from "@mui/joy";
-import WarningIcon from "@mui/icons-material/Warning";
 
 const NeverEventsTable = ({ neverEvents, loading, onRowClick }) => {
+  const getSeverityColor = (severity) => {
+    const text = severity?.toLowerCase() || "";
+    if (text === "high" || text === "critical") return "danger";
+    if (text === "medium") return "warning";
+    if (text === "low") return "neutral";
+    return "danger"; // Default to danger for never events
+  };
+
   const getStatusColor = (status) => {
     const s = status?.toUpperCase?.() || status;
     if (s === "OPEN") return "primary";
@@ -25,7 +32,7 @@ const NeverEventsTable = ({ neverEvents, loading, onRowClick }) => {
   if (loading) {
     return (
       <Box sx={{ p: 4, textAlign: "center" }}>
-        <Typography>جاري التحميل...</Typography>
+        <Typography>Loading...</Typography>
       </Box>
     );
   }
@@ -33,7 +40,7 @@ const NeverEventsTable = ({ neverEvents, loading, onRowClick }) => {
   if (!neverEvents || neverEvents.length === 0) {
     return (
       <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
-        <Typography>لا توجد أحداث</Typography>
+        <Typography>No Never Events found</Typography>
       </Box>
     );
   }
@@ -89,15 +96,14 @@ const NeverEventsTable = ({ neverEvents, loading, onRowClick }) => {
       >
         <thead>
           <tr>
-            <th style={{ width: "8%" }}>رقم السجل</th>
-            <th style={{ width: "9%" }}>التاريخ</th>
-            <th style={{ width: "12%" }}>اسم المريض</th>
-            <th style={{ width: "16%" }}>نوع الحدث</th>
-            <th style={{ width: "12%" }}>الفئة</th>
-            <th style={{ width: "14%" }}>القسم</th>
-            <th style={{ width: "11%" }}>القسم الفرعي</th>
-            <th style={{ width: "9%" }}>الحالة</th>
-            <th style={{ width: "9%" }}>رقم الحادثة</th>
+            <th style={{ width: "10%" }}>Case ID</th>
+            <th style={{ width: "10%" }}>Date</th>
+            <th style={{ width: "14%" }}>Patient Name</th>
+            <th style={{ width: "26%" }}>Complaint</th>
+            <th style={{ width: "15%" }}>Department</th>
+            <th style={{ width: "10%" }}>Category</th>
+            <th style={{ width: "8%" }}>Severity</th>
+            <th style={{ width: "7%" }}>Status</th>
           </tr>
         </thead>
         <tbody>
@@ -107,16 +113,13 @@ const NeverEventsTable = ({ neverEvents, loading, onRowClick }) => {
               onClick={() => onRowClick(event.id)}
             >
               <td>
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5 }}>
-                  <WarningIcon sx={{ color: "#dc2626", fontSize: 16 }} />
-                  <Box sx={{ fontWeight: 600, color: "#0f172a", fontSize: "0.75rem" }}>
-                    {event.recordID || event.record_id || event.case_id}
-                  </Box>
+                <Box sx={{ fontWeight: 600, color: "#0f172a", fontSize: "0.85rem", textAlign: "center" }}>
+                  {event.id}
                 </Box>
               </td>
               <td>
                 <Box sx={{ color: "#6b7280", fontSize: "0.75rem", textAlign: "center" }}>
-                  {event.date ? new Date(event.date).toLocaleDateString("ar-SA", {
+                  {event.date ? new Date(event.date).toLocaleDateString("en-GB", {
                     year: "numeric",
                     month: "short",
                     day: "numeric",
@@ -131,21 +134,20 @@ const NeverEventsTable = ({ neverEvents, loading, onRowClick }) => {
               <td>
                 <Box
                   sx={{
-                    display: "inline-block",
-                    px: 1,
-                    py: 0.25,
-                    borderRadius: "4px",
-                    fontSize: "0.75rem",
-                    fontWeight: 500,
-                    bgcolor: "#fef2f2",
-                    color: "#991b1b",
-                    border: "1px solid #fecaca",
+                    color: "#4b5563",
+                    fontSize: "0.8125rem",
                     textAlign: "center",
                     whiteSpace: "normal",
                     wordBreak: "break-word",
+                    lineHeight: 1.5,
                   }}
                 >
-                  {event.neverEventTypeAr || event.neverEventType || event.category || "-"}
+                  {event.description || event.neverEventTypeAr || event.neverEventType || "-"}
+                </Box>
+              </td>
+              <td>
+                <Box sx={{ color: "#4b5563", fontSize: "0.75rem", textAlign: "center", whiteSpace: "normal", wordBreak: "break-word" }}>
+                  {event.department || "-"}
                 </Box>
               </td>
               <td>
@@ -163,18 +165,17 @@ const NeverEventsTable = ({ neverEvents, loading, onRowClick }) => {
                     textAlign: "center",
                   }}
                 >
-                  {event.neverEventCategory || event.domain || "-"}
+                  {event.neverEventCategory || event.category || "-"}
                 </Box>
               </td>
               <td>
-                <Box sx={{ color: "#4b5563", fontSize: "0.75rem", textAlign: "center", whiteSpace: "normal", wordBreak: "break-word" }}>
-                  {event.department || "-"}
-                </Box>
-              </td>
-              <td>
-                <Box sx={{ color: "#6b7280", fontSize: "0.75rem", textAlign: "center", whiteSpace: "normal", wordBreak: "break-word" }}>
-                  {event.qism || event.sub_category || "-"}
-                </Box>
+                <Chip
+                  color={getSeverityColor(event.severity)}
+                  size="sm"
+                  sx={{ fontWeight: 700, fontSize: "0.7rem" }}
+                >
+                  {event.severity || "HIGH"}
+                </Chip>
               </td>
               <td>
                 <Chip
@@ -185,11 +186,6 @@ const NeverEventsTable = ({ neverEvents, loading, onRowClick }) => {
                 >
                   {getStatusLabel(event.status)}
                 </Chip>
-              </td>
-              <td>
-                <Box sx={{ color: "#6b7280", fontSize: "0.75rem", textAlign: "center" }}>
-                  {event.incidentID || event.incident_id || "-"}
-                </Box>
               </td>
             </tr>
           ))}

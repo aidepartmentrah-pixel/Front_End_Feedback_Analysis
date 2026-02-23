@@ -61,10 +61,10 @@ const SearchPatient = ({ onSelectPatient }) => {
       <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
         <Box sx={{ flex: 1 }}>
           <Typography level="body-sm" sx={{ mb: 1, fontWeight: 600 }}>
-            Patient Name or MRN
+            Patient Name
           </Typography>
           <Autocomplete
-            placeholder="Search by name (English/Arabic) or MRN..."
+            placeholder="Search by name (English/Arabic)..."
             options={options}
             value={selectedPatient}
             inputValue={inputValue}

@@ -11,7 +11,7 @@ const EditActionButtons = ({ onUpdate, onCancel, onReset, loading, hasChanges, i
       sx={{
         p: 3,
         borderRadius: "8px",
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        background: "#2e7d32",
         display: "flex",
         gap: 2,
         flexWrap: "wrap",
@@ -42,8 +42,7 @@ const EditActionButtons = ({ onUpdate, onCancel, onReset, loading, hasChanges, i
 
       <Button
         size="lg"
-        variant="outlined"
-        color="neutral"
+        variant="solid"
         startDecorator={<RestartAltIcon />}
         onClick={onReset}
         disabled={!hasChanges || loading}
@@ -51,11 +50,10 @@ const EditActionButtons = ({ onUpdate, onCancel, onReset, loading, hasChanges, i
           flex: 1,
           minWidth: "150px",
           fontWeight: 700,
+          backgroundColor: "#78909c",
           color: "white",
-          borderColor: "rgba(255, 255, 255, 0.5)",
           "&:hover": {
-            borderColor: "white",
-            background: "rgba(255, 255, 255, 0.1)",
+            backgroundColor: "#546e7a",
           },
           "&:disabled": {
             opacity: 0.6,
@@ -67,8 +65,7 @@ const EditActionButtons = ({ onUpdate, onCancel, onReset, loading, hasChanges, i
 
       <Button
         size="lg"
-        variant="plain"
-        color="neutral"
+        variant="solid"
         startDecorator={<CancelIcon />}
         onClick={onCancel}
         disabled={loading}
@@ -76,10 +73,10 @@ const EditActionButtons = ({ onUpdate, onCancel, onReset, loading, hasChanges, i
           flex: 1,
           minWidth: "150px",
           fontWeight: 700,
-          color: "rgba(255, 255, 255, 0.8)",
+          backgroundColor: "#546e7a",
+          color: "white",
           "&:hover": {
-            color: "white",
-            background: "rgba(255, 255, 255, 0.1)",
+            backgroundColor: "#455a64",
           },
           "&:disabled": {
             opacity: 0.6,

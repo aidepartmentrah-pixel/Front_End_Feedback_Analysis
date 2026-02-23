@@ -53,6 +53,7 @@ export const SETTINGS_TAB_KEYS = {
   POLICY: 'policy',
   TRAINING: 'training',
   USERS: 'users',
+  HARDWARE_CONFIG: 'hardware_config',  // SOFTWARE_ADMIN only - deployment settings
 };
 
 // ============================================================================
@@ -170,6 +171,7 @@ export const roleSettingsTabVisibilityMap = {
     SETTINGS_TAB_KEYS.POLICY,
     SETTINGS_TAB_KEYS.TRAINING,
     SETTINGS_TAB_KEYS.USERS,
+    SETTINGS_TAB_KEYS.HARDWARE_CONFIG,  // Deployment configuration - SOFTWARE_ADMIN ONLY
   ],
   
   [ROLES.COMPLAINT_SUPERVISOR]: [

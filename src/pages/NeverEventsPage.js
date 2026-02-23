@@ -199,7 +199,7 @@ const NeverEventsPage = ({ embedded = false }) => {
       {/* Page Header */}
       <Box sx={{ mb: 3 }}>
         <Typography level="h2" sx={{ fontWeight: 700 }}>
-          ⚠️ الأحداث التي لا يجب أن تحدث (Never Events)
+          ⚠️ Never Events
         </Typography>
       </Box>
 
@@ -238,7 +238,7 @@ const NeverEventsPage = ({ embedded = false }) => {
       {/* Results Summary */}
       <Box sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Typography level="body-md" sx={{ color: "text.secondary" }}>
-          إجمالي النتائج: <strong>{totalCount}</strong> حدث
+          Total: <strong>{totalCount}</strong> Never Events
         </Typography>
         {loadingEvents && <CircularProgress size="sm" />}
       </Box>

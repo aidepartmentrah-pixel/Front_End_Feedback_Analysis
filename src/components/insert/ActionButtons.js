@@ -10,7 +10,7 @@ const ActionButtons = ({ onExtract, onAddRecord, loading, hasComplaintText, isFo
       sx={{
         p: 3,
         borderRadius: "8px",
-        background: "linear-gradient(135deg, #2BBCC4 0%, #64A70B 100%)",
+        background: "#2e7d32",
         display: "flex",
         gap: 2,
         flexWrap: "wrap",

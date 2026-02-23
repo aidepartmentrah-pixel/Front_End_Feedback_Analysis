@@ -3,14 +3,16 @@
 // Phase D — V2 seasonal Word download handler
 // Phase D — role guard restricted to software_admin + complaint_department_worker
 // Phase 2 — FAB for reports
+// Phase Universal — Using UniversalIncidentsTable
 
 import React, { useState } from "react";
-import { Box, Typography, Alert, CircularProgress, Card, Table, Chip, Button, Select, Option } from "@mui/joy";
+import { Box, Typography, Alert, CircularProgress, Card, Button, Select, Option } from "@mui/joy";
 import DescriptionIcon from '@mui/icons-material/Description';
 import theme from "../theme";
 import MainLayout from "../components/common/MainLayout";
 import MetricsPanel from "../components/personReporting/MetricsPanel";
 import SearchWorker from "../components/workerHistory/SearchWorker";
+import UniversalIncidentsTable from "../components/common/UniversalIncidentsTable";
 import SeasonSelector from "../components/personReporting/SeasonSelector";
 import { getWorkerFullHistoryV2, exportWorkerCsvV2, exportWorkerJsonV2, exportWorkerWordV2, downloadWorkerSeasonalWordV2, downloadAllWorkersSeasonalWordV2, downloadBlobFile } from "../api/personApiV2";
 import { useAuth } from "../context/AuthContext";
@@ -324,73 +326,14 @@ const WorkerHistoryPage = ({ embedded = false }) => {
     </Card>
   ) : null;
 
-  // Incidents table section - shows incidents from full-history endpoint
-  const tableSection = workerActions.length > 0 ? (
-    <Card sx={{ p: 0, overflow: "auto" }}>
-      <Typography level="h6" sx={{ p: 2, fontWeight: 700, color: "#667eea", borderBottom: "1px solid #eee" }}>
-        Incidents Involving This Worker
-      </Typography>
-      <Table sx={{ minWidth: 800 }}>
-        <thead>
-          <tr>
-            <th>Case ID</th>
-            <th>Date</th>
-            <th>Patient</th>
-            <th>Category</th>
-            <th>Severity</th>
-            <th>Classification</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {workerActions.map((incident, index) => (
-            <tr key={incident.id || incident.case_id || index}>
-              <td>{incident.id || incident.case_id || "N/A"}</td>
-              <td>{incident.date || incident.incident_date ? new Date(incident.date || incident.incident_date).toLocaleDateString() : "—"}</td>
-              <td>{incident.patient_name || incident.patient || "—"}</td>
-              <td>{incident.category || incident.category_name || "—"}</td>
-              <td>
-                <Chip
-                  size="sm"
-                  color={
-                    incident.severity === "High" ? "danger" :
-                    incident.severity === "Medium" ? "warning" :
-                    incident.severity === "Low" ? "success" : "neutral"
-                  }
-                >
-                  {incident.severity || "—"}
-                </Chip>
-              </td>
-              <td>
-                <Chip
-                  size="sm"
-                  color={
-                    incident.classification === "bad" ? "danger" :
-                    incident.classification === "good" ? "success" : "neutral"
-                  }
-                >
-                  {incident.classification === "bad" ? "😞 Bad" :
-                   incident.classification === "good" ? "😊 Good" :
-                   incident.classification === "neutral" ? "😐 Neutral" : "—"}
-                </Chip>
-              </td>
-              <td>
-                <Chip
-                  size="sm"
-                  color={incident.status === "Closed" ? "success" : "warning"}
-                >
-                  {incident.status || "—"}
-                </Chip>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-    </Card>
-  ) : workerProfile ? (
-    <Alert color="neutral" sx={{ textAlign: "center" }}>
-      No incidents found for this worker
-    </Alert>
+  // Incidents table section - using UniversalIncidentsTable
+  const tableSection = workerProfile ? (
+    <UniversalIncidentsTable
+      incidents={workerActions}
+      context="worker"
+      title="👷 Incidents Involving This Worker"
+      emptyMessage="No incidents found for this worker"
+    />
   ) : null;
 
   const content = (

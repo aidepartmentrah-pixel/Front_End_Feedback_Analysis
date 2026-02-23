@@ -773,11 +773,11 @@ const EditRecord = () => {
               p: 3, 
               mt: 3, 
               mb: 3,
-              background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
-              border: "1px solid rgba(102, 126, 234, 0.15)",
+              background: "#c8e4e6",
+              border: "1px solid rgba(31, 111, 115, 0.3)",
               borderRadius: "12px"
             }}>
-              <Typography level="title-md" sx={{ fontWeight: 700, mb: 2, color: theme.colors.primary }}>
+              <Typography level="title-md" sx={{ fontWeight: 700, mb: 2, color: "#1F6F73" }}>
                 <PersonIcon sx={{ mr: 1, verticalAlign: "middle" }} />
                 Employees (Supervisor / Worker)
               </Typography>
@@ -899,11 +899,11 @@ const EditRecord = () => {
               p: 3, 
               mt: 3, 
               mb: 3,
-              background: "linear-gradient(135deg, #e8f5e9 0%, #fff 100%)",
-              border: "1px solid rgba(76, 175, 80, 0.15)",
+              background: "#c8e4e6",
+              border: "1px solid rgba(31, 111, 115, 0.3)",
               borderRadius: "12px"
             }}>
-              <Typography level="title-md" sx={{ fontWeight: 700, mb: 2, color: "#2e7d32" }}>
+              <Typography level="title-md" sx={{ fontWeight: 700, mb: 2, color: "#1F6F73" }}>
                 🩺 Doctors
               </Typography>
 

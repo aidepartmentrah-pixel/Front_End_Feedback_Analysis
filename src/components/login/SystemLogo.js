@@ -2,6 +2,7 @@
 import React from "react";
 import { Box, Typography } from "@mui/joy";
 import logo3 from "../../assests/logo3.png";
+import APP_CONFIG from "../../config/appConfig";
 
 const SystemLogo = () => {
   return (
@@ -41,13 +42,13 @@ const SystemLogo = () => {
           mb: 0.5,
         }}
       >
-        FeedbackAI
+        {APP_CONFIG.name}
       </Typography>
       <Typography level="body-sm" sx={{ color: "#666", fontWeight: 600 }}>
-        Hospital Feedback Management System
+        {APP_CONFIG.subtitle}
       </Typography>
       <Typography level="body-xs" sx={{ color: "#999", mt: 0.5 }}>
-        نظام إدارة ملاحظات المستشفى
+        {APP_CONFIG.subtitleArabic}
       </Typography>
     </Box>
   );

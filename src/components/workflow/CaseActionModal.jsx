@@ -336,62 +336,62 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
   const renderRcaForm = () => (
     <Box sx={{ mt: 2 }}>
       <Typography level="title-md" sx={{ mb: 2, color: 'primary.600' }}>
-        📋 Root Cause Analysis (RCA)
+        📋 تحليل السبب الجذري (RCA)
       </Typography>
       
       <AccordionGroup sx={{ maxWidth: '100%' }}>
         {/* Staff Causes */}
         <Accordion defaultExpanded>
           <AccordionSummary>
-            <Typography level="title-sm">👥 Staff-Related Causes</Typography>
+            <Typography level="title-sm">👥 أسباب متعلقة بالكادر</Typography>
           </AccordionSummary>
           <AccordionDetails>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Checkbox
-                label="Training Deficiency"
+                label="قصور في التدريب"
                 checked={rcaFeedback.Cause_Staff_Training}
                 onChange={(e) => updateRcaField('Cause_Staff_Training', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="Insufficient Incentives"
+                label="عدم كفاية الحوافز"
                 checked={rcaFeedback.Cause_Staff_Incentives}
                 onChange={(e) => updateRcaField('Cause_Staff_Incentives', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="Competency Issues"
+                label="مشاكل في الكفاءة"
                 checked={rcaFeedback.Cause_Staff_Competency}
                 onChange={(e) => updateRcaField('Cause_Staff_Competency', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="Understaffing"
+                label="نقص في الكادر"
                 checked={rcaFeedback.Cause_Staff_Understaffed}
                 onChange={(e) => updateRcaField('Cause_Staff_Understaffed', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="Non-Compliance"
+                label="عدم الالتزام"
                 checked={rcaFeedback.Cause_Staff_NonCompliance}
                 onChange={(e) => updateRcaField('Cause_Staff_NonCompliance', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="Poor Coordination"
+                label="ضعف التنسيق"
                 checked={rcaFeedback.Cause_Staff_NoCoordination}
                 onChange={(e) => updateRcaField('Cause_Staff_NoCoordination', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="Other (specify below)"
+                label="أخرى (حدد أدناه)"
                 checked={rcaFeedback.Cause_Staff_Other}
                 onChange={(e) => updateRcaField('Cause_Staff_Other', e.target.checked)}
                 disabled={loading}
               />
               {rcaFeedback.Cause_Staff_Other && (
                 <Input
-                  placeholder="Specify other staff cause..."
+                  placeholder="حدد السبب الآخر..."
                   value={rcaFeedback.Cause_Staff_OtherText}
                   onChange={(e) => updateRcaField('Cause_Staff_OtherText', e.target.value)}
                   disabled={loading}
@@ -405,37 +405,37 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
         {/* Process Causes */}
         <Accordion>
           <AccordionSummary>
-            <Typography level="title-sm">⚙️ Process-Related Causes</Typography>
+            <Typography level="title-sm">⚙️ أسباب متعلقة بالإجراءات</Typography>
           </AccordionSummary>
           <AccordionDetails>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Checkbox
-                label="Not Comprehensive"
+                label="غير شاملة"
                 checked={rcaFeedback.Cause_Process_NotComprehensive}
                 onChange={(e) => updateRcaField('Cause_Process_NotComprehensive', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="Process Unclear"
+                label="إجراءات غير واضحة"
                 checked={rcaFeedback.Cause_Process_Unclear}
                 onChange={(e) => updateRcaField('Cause_Process_Unclear', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="Missing Protocol"
+                label="عدم وجود بروتوكول"
                 checked={rcaFeedback.Cause_Process_MissingProtocol}
                 onChange={(e) => updateRcaField('Cause_Process_MissingProtocol', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="Other (specify below)"
+                label="أخرى (حدد أدناه)"
                 checked={rcaFeedback.Cause_Process_Other}
                 onChange={(e) => updateRcaField('Cause_Process_Other', e.target.checked)}
                 disabled={loading}
               />
               {rcaFeedback.Cause_Process_Other && (
                 <Input
-                  placeholder="Specify other process cause..."
+                  placeholder="حدد السبب الآخر..."
                   value={rcaFeedback.Cause_Process_OtherText}
                   onChange={(e) => updateRcaField('Cause_Process_OtherText', e.target.value)}
                   disabled={loading}
@@ -449,37 +449,37 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
         {/* Equipment Causes */}
         <Accordion>
           <AccordionSummary>
-            <Typography level="title-sm">🔧 Equipment-Related Causes</Typography>
+            <Typography level="title-sm">🔧 أسباب متعلقة بالمعدات</Typography>
           </AccordionSummary>
           <AccordionDetails>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Checkbox
-                label="Equipment Not Available"
+                label="المعدات غير متوفرة"
                 checked={rcaFeedback.Cause_Equipment_NotAvailable}
                 onChange={(e) => updateRcaField('Cause_Equipment_NotAvailable', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="System Incomplete"
+                label="النظام غير مكتمل"
                 checked={rcaFeedback.Cause_Equipment_SystemIncomplete}
                 onChange={(e) => updateRcaField('Cause_Equipment_SystemIncomplete', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="Hard to Apply/Use"
+                label="صعوبة في الاستخدام"
                 checked={rcaFeedback.Cause_Equipment_HardToApply}
                 onChange={(e) => updateRcaField('Cause_Equipment_HardToApply', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="Other (specify below)"
+                label="أخرى (حدد أدناه)"
                 checked={rcaFeedback.Cause_Equipment_Other}
                 onChange={(e) => updateRcaField('Cause_Equipment_Other', e.target.checked)}
                 disabled={loading}
               />
               {rcaFeedback.Cause_Equipment_Other && (
                 <Input
-                  placeholder="Specify other equipment cause..."
+                  placeholder="حدد السبب الآخر..."
                   value={rcaFeedback.Cause_Equipment_OtherText}
                   onChange={(e) => updateRcaField('Cause_Equipment_OtherText', e.target.value)}
                   disabled={loading}
@@ -493,37 +493,37 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
         {/* Environment Causes */}
         <Accordion>
           <AccordionSummary>
-            <Typography level="title-sm">🏢 Environment-Related Causes</Typography>
+            <Typography level="title-sm">🏢 أسباب متعلقة بالبيئة</Typography>
           </AccordionSummary>
           <AccordionDetails>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Checkbox
-                label="Place/Location Nature"
+                label="طبيعة المكان/الموقع"
                 checked={rcaFeedback.Cause_Environment_PlaceNature}
                 onChange={(e) => updateRcaField('Cause_Environment_PlaceNature', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="Surroundings Issues"
+                label="مشاكل في المحيط"
                 checked={rcaFeedback.Cause_Environment_Surroundings}
                 onChange={(e) => updateRcaField('Cause_Environment_Surroundings', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="Work Conditions"
+                label="ظروف العمل"
                 checked={rcaFeedback.Cause_Environment_WorkConditions}
                 onChange={(e) => updateRcaField('Cause_Environment_WorkConditions', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="Other (specify below)"
+                label="أخرى (حدد أدناه)"
                 checked={rcaFeedback.Cause_Environment_Other}
                 onChange={(e) => updateRcaField('Cause_Environment_Other', e.target.checked)}
                 disabled={loading}
               />
               {rcaFeedback.Cause_Environment_Other && (
                 <Input
-                  placeholder="Specify other environment cause..."
+                  placeholder="حدد السبب الآخر..."
                   value={rcaFeedback.Cause_Environment_OtherText}
                   onChange={(e) => updateRcaField('Cause_Environment_OtherText', e.target.value)}
                   disabled={loading}
@@ -537,43 +537,43 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
         {/* Preventive Measures */}
         <Accordion>
           <AccordionSummary>
-            <Typography level="title-sm">🛡️ Preventive Measures Taken</Typography>
+            <Typography level="title-sm">🛡️ التدابير الوقائية المتخذة</Typography>
           </AccordionSummary>
           <AccordionDetails>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Checkbox
-                label="Monthly Meetings"
+                label="اجتماعات شهرية"
                 checked={rcaFeedback.Preventive_MonthlyMeetings}
                 onChange={(e) => updateRcaField('Preventive_MonthlyMeetings', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="Training Programs"
+                label="برامج تدريبية"
                 checked={rcaFeedback.Preventive_TrainingPrograms}
                 onChange={(e) => updateRcaField('Preventive_TrainingPrograms', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="Increase Staff"
+                label="زيادة الكادر"
                 checked={rcaFeedback.Preventive_IncreaseStaff}
                 onChange={(e) => updateRcaField('Preventive_IncreaseStaff', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="M&M Committee Actions"
+                label="إجراءات لجنة المراجعة"
                 checked={rcaFeedback.Preventive_MMCommitteeActions}
                 onChange={(e) => updateRcaField('Preventive_MMCommitteeActions', e.target.checked)}
                 disabled={loading}
               />
               <Checkbox
-                label="Other (specify below)"
+                label="أخرى (حدد أدناه)"
                 checked={rcaFeedback.Preventive_Other}
                 onChange={(e) => updateRcaField('Preventive_Other', e.target.checked)}
                 disabled={loading}
               />
               {rcaFeedback.Preventive_Other && (
                 <Input
-                  placeholder="Specify other preventive measure..."
+                  placeholder="حدد التدبير الوقائي الآخر..."
                   value={rcaFeedback.Preventive_OtherText}
                   onChange={(e) => updateRcaField('Preventive_OtherText', e.target.value)}
                   disabled={loading}
@@ -593,7 +593,7 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
   const renderActionItems = () => (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography level="title-md">Action Items</Typography>
+        <Typography level="title-md">بنود الإجراءات</Typography>
         <Button
           size="sm"
           variant="outlined"
@@ -601,14 +601,14 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
           onClick={addActionItem}
           disabled={loading}
         >
-          Add Item
+          إضافة بند
         </Button>
       </Box>
 
       {actionItems.map((item, index) => (
         <Card key={index} variant="outlined" sx={{ mb: 2, p: 2 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-            <Typography level="title-sm">Item {index + 1}</Typography>
+            <Typography level="title-sm">بند {index + 1}</Typography>
             {actionItems.length > 1 && (
               <IconButton
                 size="sm"
@@ -623,9 +623,9 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
           </Box>
 
           <FormControl sx={{ mb: 1 }}>
-            <FormLabel>Title</FormLabel>
+            <FormLabel>العنوان</FormLabel>
             <Input
-              placeholder="Action item title"
+              placeholder="عنوان بند الإجراء"
               value={item.title}
               onChange={(e) => updateActionItem(index, 'title', e.target.value)}
               disabled={loading}
@@ -633,9 +633,9 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
           </FormControl>
 
           <FormControl sx={{ mb: 1 }}>
-            <FormLabel>Description</FormLabel>
+            <FormLabel>الوصف</FormLabel>
             <Textarea
-              placeholder="Optional description"
+              placeholder="وصف اختياري"
               minRows={2}
               value={item.description}
               onChange={(e) => updateActionItem(index, 'description', e.target.value)}
@@ -644,7 +644,7 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
           </FormControl>
 
           <FormControl>
-            <FormLabel>Due Date</FormLabel>
+            <FormLabel>تاريخ الاستحقاق</FormLabel>
             <Input
               type="date"
               value={item.due_date}
@@ -667,9 +667,9 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
         return (
           <>
             <FormControl required>
-              <FormLabel>Explanation</FormLabel>
+              <FormLabel>التوضيح / الشرح</FormLabel>
               <Textarea
-                placeholder="Enter explanation..."
+                placeholder="أدخل التوضيح..."
                 minRows={3}
                 value={explanationText}
                 onChange={(e) => setExplanationText(e.target.value)}
@@ -691,9 +691,9 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
         return (
           <>
             <FormControl required>
-              <FormLabel>Explanation</FormLabel>
+              <FormLabel>التوضيح / الشرح</FormLabel>
               <Textarea
-                placeholder="Enter explanation..."
+                placeholder="أدخل التوضيح..."
                 minRows={4}
                 value={explanationText}
                 onChange={(e) => setExplanationText(e.target.value)}
@@ -710,9 +710,9 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
       case 'REJECT':
         return (
           <FormControl required>
-            <FormLabel>Rejection Reason</FormLabel>
+            <FormLabel>سبب الرفض</FormLabel>
             <Textarea
-              placeholder="Enter reason for rejection..."
+              placeholder="أدخل سبب الرفض..."
               minRows={4}
               value={rejectionText}
               onChange={(e) => setRejectionText(e.target.value)}
@@ -725,7 +725,7 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
         return (
           <Alert color="success" variant="soft">
             <Typography level="body-md">
-              Are you sure you want to approve this case?
+              هل أنت متأكد من اعتماد هذه الحالة؟
             </Typography>
           </Alert>
         );
@@ -733,9 +733,9 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
       case 'FORCE_CLOSE':
         return (
           <FormControl required>
-            <FormLabel>Reason for Force Close</FormLabel>
+            <FormLabel>سبب الإغلاق الإجباري</FormLabel>
             <Textarea
-              placeholder="Enter reason for force closing..."
+              placeholder="أدخل سبب الإغلاق الإجباري..."
               minRows={4}
               value={reasonText}
               onChange={(e) => setReasonText(e.target.value)}
@@ -749,14 +749,14 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
           <>
             <Alert color="warning" variant="soft" sx={{ mb: 2 }}>
               <Typography level="body-sm">
-                This will resend the case back to the section for re-examination.
-                The section admin will see this case in their inbox again.
+                سيتم إعادة إرسال الحالة إلى القسم لإعادة المراجعة.
+                سيرى مسؤول القسم هذه الحالة في صندوق الوارد مرة أخرى.
               </Typography>
             </Alert>
             <FormControl required>
-              <FormLabel>Note for Section</FormLabel>
+              <FormLabel>ملاحظة للقسم</FormLabel>
               <Textarea
-                placeholder="Explain why this case is being sent back to the section..."
+                placeholder="وضح سبب إعادة إرسال الحالة للقسم..."
                 minRows={4}
                 value={rejectionText}
                 onChange={(e) => setRejectionText(e.target.value)}
@@ -779,26 +779,26 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
   // RENDER ACTION TITLE
   // ============================
   const getActionTitle = () => {
-    const bulkSuffix = isBulkOperation ? ` (${targetSubcaseIds.length} subcases)` : '';
+    const bulkSuffix = isBulkOperation ? ` (${targetSubcaseIds.length} حالات فرعية)` : '';
     switch (actionCode) {
       case 'SUBMIT_RESPONSE':
-        return 'Submit Response' + bulkSuffix;
+        return 'إرسال الرد' + bulkSuffix;
       case 'DIRECT_APPROVE':
         return isBulkOperation 
-          ? `⚡ Bulk Direct Approve (${targetSubcaseIds.length} subcases)`
-          : 'Direct Approve (Universal Section)';
+          ? `⚡ اعتماد جماعي مباشر (${targetSubcaseIds.length} حالات فرعية)`
+          : '⚡ اعتماد مباشر';
       case 'REJECT':
-        return 'Reject Case' + bulkSuffix;
+        return 'رفض الحالة' + bulkSuffix;
       case 'APPROVE':
-        return 'Approve Case' + bulkSuffix;
+        return 'اعتماد الحالة' + bulkSuffix;
       case 'OVERRIDE':
-        return 'Override Case' + bulkSuffix;
+        return 'تجاوز الحالة' + bulkSuffix;
       case 'FORCE_CLOSE':
-        return 'Force Close Case' + bulkSuffix;
+        return 'إغلاق إجباري' + bulkSuffix;
       case 'REOPEN':
-        return 'Resend to Section' + bulkSuffix;
+        return 'إعادة إرسال للقسم' + bulkSuffix;
       default:
-        return 'Case Action' + bulkSuffix;
+        return 'إجراء على الحالة' + bulkSuffix;
     }
   };
   
@@ -817,6 +817,8 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
           width: '95%',
           maxHeight: '90vh',
           overflow: 'auto',
+          direction: 'rtl',
+          textAlign: 'right',
         }}
       >
         <ModalClose disabled={loading} />
@@ -827,8 +829,8 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
 
         <Typography level="body-sm" sx={{ mb: 2, color: 'neutral.600' }}>
           {isBulkOperation 
-            ? `Processing ${targetSubcaseIds.length} subcases from the same case`
-            : `Subcase ID: #${targetSubcaseIds[0]}`
+            ? `معالجة ${targetSubcaseIds.length} حالات فرعية من نفس الحالة`
+            : `رقم الحالة الفرعية: #${targetSubcaseIds[0]}`
           }
         </Typography>
         
@@ -836,7 +838,7 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
         {isBulkOperation && loading && (
           <Alert color="primary" variant="soft" sx={{ mb: 2 }}>
             <Typography level="body-sm">
-              Processing... {bulkProgress.completed + bulkProgress.failed}/{bulkProgress.total} complete
+              جاري المعالجة... {bulkProgress.completed + bulkProgress.failed}/{bulkProgress.total} مكتمل
             </Typography>
           </Alert>
         )}
@@ -861,7 +863,7 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
             onClick={onClose}
             disabled={loading}
           >
-            Cancel
+            إلغاء
           </Button>
           <Button
             variant="solid"
@@ -878,7 +880,7 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
             disabled={loading}
             startDecorator={loading && <CircularProgress size="sm" />}
           >
-            {loading ? 'Processing...' : 'Confirm'}
+            {loading ? 'جاري المعالجة...' : 'تأكيد'}
           </Button>
         </Box>
       </ModalDialog>

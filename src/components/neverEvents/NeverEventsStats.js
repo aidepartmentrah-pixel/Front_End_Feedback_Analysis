@@ -19,48 +19,42 @@ const NeverEventsStats = () => {
 
   const stats = [
     {
-      label: "مفتوحة",
-      labelEn: "Open",
+      label: "Open",
       value: openEvents.toString(),
       icon: <WarningAmberIcon />,
       color: "#ff4757",
       bgColor: "rgba(255, 71, 87, 0.1)",
     },
     {
-      label: "مغلقة",
-      labelEn: "Closed",
+      label: "Closed",
       value: closedEvents.toString(),
       icon: <WarningAmberIcon />,
       color: "#ffa502",
       bgColor: "rgba(255, 165, 2, 0.1)",
     },
     {
-      label: "منتهية",
-      labelEn: "Finished",
+      label: "Finished",
       value: finishedEvents.toString(),
       icon: <CheckCircleIcon />,
       color: "#2ed573",
       bgColor: "rgba(46, 213, 115, 0.1)",
     },
     {
-      label: "تحقيقات جارية",
-      labelEn: "Investigations In Progress",
+      label: "Investigations In Progress",
       value: investigationInProgress.toString(),
       icon: <AssignmentIcon />,
       color: "#667eea",
       bgColor: "rgba(102, 126, 234, 0.1)",
     },
     {
-      label: "مُبلّغ للجهات الرقابية",
-      labelEn: "Regulatory Reported",
+      label: "Regulatory Reported",
       value: regulatoryReported.toString(),
       icon: <ReportProblemIcon />,
       color: "#5f27cd",
       bgColor: "rgba(95, 39, 205, 0.1)",
     },
     {
-      label: "الإجمالي",
-      labelEn: "Total",
+      label: "Total",
       value: totalEvents.toString(),
       icon: <WarningAmberIcon />,
       color: "#222",
@@ -103,11 +97,8 @@ const NeverEventsStats = () => {
                 {stat.value}
               </Typography>
             </Box>
-            <Typography level="body-sm" sx={{ fontWeight: 700, color: "#333", mb: 0.5 }}>
+            <Typography level="body-sm" sx={{ fontWeight: 700, color: "#333" }}>
               {stat.label}
-            </Typography>
-            <Typography level="body-xs" sx={{ color: "#666" }}>
-              {stat.labelEn}
             </Typography>
           </Card>
         </Grid>

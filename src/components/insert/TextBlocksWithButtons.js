@@ -95,13 +95,13 @@ const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdTe
       sx={{
         mb: 3,
         p: 3,
-        background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
-        border: "1px solid rgba(43, 188, 196, 0.1)",
-        boxShadow: "0 4px 12px rgba(43, 188, 196, 0.08)",
+        background: "#c8e4e6",
+        border: "1px solid rgba(31, 111, 115, 0.3)",
+        boxShadow: "0 4px 12px rgba(31, 111, 115, 0.1)",
       }}
     >
-      <Typography level="h3" sx={{ color: "#1a1e3f", fontWeight: 700, mb: 2 }}>
-        Step 1: Raw Feedback Texts
+      <Typography level="h3" sx={{ color: "#1F6F73", fontWeight: 700, mb: 2 }}>
+        Feedback Texts
       </Typography>
 
       {isTranscribing && (
@@ -156,22 +156,29 @@ const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdTe
                 ) : (
                   <Button
                     size="sm"
-                    variant="outlined"
+                    variant="solid"
                     startDecorator={<MicIcon />}
                     onClick={() => handleStartRecording(block.field)}
                     disabled={recording !== null || isTranscribing}
-                    sx={{ flex: 1 }}
+                    sx={{ 
+                      flex: 1,
+                      backgroundColor: "#1F6F73",
+                      "&:hover": { backgroundColor: "#164F53" },
+                    }}
                   >
                     🎤 Record
                   </Button>
                 )}
                 <Button
                   size="sm"
-                  variant="outlined"
-                  color="danger"
+                  variant="solid"
                   startDecorator={<ClearIcon />}
                   onClick={() => handleClear(block.field)}
-                  sx={{ flex: 1 }}
+                  sx={{ 
+                    flex: 1,
+                    backgroundColor: "#78909c",
+                    "&:hover": { backgroundColor: "#546e7a" },
+                  }}
                 >
                   Clear
                 </Button>

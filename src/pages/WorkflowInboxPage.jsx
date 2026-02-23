@@ -368,7 +368,7 @@ const WorkflowInboxPage = () => {
             onClick={() => handleActionClick(item, 'view')}
             disabled={modalOpen}
           >
-            View
+            عرض
           </Button>
         )}
         {allowedActions.includes('view_response') && (
@@ -379,7 +379,7 @@ const WorkflowInboxPage = () => {
             onClick={() => handleActionClick(item, 'view_response')}
             disabled={modalOpen}
           >
-            View Response
+            عرض الرد
           </Button>
         )}
         {allowedActions.includes('submit_response') && (
@@ -390,7 +390,7 @@ const WorkflowInboxPage = () => {
             onClick={() => handleActionClick(item, 'submit_response')}
             disabled={modalOpen}
           >
-            Submit Response
+            إرسال الرد
           </Button>
         )}
         {allowedActions.includes('accept') && (
@@ -401,7 +401,7 @@ const WorkflowInboxPage = () => {
             onClick={() => handleActionClick(item, 'accept')}
             disabled={modalOpen}
           >
-            Accept
+            قبول
           </Button>
         )}
         {allowedActions.includes('reject') && (
@@ -412,7 +412,7 @@ const WorkflowInboxPage = () => {
             onClick={() => handleActionClick(item, 'reject')}
             disabled={modalOpen}
           >
-            Reject
+            رفض
           </Button>
         )}
         {allowedActions.includes('direct_approve') && (
@@ -424,7 +424,7 @@ const WorkflowInboxPage = () => {
             disabled={modalOpen}
             sx={{ fontWeight: 'bold' }}
           >
-            ⚡ Direct Approve
+            ⚡ اعتماد مباشر
           </Button>
         )}
         {allowedActions.includes('reopen') && (
@@ -435,7 +435,7 @@ const WorkflowInboxPage = () => {
             onClick={() => handleActionClick(item, 'reopen')}
             disabled={modalOpen}
           >
-            Resend to Section
+            إعادة إرسال للقسم
           </Button>
         )}
       </Box>

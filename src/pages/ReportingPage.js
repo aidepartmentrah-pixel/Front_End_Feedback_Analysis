@@ -595,10 +595,7 @@ const ReportingPage = () => {
               mb: 1,
             }}
           >
-            📊 مولد التقارير (Report Generator)
-          </Typography>
-          <Typography level="body-md" sx={{ color: "#666" }}>
-            قم بإنشاء وتصدير تقارير شهرية وفصلية مخصصة
+            📊 Report Generator
           </Typography>
         </Box>
 
@@ -640,9 +637,6 @@ const ReportingPage = () => {
           <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 2 }}>
             {/* Report Type */}
             <Box>
-              <Typography level="body-sm" sx={{ color: "#666", mb: 0.5 }}>
-                📄 نوع التقرير
-              </Typography>
               <Typography level="title-md" sx={{ fontWeight: 700, color: theme.colors.primary }}>
                 {reportType === "monthly" ? "📅 شهري (Monthly)" : "🍃 فصلي (Seasonal)"}
               </Typography>
@@ -730,34 +724,7 @@ const ReportingPage = () => {
           loading={loadingReport}
         />
 
-        {/* Report Data Display */}
-        {reportData && (
-          <Card
-            sx={{
-              mt: 3,
-              p: 3,
-              background: "linear-gradient(135deg, rgba(46, 213, 115, 0.08) 0%, rgba(0, 184, 148, 0.08) 100%)",
-              border: "2px solid rgba(46, 213, 115, 0.3)",
-            }}
-          >
-            <Typography level="h6" sx={{ mb: 2, fontWeight: 700, color: "#00b894" }}>
-              ✅ تم توليد التقرير (Report Generated)
-            </Typography>
-            <Box
-              sx={{
-                p: 2,
-                background: "white",
-                borderRadius: "8px",
-                maxHeight: "400px",
-                overflow: "auto",
-              }}
-            >
-              <pre style={{ margin: 0, fontSize: "0.85rem", whiteSpace: "pre-wrap" }}>
-                {JSON.stringify(reportData, null, 2)}
-              </pre>
-            </Box>
-          </Card>
-        )}
+
 
         {/* Report Error Display */}
         {reportError && (
@@ -778,23 +745,7 @@ const ReportingPage = () => {
           </Card>
         )}
 
-        {/* Info Footer */}
-        <Box
-          sx={{
-            mt: 4,
-            p: 3,
-            background: "linear-gradient(135deg, rgba(43, 188, 196, 0.05) 0%, rgba(100, 167, 11, 0.05) 100%)",
-            borderRadius: "8px",
-            border: "1px solid rgba(43, 188, 196, 0.2)",
-          }}
-        >
-          <Typography level="body-sm" sx={{ fontWeight: 700, color: theme.colors.primary, mb: 1 }}>
-            💡 وضع التطوير (Development Mode)
-          </Typography>
-          <Typography level="body-xs" sx={{ color: "#666" }}>
-            النظام حالياً يستخدم <strong>بيانات وهمية</strong>. بعد الانتهاء من قاعدة البيانات، سيتم ربط جميع المكونات بواجهات برمجة التطبيقات الحقيقية.
-          </Typography>
-        </Box>
+
       </Box>
     </MainLayout>
   );

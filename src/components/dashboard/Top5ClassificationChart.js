@@ -1,6 +1,25 @@
 import React from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
+// Custom tick component for vertical labels positioned below bars
+const CustomXAxisTick = ({ x, y, payload }) => {
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={0}
+        y={0}
+        dy={16}
+        textAnchor="end"
+        fill="#666"
+        fontSize={13}
+        transform="rotate(-90)"
+      >
+        {payload.value}
+      </text>
+    </g>
+  );
+};
+
 const Top5ClassificationChart = ({ data = [], onBarClick }) => {
   const [activeIndex, setActiveIndex] = React.useState(null);
 
@@ -40,9 +59,16 @@ const Top5ClassificationChart = ({ data = [], onBarClick }) => {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={450}>
-      <BarChart data={chartData} margin={{ top: 20, right: 20, left: 20, bottom: 100 }}>
-        <XAxis dataKey="displayClassification" angle={-90} textAnchor="end" height={100} />
+    <ResponsiveContainer width="100%" height={320}>
+      <BarChart data={chartData} margin={{ top: 10, right: 20, left: 5, bottom: 100 }}>
+        <XAxis 
+          dataKey="displayClassification" 
+          height={100}
+          interval={0}
+          tick={<CustomXAxisTick />}
+          axisLine={{ stroke: '#ccc' }}
+          tickLine={{ stroke: '#ccc' }}
+        />
         <YAxis />
         <Tooltip 
           cursor={{ fill: '#667eea15' }}

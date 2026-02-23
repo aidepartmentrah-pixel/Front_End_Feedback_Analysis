@@ -20,7 +20,6 @@ import {
   Table, 
   Button, 
   CircularProgress, 
-  LinearProgress,
   Chip,
   Alert
 } from '@mui/joy';
@@ -159,18 +158,31 @@ const MigrationMainPage = () => {
               <>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                   <Typography level="body-sm">
-                    {progress.migrated} of {progress.total} cases migrated
+                    {progress.migrated || 0} of {progress.total || 0} cases migrated
                   </Typography>
                   <Typography level="body-sm" fontWeight="bold">
-                    {progress.percent.toFixed(1)}%
+                    {(progress.percent || 0).toFixed(1)}%
                   </Typography>
                 </Box>
-                <LinearProgress 
-                  determinate 
-                  value={progress.percent} 
-                  sx={{ height: 8 }}
-                  color={progress.percent === 100 ? 'success' : 'primary'}
-                />
+                <Box 
+                  sx={{ 
+                    width: '100%',
+                    height: 12,
+                    borderRadius: 6,
+                    backgroundColor: '#e0e0e0',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Box 
+                    sx={{ 
+                      width: `${progress.percent || 0}%`,
+                      height: '100%',
+                      borderRadius: 6,
+                      backgroundColor: progress.percent === 100 ? '#4caf50' : '#1976d2',
+                      transition: 'width 0.3s ease-in-out',
+                    }}
+                  />
+                </Box>
               </>
             )}
           </Box>

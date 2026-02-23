@@ -14,7 +14,7 @@ const RedFlagFilters = ({ searchQuery, setSearchQuery }) => {
       }}
     >
       <Input
-        placeholder="بحث برقم السجل أو اسم المريض... (Search by Record ID or Patient Name)"
+        placeholder="Search by Record ID or Patient Name..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         startDecorator={<SearchIcon />}

@@ -26,8 +26,8 @@ const CategoryBreakdownCard = ({ data, loading, error }) => {
   if (!data) {
     return (
       <Card sx={{ p: 3, height: '100%' }}>
-        <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>📊 الأحداث حسب الفئة</Typography>
-        <Typography level="body-md" color="neutral">جاري التحميل...</Typography>
+        <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>📊 Never Events by Category</Typography>
+        <Typography level="body-md" color="neutral">Loading...</Typography>
       </Card>
     );
   }
@@ -37,8 +37,8 @@ const CategoryBreakdownCard = ({ data, loading, error }) => {
   if (categories.length === 0) {
     return (
       <Card sx={{ p: 3, height: '100%' }}>
-        <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>📊 الأحداث حسب الفئة</Typography>
-        <Typography level="body-md" color="neutral">لا توجد بيانات متاحة</Typography>
+        <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>📊 Never Events by Category</Typography>
+        <Typography level="body-md" color="neutral">No data available</Typography>
       </Card>
     );
   }
@@ -51,9 +51,9 @@ const CategoryBreakdownCard = ({ data, loading, error }) => {
 
   return (
     <Card sx={{ p: 3, height: '100%' }}>
-      <Typography level="h4" sx={{ mb: 1, fontWeight: 600 }}>📊 الأحداث حسب الفئة</Typography>
+      <Typography level="h4" sx={{ mb: 1, fontWeight: 600 }}>📊 Never Events by Category</Typography>
       <Typography level="body-sm" color="neutral" sx={{ mb: 3 }}>
-        {data.period || 'جميع الفترات'} • الإجمالي: {data.total}
+        {data.period || 'All Periods'} • Total: {data.total}
       </Typography>
 
       {/* Pie Chart */}

@@ -24,8 +24,8 @@ const DepartmentBreakdownCard = ({ data, loading, error }) => {
   if (!data) {
     return (
       <Card sx={{ p: 3, height: '100%' }}>
-        <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>🏥 الرايات الحمراء حسب الإدارة</Typography>
-        <Typography level="body-md" color="neutral">جاري التحميل...</Typography>
+        <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>🏥 Red Flags by Department</Typography>
+        <Typography level="body-md" color="neutral">Loading...</Typography>
       </Card>
     );
   }
@@ -36,8 +36,8 @@ const DepartmentBreakdownCard = ({ data, loading, error }) => {
   if (departments.length === 0) {
     return (
       <Card sx={{ p: 3, height: '100%' }}>
-        <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>🏥 الرايات الحمراء حسب الإدارة</Typography>
-        <Typography level="body-md" color="neutral">لا توجد بيانات متاحة</Typography>
+        <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>🏥 Red Flags by Department</Typography>
+        <Typography level="body-md" color="neutral">No data available</Typography>
       </Card>
     );
   }
@@ -53,18 +53,18 @@ const DepartmentBreakdownCard = ({ data, loading, error }) => {
 
   const getStatusLabel = (status) => {
     switch (status) {
-      case 'OPEN': return 'مفتوح';
-      case 'UNDER_REVIEW': return 'قيد المراجعة';
-      case 'FINISHED': return 'منتهي';
+      case 'OPEN': return 'Open';
+      case 'UNDER_REVIEW': return 'Under Review';
+      case 'FINISHED': return 'Closed';
       default: return status;
     }
   };
 
   return (
     <Card sx={{ p: 3, height: '100%' }}>
-      <Typography level="h4" sx={{ mb: 1, fontWeight: 600 }}>🏥 الرايات الحمراء حسب الإدارة</Typography>
+      <Typography level="h4" sx={{ mb: 1, fontWeight: 600 }}>🏥 Red Flags by Department</Typography>
       <Typography level="body-sm" color="neutral" sx={{ mb: 3 }}>
-        {data.period || 'جميع الفترات'} • الإجمالي: {data.total}
+        {data.period || 'All Periods'} • Total: {data.total}
       </Typography>
 
       {/* Department List with Horizontal Bars */}
@@ -110,7 +110,7 @@ const DepartmentBreakdownCard = ({ data, loading, error }) => {
 
       {departments.length >= 10 && (
         <Typography level="body-xs" color="neutral" sx={{ mt: 2, textAlign: 'center' }}>
-          عرض أعلى {departments.length} إدارات
+          Showing top {departments.length} departments
         </Typography>
       )}
     </Card>

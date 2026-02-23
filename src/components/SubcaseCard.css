@@ -7,12 +7,58 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
+/* Red Flag subcase card - red accent */
+.subcase-card.subcase-red-flag {
+  border-left: 4px solid #e74c3c;
+  background: linear-gradient(90deg, #ffeaea 0%, white 8%);
+}
+
+/* Never Event subcase card - orange/amber accent */
+.subcase-card.subcase-never-event {
+  border-left: 4px solid #f39c12;
+  background: linear-gradient(90deg, #fff5e6 0%, white 8%);
+}
+
 .subcase-header {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
   flex-wrap: wrap;
+}
+
+/* Red Flag badge */
+.red-flag-badge {
+  background-color: #e74c3c;
+  color: white;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(231, 76, 60, 0); }
+}
+
+/* Never Event badge */
+.never-event-badge {
+  background-color: #f39c12;
+  color: white;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+  animation: pulse-orange 2s infinite;
+}
+
+@keyframes pulse-orange {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(243, 156, 18, 0); }
 }
 
 .returned-badge {
@@ -36,6 +82,12 @@
   color: #666;
   font-size: 14px;
   margin-left: auto;
+}
+
+.subcase-id {
+  color: #999;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .subcase-body {

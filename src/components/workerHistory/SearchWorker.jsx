@@ -61,7 +61,7 @@ const SearchWorker = ({ onWorkerSelect }) => {
       <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
         <Box sx={{ flex: 1 }}>
           <Typography level="body-sm" sx={{ mb: 1, fontWeight: 600 }}>
-            Worker Name or Employee ID
+            Worker Name
           </Typography>
           <Autocomplete
             placeholder="Search worker by name..."

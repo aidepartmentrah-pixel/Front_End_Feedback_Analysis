@@ -15,24 +15,24 @@ import {
 const NeverEventsTrendChart = () => {
   // Mock data for last 12 months
   const data = [
-    { month: "يناير", count: 0 },
-    { month: "فبراير", count: 1 },
-    { month: "مارس", count: 2 },
-    { month: "أبريل", count: 0 },
-    { month: "مايو", count: 1 },
-    { month: "يونيو", count: 0 },
-    { month: "يوليو", count: 0 },
-    { month: "أغسطس", count: 1 },
-    { month: "سبتمبر", count: 0 },
-    { month: "أكتوبر", count: 0 },
-    { month: "نوفمبر", count: 1 },
-    { month: "ديسمبر", count: 0 },
+    { month: "Jan", count: 0 },
+    { month: "Feb", count: 1 },
+    { month: "Mar", count: 2 },
+    { month: "Apr", count: 0 },
+    { month: "May", count: 1 },
+    { month: "Jun", count: 0 },
+    { month: "Jul", count: 0 },
+    { month: "Aug", count: 1 },
+    { month: "Sep", count: 0 },
+    { month: "Oct", count: 0 },
+    { month: "Nov", count: 1 },
+    { month: "Dec", count: 0 },
   ];
 
   return (
     <Card sx={{ p: 3, mb: 3 }}>
       <Typography level="h5" sx={{ mb: 3, fontWeight: 700, color: "#666" }}>
-        📊 اتجاه Never Events (Never Events Trend - Last 12 Months)
+        📊 Never Events Trend (Last 12 Months)
       </Typography>
       
       <Box sx={{ width: "100%", height: 300 }}>
@@ -63,7 +63,7 @@ const NeverEventsTrendChart = () => {
               dataKey="count"
               fill="#666"
               radius={[8, 8, 0, 0]}
-              name="عدد Never Events"
+              name="Never Event Count"
             />
           </BarChart>
         </ResponsiveContainer>
@@ -78,7 +78,7 @@ const NeverEventsTrendChart = () => {
         }}
       >
         <Typography level="body-xs" sx={{ color: "#666" }}>
-          💡 يوضح الرسم البياني عدد Never Events المسجلة شهرياً خلال العام الماضي
+          💡 This chart shows the number of Never Events recorded monthly over the past year
         </Typography>
       </Box>
     </Card>

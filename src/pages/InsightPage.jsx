@@ -31,6 +31,7 @@ import {
   FormLabel,
   CircularProgress,
   Button,
+  Input,
 } from '@mui/joy';
 import {
   ResponsiveContainer,
@@ -71,6 +72,7 @@ const InsightPage = () => {
   // Filter state
   const [dateRange, setDateRange] = useState('30'); // Default 30 days
   const [caseTypeFilter, setCaseTypeFilter] = useState('all'); // all, incident, seasonal
+  const [searchTerm, setSearchTerm] = useState(''); // Search for case/subcase
 
   // Expansion state for org type groups and individual sections
   const [expandedGroups, setExpandedGroups] = useState({
@@ -154,8 +156,38 @@ const InsightPage = () => {
     }));
   }
 
-  // Computed grouped data
-  const orgTypeGroups = groupByOrgType(groupedInbox);
+  // Filter grouped inbox by search term
+  function filterBySearch(sections, term) {
+    if (!term.trim()) return sections;
+    const lowerTerm = term.toLowerCase().trim();
+    
+    return sections
+      .map(section => ({
+        ...section,
+        subcases: section.subcases.filter(subcase => {
+          const caseNum = String(subcase.incident_id || subcase.seasonal_report_id || '');
+          const subcaseNum = String(subcase.subcase_id || '');
+          const patientName = (subcase.patient_name || '').toLowerCase();
+          const description = (subcase.case_description || '').toLowerCase();
+          const category = (subcase.category || '').toLowerCase();
+          
+          return caseNum.includes(lowerTerm) ||
+                 subcaseNum.includes(lowerTerm) ||
+                 patientName.includes(lowerTerm) ||
+                 description.includes(lowerTerm) ||
+                 category.includes(lowerTerm);
+        }),
+      }))
+      .map(section => ({
+        ...section,
+        pending_count: section.subcases.length,
+      }))
+      .filter(section => section.subcases.length > 0);
+  }
+
+  // Computed grouped data (with search filter applied)
+  const filteredInbox = filterBySearch(groupedInbox, searchTerm);
+  const orgTypeGroups = groupByOrgType(filteredInbox);
 
   // Filter sections by case type (incident vs seasonal)
   function filterByCaseType(sections, filterType) {
@@ -243,6 +275,7 @@ const InsightPage = () => {
   // ============================
   function resetFilters() {
     setDateRange('30');
+    setSearchTerm('');
     // loadInsightData will be triggered by useEffect
   }
 
@@ -398,6 +431,18 @@ const InsightPage = () => {
             >
               Reset Filters
             </Button>
+
+            {/* Search Field */}
+            <FormControl size="sm" sx={{ minWidth: 250, ml: 'auto' }}>
+              <FormLabel>Search Case / Subcase</FormLabel>
+              <Input
+                placeholder="Case #, patient name, description..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                startDecorator="🔍"
+                sx={{ backgroundColor: 'white' }}
+              />
+            </FormControl>
           </Box>
         </Card>
 
@@ -589,6 +634,15 @@ const InsightPage = () => {
                 Retry
               </Button>
             </Card>
+          ) : filteredInbox.length === 0 && searchTerm ? (
+            <Card variant="outlined" sx={{ p: 4, textAlign: 'center' }}>
+              <Typography level="h4" sx={{ color: 'neutral.500', mb: 1 }}>
+                🔍 No results found
+              </Typography>
+              <Typography level="body-sm" sx={{ color: 'neutral.400' }}>
+                No cases or subcases match "{searchTerm}"
+              </Typography>
+            </Card>
           ) : groupedInbox.length === 0 ? (
             <Card variant="outlined" sx={{ p: 4, textAlign: 'center' }}>
               <Typography level="h4" sx={{ color: 'neutral.500', mb: 1 }}>
@@ -675,13 +729,7 @@ const InsightPage = () => {
         {/* REMOVED: Stuck/Escalated Cases section */}
         {/* REMOVED: User Workload Summary section */}
 
-        {/* Info Note */}
-        <Box sx={{ mt: 3, p: 2, backgroundColor: 'primary.50', borderRadius: 'sm' }}>
-          <Typography level="body-xs" sx={{ color: 'primary.700' }}>
-            ℹ️ <strong>Note:</strong> Chart visualization integrated using Recharts.
-            Use filters above to customize data by organizational unit, date range, or status.
-          </Typography>
-        </Box>
+
       </Box>
     </MainLayout>
   );

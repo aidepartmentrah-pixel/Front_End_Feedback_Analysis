@@ -27,9 +27,9 @@ const TimelineComparisonCard = ({ data, loading, error, period, onPeriodChange }
   if (!data || !data.current || !data.previous) {
     return (
       <Card sx={{ p: 3, height: '100%', borderLeft: '4px solid', borderColor: 'danger.500' }}>
-        <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>📅 مقارنة الفترات الزمنية</Typography>
-        <Typography level="body-sm" color="danger" fontWeight={600}>🎯 الهدف: صفر</Typography>
-        <Typography level="body-md" color="neutral" sx={{ mt: 2 }}>لا توجد بيانات متاحة</Typography>
+        <Typography level="h4" sx={{ mb: 2, fontWeight: 600 }}>📅 Period Comparison</Typography>
+        <Typography level="body-sm" color="danger" fontWeight={600}>🎯 Target: Zero</Typography>
+        <Typography level="body-md" color="neutral" sx={{ mt: 2 }}>No data available</Typography>
       </Card>
     );
   }
@@ -42,23 +42,23 @@ const TimelineComparisonCard = ({ data, loading, error, period, onPeriodChange }
     <Card sx={{ p: 3, height: '100%', borderLeft: '4px solid', borderColor: 'danger.500' }}>
       {/* Header with Period Selector */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography level="h4" sx={{ fontWeight: 600 }}>📅 مقارنة الفترات</Typography>
+        <Typography level="h4" sx={{ fontWeight: 600 }}>📅 Period Comparison</Typography>
         <Select
           value={period}
           onChange={(e, newValue) => onPeriodChange(newValue)}
           size="sm"
           sx={{ minWidth: 120 }}
         >
-          <Option value="month">شهري</Option>
-          <Option value="quarter">ربع سنوي</Option>
-          <Option value="year">سنوي</Option>
+          <Option value="month">Monthly</Option>
+          <Option value="quarter">Quarterly</Option>
+          <Option value="year">Yearly</Option>
         </Select>
       </Box>
 
       {/* Goal Banner */}
       <Box sx={{ p: 2, bgcolor: 'danger.500', borderRadius: 'sm', mb: 3, textAlign: 'center' }}>
         <Typography level="h3" sx={{ color: 'white', fontWeight: 700 }}>
-          🎯 الهدف: صفر (تحمل صفري)
+          🎯 Target: Zero (Zero Tolerance)
         </Typography>
       </Box>
 
@@ -81,7 +81,7 @@ const TimelineComparisonCard = ({ data, loading, error, period, onPeriodChange }
           <Typography level="h2" color="danger" fontWeight={700}>
             {data.current.count}
           </Typography>
-          <Typography level="body-xs" color="neutral">حدث</Typography>
+          <Typography level="body-xs" color="neutral">Events</Typography>
         </Box>
 
         {/* Previous Period */}
@@ -101,7 +101,7 @@ const TimelineComparisonCard = ({ data, loading, error, period, onPeriodChange }
           <Typography level="h2" color="neutral" fontWeight={700}>
             {data.previous.count}
           </Typography>
-          <Typography level="body-xs" color="neutral">حدث</Typography>
+          <Typography level="body-xs" color="neutral">Events</Typography>
         </Box>
       </Box>
 
@@ -144,7 +144,7 @@ const TimelineComparisonCard = ({ data, loading, error, period, onPeriodChange }
             size="lg"
             startDecorator={isImproving ? '✓' : '⚠️'}
           >
-            {isImproving ? 'تحسن' : 'تراجع'}
+            {isImproving ? 'Improving' : 'Declining'}
           </Chip>
         </Box>
       </Box>
@@ -161,17 +161,17 @@ const TimelineComparisonCard = ({ data, loading, error, period, onPeriodChange }
           }}
         >
           <Typography level="body-sm" fontWeight={600} color="neutral" sx={{ mb: 1 }}>
-            إحصائيات السنة الحالية:
+            Year-to-Date Statistics:
           </Typography>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
             <Box>
-              <Typography level="body-xs" color="neutral">الإجمالي حتى الآن</Typography>
+              <Typography level="body-xs" color="neutral">Total So Far</Typography>
               <Typography level="h4" color="danger" fontWeight={700}>
                 {data.year_to_date.count}
               </Typography>
             </Box>
             <Box sx={{ textAlign: 'left' }}>
-              <Typography level="body-xs" color="neutral">المتوسط الشهري</Typography>
+              <Typography level="body-xs" color="neutral">Monthly Average</Typography>
               <Typography level="h4" color="neutral" fontWeight={700}>
                 {data.year_to_date.average_per_month?.toFixed(1)}
               </Typography>
@@ -182,7 +182,7 @@ const TimelineComparisonCard = ({ data, loading, error, period, onPeriodChange }
 
       {/* Reminder */}
       <Typography level="body-xs" color="danger" sx={{ mt: 2, textAlign: 'center', fontWeight: 600 }}>
-        ⚠️ أي عدد أكبر من صفر يتطلب اهتمام فوري
+        ⚠️ Any count greater than zero requires immediate attention
       </Typography>
     </Card>
   );

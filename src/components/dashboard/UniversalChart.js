@@ -4,6 +4,25 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend
 } from "recharts";
 
+// Custom tick component for vertical labels positioned below bars
+const CustomXAxisTick = ({ x, y, payload }) => {
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={0}
+        y={0}
+        dy={16}
+        textAnchor="end"
+        fill="#666"
+        fontSize={13}
+        transform="rotate(-90)"
+      >
+        {payload.value}
+      </text>
+    </g>
+  );
+};
+
 const UniversalChart = ({ 
   data = [], 
   type = "bar", 
@@ -56,12 +75,21 @@ const UniversalChart = ({
         <BarChart 
           data={data} 
           layout={layout}
-          margin={{ top: 20, right: 30, left: layout === "vertical" ? 150 : 60, bottom: layout === "vertical" ? 20 : 100 }}
+          margin={{ top: 10, right: 30, left: layout === "vertical" ? 90 : 5, bottom: layout === "vertical" ? 20 : 100 }}
         >
-          {layout === "horizontal" && <XAxis dataKey="name" angle={-90} textAnchor="end" height={100} />}
+          {layout === "horizontal" && (
+            <XAxis 
+              dataKey="name" 
+              height={100}
+              interval={0}
+              tick={<CustomXAxisTick />}
+              axisLine={{ stroke: '#ccc' }}
+              tickLine={{ stroke: '#ccc' }}
+            />
+          )}
           {layout === "horizontal" && <YAxis />}
           {layout === "vertical" && <XAxis type="number" />}
-          {layout === "vertical" && <YAxis type="category" dataKey="name" width={140} />}
+          {layout === "vertical" && <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11 }} />}
           <Tooltip 
             content={({ active, payload }) => {
               if (active && payload && payload[0]) {
@@ -177,9 +205,16 @@ const UniversalChart = ({
       <ResponsiveContainer width="100%" height={height}>
         <LineChart 
           data={data}
-          margin={{ top: 20, right: 30, left: 60, bottom: 100 }}
+          margin={{ top: 10, right: 30, left: 60, bottom: 100 }}
         >
-          <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+          <XAxis 
+            dataKey="name" 
+            height={100}
+            interval={0}
+            tick={<CustomXAxisTick />}
+            axisLine={{ stroke: '#ccc' }}
+            tickLine={{ stroke: '#ccc' }}
+          />
           <YAxis />
           <Tooltip 
             content={({ active, payload }) => {

@@ -221,7 +221,7 @@ const InvestigationPage = () => {
             {/* Administration Selector */}
             <FormControl>
               <FormLabel sx={{ fontWeight: 600 }}>
-                📋 Administration
+                📋 الإدارة (Administration)
               </FormLabel>
               <Select
                 value={selectedAdmin}
@@ -229,7 +229,7 @@ const InvestigationPage = () => {
                 size="lg"
                 disabled={loadingHierarchy}
               >
-                <Option value="">All Administrations</Option>
+                <Option value="">كل الإدارات</Option>
                 {(hierarchy?.Administration || []).map((admin) => (
                   <Option key={admin.id} value={admin.id}>
                     {admin.nameAr} ({admin.nameEn})
@@ -241,7 +241,7 @@ const InvestigationPage = () => {
             {/* Department Selector */}
             <FormControl>
               <FormLabel sx={{ fontWeight: 600 }}>
-                🏢 Department
+                🏢 الدائرة (Department)
               </FormLabel>
               <Select
                 value={selectedDept}
@@ -249,7 +249,7 @@ const InvestigationPage = () => {
                 size="lg"
                 disabled={!selectedAdmin || loadingHierarchy}
               >
-                <Option value="">All Departments</Option>
+                <Option value="">كل الدوائر</Option>
                 {getDepartments().map((dept) => (
                   <Option key={dept.id} value={dept.id}>
                     {dept.nameAr} ({dept.nameEn})
@@ -261,7 +261,7 @@ const InvestigationPage = () => {
             {/* Section Selector */}
             <FormControl>
               <FormLabel sx={{ fontWeight: 600 }}>
-                📍 Section
+                📍 القسم (Section)
               </FormLabel>
               <Select
                 value={selectedSection}
@@ -269,7 +269,7 @@ const InvestigationPage = () => {
                 size="lg"
                 disabled={!selectedDept || loadingHierarchy}
               >
-                <Option value="">All Sections</Option>
+                <Option value="">كل الأقسام</Option>
                 {getSections().map((section) => (
                   <Option key={section.id} value={section.id}>
                     {section.nameAr} ({section.nameEn})
@@ -335,15 +335,6 @@ const InvestigationPage = () => {
             treeType={selectedTreeType}
           />
         )}
-
-        {/* Footer Note */}
-        <Card variant="soft" sx={{ mt: 4, p: 3, bgcolor: "#fef3c7" }}>
-          <Typography level="body-sm" sx={{ color: "#92400e", textAlign: "center" }}>
-            💡 <strong>Note:</strong> This page is for exploratory analysis only.
-            For acceptance decisions and formal reporting, please refer to the
-            Seasonal Reports page.
-          </Typography>
-        </Card>
       </Box>
     </MainLayout>
   );

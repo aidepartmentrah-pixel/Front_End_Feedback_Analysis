@@ -17,7 +17,7 @@ const TrendChart = ({ trends, loading, granularity, onGranularityChange }) => {
   if (loading) {
     return (
       <Card sx={{ p: 3 }}>
-        <Typography>جاري تحميل البيانات...</Typography>
+        <Typography>Loading data...</Typography>
       </Card>
     );
   }
@@ -26,10 +26,10 @@ const TrendChart = ({ trends, loading, granularity, onGranularityChange }) => {
     return (
       <Card sx={{ p: 3 }}>
         <Typography level="title-lg" sx={{ mb: 2 }}>
-          📈 الاتجاهات (الهدف: صفر)
+          📈 Trends (Target: Zero)
         </Typography>
         <Typography sx={{ color: "text.secondary" }}>
-          لا توجد بيانات اتجاهات متاحة
+          No trend data available
         </Typography>
       </Card>
     );
@@ -72,20 +72,20 @@ const TrendChart = ({ trends, loading, granularity, onGranularityChange }) => {
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
         <Box>
           <Typography level="title-lg" sx={{ fontWeight: 600 }}>
-            📈 الاتجاهات
+            📈 Trends
           </Typography>
           <Typography level="body-sm" sx={{ color: "#dc2626", fontWeight: 600 }}>
-            الهدف: صفر (Zero Tolerance)
+            Target: Zero (Zero Tolerance)
           </Typography>
         </Box>
         <Box sx={{ display: "flex", gap: 2 }}>
           <FormControl size="sm" sx={{ minWidth: 150 }}>
-            <FormLabel>الفترة الزمنية</FormLabel>
+            <FormLabel>Time Period</FormLabel>
             <Select value={granularity} onChange={(_, value) => onGranularityChange(value)}>
-              <Option value="weekly">أسبوعي</Option>
-              <Option value="monthly">شهري</Option>
-              <Option value="quarterly">ربع سنوي</Option>
-              <Option value="yearly">سنوي</Option>
+              <Option value="weekly">Weekly</Option>
+              <Option value="monthly">Monthly</Option>
+              <Option value="quarterly">Quarterly</Option>
+              <Option value="yearly">Yearly</Option>
             </Select>
           </FormControl>
         </Box>
@@ -108,7 +108,7 @@ const TrendChart = ({ trends, loading, granularity, onGranularityChange }) => {
             strokeWidth={2}
             strokeDasharray="5 5"
             label={{
-              value: "الهدف: صفر",
+              value: "Target: Zero",
               position: "right",
               fill: "#dc2626",
               fontSize: 12,
@@ -148,7 +148,7 @@ const TrendChart = ({ trends, loading, granularity, onGranularityChange }) => {
               strokeWidth={3}
               dot={{ r: 5 }}
               activeDot={{ r: 7 }}
-              name="العدد"
+              name="Count"
             />
           )}
         </LineChart>

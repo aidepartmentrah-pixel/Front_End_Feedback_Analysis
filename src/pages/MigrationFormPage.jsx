@@ -592,6 +592,77 @@ const MigrationFormPage = () => {
           </Box>
         )}
 
+        {/* Legacy Reference Data Panel - Collapsible */}
+        {legacyCase?.legacy_data && (
+          <Box
+            sx={{
+              mb: 3,
+              p: 2,
+              borderRadius: "8px",
+              background: "linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)",
+              border: "1px solid #ffb74d",
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+              <span style={{ fontSize: "1.1rem", fontWeight: 600, color: "#e65100" }}>
+                📋 Legacy Reference Data
+              </span>
+              <span style={{ marginLeft: "12px", fontSize: "0.75rem", color: "#795548" }}>
+                (Copy values as needed)
+              </span>
+            </Box>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(4, 1fr)", md: "repeat(8, 1fr)" },
+                gap: 1,
+                fontSize: "0.75rem",
+              }}
+            >
+              <Box sx={{ background: "white", p: 1, borderRadius: "4px" }}>
+                <div style={{ color: "#757575", fontWeight: 500 }}>SourceDeptID</div>
+                <div style={{ fontFamily: "monospace", fontWeight: 600 }}>{legacyCase.legacy_data.source_department_id ?? 'N/A'}</div>
+              </Box>
+              <Box sx={{ background: "white", p: 1, borderRadius: "4px" }}>
+                <div style={{ color: "#757575", fontWeight: 500 }}>SourceDeptName</div>
+                <div style={{ fontFamily: "monospace", fontWeight: 600, fontSize: "0.7rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={legacyCase.legacy_data.source_department_name}>
+                  {legacyCase.legacy_data.source_department_name || 'N/A'}
+                </div>
+              </Box>
+              <Box sx={{ background: "white", p: 1, borderRadius: "4px" }}>
+                <div style={{ color: "#757575", fontWeight: 500 }}>SourceBldg</div>
+                <div style={{ fontFamily: "monospace", fontWeight: 600 }}>{legacyCase.legacy_data.source_building || 'N/A'}</div>
+              </Box>
+              <Box sx={{ background: "white", p: 1, borderRadius: "4px" }}>
+                <div style={{ color: "#757575", fontWeight: 500 }}>CaseBldg</div>
+                <div style={{ fontFamily: "monospace", fontWeight: 600 }}>{legacyCase.legacy_data.case_building || 'N/A'}</div>
+              </Box>
+              <Box sx={{ background: "white", p: 1, borderRadius: "4px" }}>
+                <div style={{ color: "#757575", fontWeight: 500 }}>DoctorID</div>
+                <div style={{ fontFamily: "monospace", fontWeight: 600 }}>{legacyCase.legacy_data.doctor_id || 'N/A'}</div>
+              </Box>
+              <Box sx={{ background: "white", p: 1, borderRadius: "4px" }}>
+                <div style={{ color: "#757575", fontWeight: 500 }}>EmployeeID</div>
+                <div style={{ fontFamily: "monospace", fontWeight: 600 }}>{legacyCase.legacy_data.employee_id ?? 'N/A'}</div>
+              </Box>
+              <Box sx={{ background: "white", p: 1, borderRadius: "4px" }}>
+                <div style={{ color: "#757575", fontWeight: 500 }}>IsInPatient</div>
+                <div style={{ fontFamily: "monospace", fontWeight: 600 }}>
+                  {legacyCase.legacy_data.is_inpatient === true ? 'Yes' : legacyCase.legacy_data.is_inpatient === false ? 'No' : 'N/A'}
+                </div>
+              </Box>
+              {legacyCase.legacy_data.problem_reason && (
+                <Box sx={{ background: "white", p: 1, borderRadius: "4px" }}>
+                  <div style={{ color: "#757575", fontWeight: 500 }}>ProblemReason</div>
+                  <div style={{ fontFamily: "monospace", fontWeight: 600, fontSize: "0.65rem", maxHeight: "32px", overflow: "hidden" }} title={legacyCase.legacy_data.problem_reason}>
+                    {legacyCase.legacy_data.problem_reason.substring(0, 30)}...
+                  </div>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        )}
+
         {/* Error and Success Messages */}
         {error && (
           <Box

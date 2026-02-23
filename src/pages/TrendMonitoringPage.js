@@ -173,7 +173,7 @@ const TrendMonitoringPage = () => {
             onClick={() => navigate("/")}
             sx={{ fontWeight: 600 }}
           >
-            عودة إلى لوحة القيادة (Back to Dashboard)
+            Back to Dashboard
           </Button>
         </Box>
 
@@ -189,10 +189,7 @@ const TrendMonitoringPage = () => {
               mb: 1,
             }}
           >
-            📊 مراقبة الاتجاهات (Trend Monitoring)
-          </Typography>
-          <Typography level="body-md" sx={{ color: "#666" }}>
-            تتبع الاتجاهات الشهرية للحوادث لاكتشاف التدهور والتحسين المبكر
+            📊 Trend Monitoring
           </Typography>
         </Box>
 
@@ -222,16 +219,16 @@ const TrendMonitoringPage = () => {
                 size="lg"
               >
                 <Option value="hospital">🏥 Hospital</Option>
-                <Option value="administration">📋 Administration</Option>
-                <Option value="department">🏢 Department</Option>
-                <Option value="section">📌 Section</Option>
+                <Option value="administration">📋 الإدارة</Option>
+                <Option value="department">🏢 الدائرة</Option>
+                <Option value="section">📌 القسم</Option>
               </Select>
             </FormControl>
 
             {/* Administration Selector */}
             <FormControl>
               <FormLabel sx={{ fontWeight: 600 }}>
-                📋 Administration
+                📋 الإدارة
               </FormLabel>
               <Select
                 value={selectedAdmin}
@@ -242,7 +239,7 @@ const TrendMonitoringPage = () => {
                 <Option value="">All Administrations</Option>
                 {(hierarchy?.Administration || []).map((admin) => (
                   <Option key={admin.id} value={admin.id}>
-                    {admin.nameAr} ({admin.nameEn})
+                    {admin.nameEn}
                   </Option>
                 ))}
               </Select>
@@ -251,7 +248,7 @@ const TrendMonitoringPage = () => {
             {/* Department Selector */}
             <FormControl>
               <FormLabel sx={{ fontWeight: 600 }}>
-                🏢 Department
+                🏢 الدائرة
               </FormLabel>
               <Select
                 value={selectedDept}
@@ -262,7 +259,7 @@ const TrendMonitoringPage = () => {
                 <Option value="">All Departments</Option>
                 {getDepartments().map((dept) => (
                   <Option key={dept.id} value={dept.id}>
-                    {dept.nameAr} ({dept.nameEn})
+                    {dept.nameEn}
                   </Option>
                 ))}
               </Select>
@@ -271,7 +268,7 @@ const TrendMonitoringPage = () => {
             {/* Section Selector */}
             <FormControl>
               <FormLabel sx={{ fontWeight: 600 }}>
-                📌 Section
+                📌 القسم
               </FormLabel>
               <Select
                 value={selectedSection}
@@ -282,7 +279,7 @@ const TrendMonitoringPage = () => {
                 <Option value="">All Sections</Option>
                 {getSections().map((section) => (
                   <Option key={section.id} value={section.id}>
-                    {section.nameAr} ({section.nameEn})
+                    {section.nameEn}
                   </Option>
                 ))}
               </Select>

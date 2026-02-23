@@ -7,34 +7,25 @@ import {
   Button,
   Alert,
   CircularProgress,
-  Divider,
 } from "@mui/joy";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import DownloadIcon from "@mui/icons-material/Download";
 import { useAuth } from "../../context/AuthContext";
 import { isSoftwareAdmin } from "../../utils/roleGuards";
 import { canRoleSeeSettingsTab, SETTINGS_TAB_KEYS } from "../../security/roleVisibilityMap";
 import { listUsers, deleteUser as deleteUserSettings, bulkDeleteUsers } from "../../api/settingsUsersApi";
-import {
-  getUserCredentials,
-  exportCredentialsMarkdown,
-  deleteUser as deleteUserAdmin,
-} from "../../api/adminUsers";
 import UsersTable from "../../components/settings/UsersTable";
 import CreateUserDialog from "../../components/settings/CreateUserDialog";
 import EditUserDialog from "../../components/settings/EditUserDialog";
-import UsersCredentialsTable from "../../components/settings/UsersCredentialsTable";
 
 /**
  * Unified Users Management Tab
- * Combines production user management with testing/development tools
+ * Production user management
  */
 const UnifiedUsersTab = () => {
   const { user } = useAuth();
   
   // User data
   const [users, setUsers] = useState([]);
-  const [credentialUsers, setCredentialUsers] = useState([]);
   
   // UI state
   const [loading, setLoading] = useState(true);
@@ -60,10 +51,7 @@ const UnifiedUsersTab = () => {
     setLoading(true);
     setError(null); // Clear previous errors
     try {
-      await Promise.all([
-        loadUsers(),
-        loadCredentialUsers(),
-      ]);
+      await loadUsers();
     } catch (err) {
       const detail = err.response?.data?.detail;
       let errorMsg = "Failed to load data";
@@ -101,16 +89,6 @@ const UnifiedUsersTab = () => {
       console.error("Error details:", err.response?.data);
       setUsers([]); // Set empty array on error
       throw err;
-    }
-  };
-
-  const loadCredentialUsers = async () => {
-    try {
-      const data = await getUserCredentials();
-      setCredentialUsers(data.users || []);
-    } catch (err) {
-      console.error("Error loading credential users:", err);
-      // Don't throw - this API might not exist yet
     }
   };
 
@@ -183,17 +161,6 @@ const UnifiedUsersTab = () => {
     setTimeout(() => setSuccess(null), 3000);
   };
 
-  const handleExportCredentials = async () => {
-    try {
-      await exportCredentialsMarkdown();
-      setSuccess("Credentials exported successfully");
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError("Failed to export credentials");
-      setTimeout(() => setError(null), 5000);
-    }
-  };
-
   const handleRefresh = () => {
     loadAllData();
   };
@@ -264,44 +231,6 @@ const UnifiedUsersTab = () => {
           onDeleteClick={handleDeleteUser}
           onBulkDeleteClick={handleBulkDeleteUsers}
         />
-      </Card>
-
-      <Divider />
-
-      {/* Testing Tools Section */}
-      <Card variant="outlined" sx={{ p: 3 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-          <Typography level="h4" sx={{ fontWeight: 600 }}>
-            🧪 Testing Tools
-          </Typography>
-          <Button
-            startDecorator={<DownloadIcon />}
-            variant="solid"
-            color="warning"
-            onClick={handleExportCredentials}
-            size="sm"
-          >
-            Export All Credentials
-          </Button>
-        </Box>
-
-        <Alert color="warning" variant="soft" sx={{ mb: 3 }}>
-          <Typography level="body-sm">
-            ⚠️ <strong>Testing Mode:</strong> View credentials and export data.
-            For development and testing purposes only.
-          </Typography>
-        </Alert>
-
-        {/* Credentials Table */}
-        <Box>
-          <Typography level="h5" sx={{ mb: 2, fontWeight: 600 }}>
-            🔐 User Credentials (With Passwords)
-          </Typography>
-          <UsersCredentialsTable 
-            users={credentialUsers}
-            onRefresh={loadCredentialUsers}
-          />
-        </Box>
       </Card>
 
       {/* Dialogs */}

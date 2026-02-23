@@ -3,6 +3,7 @@
 // Phase 2 — FAB for export actions
 // Phase R-P — Normalized field names, V2 export endpoints, removed fallback chaos
 // Phase 7 — Patient Feedback Seasonal Report widget integrated
+// Phase Universal — Using UniversalIncidentsTable with satisfaction support
 import React, { useState, useEffect } from "react";
 import { Box, Alert, CircularProgress, Typography, Button, Card, Select, Option } from "@mui/joy";
 import DescriptionIcon from '@mui/icons-material/Description';
@@ -10,7 +11,8 @@ import theme from '../theme';
 import MainLayout from "../components/common/MainLayout";
 import SearchPatient from "../components/patientHistory/SearchPatient";
 import PatientInfoCard from "../components/patientHistory/PatientInfoCard";
-import PatientFeedbackTable from "../components/patientHistory/PatientFeedbackTable";
+import UniversalIncidentsTable from "../components/common/UniversalIncidentsTable";
+import SatisfactionModal from "../components/patientHistory/SatisfactionModal";
 import PatientActions from "../components/patientHistory/PatientActions";
 import SeasonSelector from "../components/personReporting/SeasonSelector";
 
@@ -39,6 +41,10 @@ const PatientHistoryPage = ({ embedded = false }) => {
   const [selectedSeason, setSelectedSeason] = useState(null);
   const [generatingReport, setGeneratingReport] = useState(false);
   const [reportError, setReportError] = useState(null);
+  
+  // Satisfaction modal state
+  const [satisfactionModalOpen, setSatisfactionModalOpen] = useState(false);
+  const [selectedCase, setSelectedCase] = useState(null);
   
   // Role guard for reporting
   const canViewReporting = canViewPersonReporting(user);
@@ -85,6 +91,22 @@ const PatientHistoryPage = ({ embedded = false }) => {
       setSuccess("Patient data refreshed successfully!");
       setTimeout(() => setSuccess(null), 3000);
     }
+  };
+
+  // Handle opening satisfaction modal
+  const handleOpenSatisfaction = (feedback) => {
+    setSelectedCase({
+      id: feedback.id || feedback.incident_case_id || feedback.incident_id,
+      name: `Case #${feedback.id || feedback.incident_case_id || feedback.incident_id}`,
+    });
+    setSatisfactionModalOpen(true);
+  };
+
+  // Handle satisfaction success
+  const handleSatisfactionSuccess = () => {
+    setSatisfactionModalOpen(false);
+    setSelectedCase(null);
+    handleRefresh();
   };
 
   // Handle export using V2 API
@@ -240,8 +262,27 @@ const PatientHistoryPage = ({ embedded = false }) => {
 
             {/* Feedback Table */}
             <Box sx={{ mb: 3 }}>
-              <PatientFeedbackTable feedbacks={feedbackList} onRefresh={handleRefresh} />
+              <UniversalIncidentsTable
+                incidents={feedbackList}
+                context="patient"
+                showSatisfaction={true}
+                onOpenSatisfaction={handleOpenSatisfaction}
+                onRefresh={handleRefresh}
+                title="📋 Patient Feedback History"
+                emptyMessage="No feedback records found for this patient"
+              />
             </Box>
+            
+            {/* Satisfaction Modal */}
+            <SatisfactionModal
+              open={satisfactionModalOpen}
+              onClose={() => {
+                setSatisfactionModalOpen(false);
+                setSelectedCase(null);
+              }}
+              caseData={selectedCase}
+              onSuccess={handleSatisfactionSuccess}
+            />
           </>
         ) : (
           <Alert
@@ -303,7 +344,7 @@ const PatientHistoryPage = ({ embedded = false }) => {
         {canViewReporting && (
           <Box sx={{ mt: 5, pt: 4, borderTop: '2px solid #eee' }}>
             <Typography level="h5" sx={{ mb: 3, fontWeight: 700, color: '#667eea', textAlign: 'center' }}>
-              📊 تقرير ملاحظات المرضى الموسمي (Patient Feedback Report)
+              📊 Aggregate Reports for RCA & Satisfaction
             </Typography>
             
             <Card sx={{ p: 4, background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)', border: '2px solid rgba(102, 126, 234, 0.2)', textAlign: 'center' }}>

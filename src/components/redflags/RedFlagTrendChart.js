@@ -15,24 +15,24 @@ import {
 const RedFlagTrendChart = () => {
   // Mock data for last 12 months
   const data = [
-    { month: "يناير", count: 12 },
-    { month: "فبراير", count: 8 },
-    { month: "مارس", count: 15 },
-    { month: "أبريل", count: 6 },
-    { month: "مايو", count: 11 },
-    { month: "يونيو", count: 9 },
-    { month: "يوليو", count: 13 },
-    { month: "أغسطس", count: 7 },
-    { month: "سبتمبر", count: 10 },
-    { month: "أكتوبر", count: 14 },
-    { month: "نوفمبر", count: 8 },
-    { month: "ديسمبر", count: 4 },
+    { month: "Jan", count: 12 },
+    { month: "Feb", count: 8 },
+    { month: "Mar", count: 15 },
+    { month: "Apr", count: 6 },
+    { month: "May", count: 11 },
+    { month: "Jun", count: 9 },
+    { month: "Jul", count: 13 },
+    { month: "Aug", count: 7 },
+    { month: "Sep", count: 10 },
+    { month: "Oct", count: 14 },
+    { month: "Nov", count: 8 },
+    { month: "Dec", count: 4 },
   ];
 
   return (
     <Card sx={{ p: 3, mb: 3 }}>
       <Typography level="h5" sx={{ mb: 3, fontWeight: 700, color: "#ff4757" }}>
-        📈 اتجاه العلامات الحمراء (Red Flags Trend - Last 12 Months)
+        📈 Red Flags Trend (Last 12 Months)
       </Typography>
       
       <Box sx={{ width: "100%", height: 300 }}>
@@ -66,7 +66,7 @@ const RedFlagTrendChart = () => {
               strokeWidth={3}
               dot={{ fill: "#ff4757", r: 5 }}
               activeDot={{ r: 8 }}
-              name="عدد العلامات الحمراء"
+              name="Red Flag Count"
             />
           </LineChart>
         </ResponsiveContainer>
@@ -81,7 +81,7 @@ const RedFlagTrendChart = () => {
         }}
       >
         <Typography level="body-xs" sx={{ color: "#666" }}>
-          💡 يوضح الرسم البياني عدد العلامات الحمراء المسجلة شهرياً خلال العام الماضي
+          💡 This chart shows the number of Red Flags recorded monthly over the past year
         </Typography>
       </Box>
     </Card>

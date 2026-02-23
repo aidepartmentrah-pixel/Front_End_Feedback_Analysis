@@ -28,7 +28,7 @@ const CriticalIssuesPage = () => {
                 borderRadius: "8px 8px 0 0",
               }}
             >
-              🚩 علامات حمراء (Red Flags)
+              🚩 Red Flags
             </Tab>
             <Tab
               sx={{

@@ -27,7 +27,7 @@ const RedFlagTable = ({ title, redflags, loading, onViewDetails, showStatus = tr
       <Card sx={{ p: 5, textAlign: "center" }}>
         <CircularProgress size="lg" />
         <Typography level="body-sm" sx={{ mt: 2, color: "#666" }}>
-          جاري تحميل العلامات الحمراء...
+          Loading Red Flags...
         </Typography>
       </Card>
     );
@@ -37,10 +37,10 @@ const RedFlagTable = ({ title, redflags, loading, onViewDetails, showStatus = tr
     return (
       <Card sx={{ p: 5, textAlign: "center" }}>
         <Typography level="h6" sx={{ color: "#999" }}>
-          لا توجد علامات حمراء
+          No Red Flags found
         </Typography>
         <Typography level="body-sm" sx={{ color: "#666", mt: 1 }}>
-          لا توجد حوادث تتطابق مع معايير البحث
+          No incidents match the search criteria
         </Typography>
       </Card>
     );
@@ -49,7 +49,7 @@ const RedFlagTable = ({ title, redflags, loading, onViewDetails, showStatus = tr
   return (
     <Card sx={{ p: 3, mb: 3 }}>
       <Typography level="h5" sx={{ mb: 3, fontWeight: 700, color: isFinished ? "#2ed573" : "#ff4757" }}>
-        {title || `🚩 العلامات الحمراء (Red Flags) - ${redflags.length} حادثة`}
+        {title || `🚩 Red Flags - ${redflags.length} incidents`}
       </Typography>
 
       <Sheet
@@ -69,15 +69,15 @@ const RedFlagTable = ({ title, redflags, loading, onViewDetails, showStatus = tr
           >
             <thead>
               <tr style={{ background: isFinished ? "rgba(46, 213, 115, 0.1)" : "rgba(255, 71, 87, 0.1)" }}>
-                <th>رقم السجل<br />Record ID</th>
-                <th>التاريخ<br />Date</th>
-                <th>المريض<br />Patient</th>
-                <th>القسم المرسل<br />Sending Dept</th>
-                <th>القسم المستهدف<br />Target Dept</th>
-                <th>المجال<br />Domain</th>
-                <th>الشدة<br />Severity</th>
-                {showStatus && <th>الحالة<br />Status</th>}
-                <th>الإجراء<br />Action</th>
+                <th>Record ID</th>
+                <th>Date</th>
+                <th>Patient</th>
+                <th>Sending Dept</th>
+                <th>Target Dept</th>
+                <th>Domain</th>
+                <th>Severity</th>
+                {showStatus && <th>Status</th>}
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -135,7 +135,7 @@ const RedFlagTable = ({ title, redflags, loading, onViewDetails, showStatus = tr
                         minWidth: "70px",
                       }}
                     >
-                      {flag.status === "OPEN" ? "مفتوح" : flag.status === "CLOSED" ? "مغلق" : "منتهي"}
+                      {flag.status === "OPEN" ? "Open" : flag.status === "CLOSED" ? "Closed" : "Finished"}
                     </Chip>
                     </td>
                   )}
@@ -151,7 +151,7 @@ const RedFlagTable = ({ title, redflags, loading, onViewDetails, showStatus = tr
                         fontSize: "12px",
                       }}
                     >
-                      عرض
+                      View
                     </Button>
                   </td>
                 </tr>
