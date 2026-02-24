@@ -46,6 +46,7 @@ import MigrationMainPage from "./pages/MigrationMainPage";
 import MigrationViewPage from "./pages/MigrationViewPage";
 import MigrationFormPage from "./pages/MigrationFormPage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
+import ConfigPage from "./pages/ConfigPage";
 
 function App() {
   return (
@@ -57,6 +58,7 @@ function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
+          <Route path="/config" element={<ConfigPage />} />
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
           
           {/* DEV-ONLY: Phase J-9 Visibility Test Page */}

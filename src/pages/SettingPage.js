@@ -11,7 +11,6 @@ import PatientTable from "../components/settings/PatientTable";
 import AddPatientForm from "../components/settings/AddPatientForm";
 import PolicyConfiguration from "../components/settings/PolicyConfiguration";
 import Training from "../components/settings/Training";
-import HardwareConfigTab from "../components/settings/HardwareConfigTab"; // Hardware deployment config
 import UnifiedUsersTab from "./settings/UnifiedUsersTab";
 import SectionCreationPanel from "../components/settings/SectionCreationPanel"; // PHASE C — Production Section Creation Tool
 import { useAuth } from "../context/AuthContext";
@@ -466,15 +465,6 @@ const SettingPage = () => {
             return (
               <TabPanel key={`panel-${tab.key}-${index}`} value={index} sx={{ p: 3 }}>
                 <UnifiedUsersTab />
-              </TabPanel>
-            );
-          }
-          
-          // Hardware Configuration Tab (SOFTWARE_ADMIN only)
-          if (tab.component === 7) {
-            return (
-              <TabPanel key={`panel-${tab.key}-${index}`} value={index} sx={{ p: 3 }}>
-                <HardwareConfigTab />
               </TabPanel>
             );
           }

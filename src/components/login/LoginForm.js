@@ -6,6 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 import PersonIcon from "@mui/icons-material/Person";
 import LockIcon from "@mui/icons-material/Lock";
 import LoginIcon from "@mui/icons-material/Login";
+import SettingsIcon from "@mui/icons-material/Settings";
 import theme from "../../theme";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
@@ -35,6 +36,12 @@ const LoginForm = () => {
       });
 
       const data = await response.json();
+
+      if (response.status === 503 && data.error === "database_not_configured") {
+        setErrorMessage("قاعدة البيانات غير مهيأة. يرجى تكوين النظام أولاً. (Database not configured. Please configure the system first.)");
+        setLoading(false);
+        return;
+      }
 
       if (!response.ok) {
         // Handle 401, 400, or other error responses
@@ -117,6 +124,24 @@ const LoginForm = () => {
         {loading ? "جاري تسجيل الدخول..." : "تسجيل الدخول (Sign In)"}
       </Button>
 
+      <Button
+        variant="plain"
+        color="neutral"
+        fullWidth
+        startDecorator={<SettingsIcon />}
+        onClick={() => navigate("/config")}
+        sx={{
+          fontSize: "13px",
+          color: theme.colors.textSecondary,
+          fontWeight: 500,
+          '&:hover': {
+            color: theme.colors.primary,
+            background: theme.colors.primaryLighter,
+          },
+        }}
+      >
+        إعدادات النظام (System Configuration)
+      </Button>
 
     </Box>
   );
