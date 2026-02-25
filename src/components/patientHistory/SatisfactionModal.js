@@ -1,9 +1,11 @@
 /**
  * SatisfactionModal
- * Modal for adding patient satisfaction to a case.
+ * Modal for adding/editing patient satisfaction to a case.
  * 
  * Used in Patient History page to record satisfaction per case.
- * Once submitted, satisfaction cannot be edited.
+ * Supports both create and edit modes.
+ * 
+ * Arabic-first UI with RTL support.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -23,29 +25,101 @@ import {
   CircularProgress,
   Divider,
   Input,
+  Textarea,
 } from '@mui/joy';
-import { getSatisfactionStatuses, createCaseSatisfaction } from '../../api/satisfactionApi';
+import { getSatisfactionStatuses, getCaseSatisfaction, createCaseSatisfaction, updateCaseSatisfaction } from '../../api/satisfactionApi';
 
-const SatisfactionModal = ({ open, onClose, caseId, caseName, onSuccess }) => {
+/**
+ * Extract error message from various error formats
+ * Handles Pydantic validation errors (array of {type, loc, msg, input})
+ */
+const extractErrorMessage = (err) => {
+  // Check for Pydantic validation error array
+  const detail = err.response?.data?.detail;
+  
+  if (Array.isArray(detail)) {
+    // Pydantic validation errors - extract messages
+    return detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+  }
+  
+  if (typeof detail === 'string') {
+    return detail;
+  }
+  
+  if (typeof detail === 'object' && detail !== null) {
+    return detail.msg || detail.message || JSON.stringify(detail);
+  }
+  
+  return err.message || 'حدث خطأ غير متوقع';
+};
+
+const SatisfactionModal = ({ open, onClose, caseId: propCaseId, caseName: propCaseName, caseData, onSuccess }) => {
+  // Extract caseId and caseName from caseData or direct props
+  const caseId = propCaseId || caseData?.id || caseData?.incident_case_id;
+  const caseName = propCaseName || caseData?.name || (caseId ? `حالة #${caseId}` : '');
+  
   // State
   const [loading, setLoading] = useState(false);
   const [statusesLoading, setStatusesLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [statuses, setStatuses] = useState([]);
   const [errorMessage, setErrorMessage] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   
   // Form state
   const [feedbackNeeded, setFeedbackNeeded] = useState(false);
   const [feedbackGiven, setFeedbackGiven] = useState(false);
   const [feedbackDatetime, setFeedbackDatetime] = useState('');
+  const [feedbackText, setFeedbackText] = useState('');
   const [satisfactionStatusId, setSatisfactionStatusId] = useState(null);
 
-  // Load satisfaction statuses on mount
+  // Load satisfaction statuses and existing data on mount
   useEffect(() => {
-    if (open) {
-      loadStatuses();
-      resetForm();
+    if (open && caseId) {
+      loadInitialData();
     }
-  }, [open]);
+  }, [open, caseId]);
+
+  const loadInitialData = async () => {
+    setInitialLoading(true);
+    setErrorMessage(null);
+    
+    try {
+      // Load statuses and existing satisfaction in parallel
+      const [statusesData, existingData] = await Promise.all([
+        getSatisfactionStatuses(),
+        getCaseSatisfaction(caseId)
+      ]);
+      
+      setStatuses(statusesData);
+      setStatusesLoading(false);
+      
+      // Check if satisfaction exists and populate form
+      if (existingData.exists) {
+        setIsEditMode(true);
+        setFeedbackNeeded(existingData.feedback_needed || false);
+        setFeedbackGiven(existingData.feedback_given || false);
+        // Convert datetime to date only (YYYY-MM-DD)
+        if (existingData.feedback_datetime) {
+          const dateOnly = existingData.feedback_datetime.split('T')[0];
+          setFeedbackDatetime(dateOnly);
+        } else {
+          setFeedbackDatetime('');
+        }
+        setFeedbackText(existingData.feedback_text || '');
+        setSatisfactionStatusId(existingData.satisfaction_status_id);
+      } else {
+        // Reset form for new entry
+        setIsEditMode(false);
+        resetForm();
+      }
+    } catch (err) {
+      setErrorMessage('فشل في تحميل البيانات');
+      console.error('Error loading satisfaction data:', err);
+    } finally {
+      setInitialLoading(false);
+    }
+  };
 
   const loadStatuses = async () => {
     try {
@@ -53,7 +127,7 @@ const SatisfactionModal = ({ open, onClose, caseId, caseName, onSuccess }) => {
       const data = await getSatisfactionStatuses();
       setStatuses(data);
     } catch (err) {
-      setErrorMessage('Failed to load satisfaction statuses');
+      setErrorMessage('فشل في تحميل حالات الرضا');
     } finally {
       setStatusesLoading(false);
     }
@@ -63,13 +137,14 @@ const SatisfactionModal = ({ open, onClose, caseId, caseName, onSuccess }) => {
     setFeedbackNeeded(false);
     setFeedbackGiven(false);
     setFeedbackDatetime('');
+    setFeedbackText('');
     setSatisfactionStatusId(null);
     setErrorMessage(null);
   };
 
   const validateForm = () => {
     if (satisfactionStatusId === null) {
-      setErrorMessage('Please select a satisfaction status');
+      setErrorMessage('يرجى اختيار حالة الرضا');
       return false;
     }
     return true;
@@ -81,23 +156,32 @@ const SatisfactionModal = ({ open, onClose, caseId, caseName, onSuccess }) => {
     setLoading(true);
     setErrorMessage(null);
 
+    const payload = {
+      feedback_needed: feedbackNeeded,
+      feedback_given: feedbackGiven,
+      feedback_datetime: feedbackDatetime || null,
+      feedback_text: feedbackText || null,
+      satisfaction_status_id: satisfactionStatusId,
+    };
+
     try {
-      await createCaseSatisfaction(caseId, {
-        feedback_needed: feedbackNeeded,
-        feedback_given: feedbackGiven,
-        feedback_datetime: feedbackDatetime || null,
-        satisfaction_status_id: satisfactionStatusId,
-      });
+      if (isEditMode) {
+        await updateCaseSatisfaction(caseId, payload);
+      } else {
+        await createCaseSatisfaction(caseId, payload);
+      }
 
       onClose();
       if (onSuccess) onSuccess();
     } catch (err) {
       if (err.response?.status === 409) {
-        setErrorMessage('Satisfaction already exists for this case');
+        setErrorMessage('الرضا موجود بالفعل لهذه الحالة');
       } else if (err.response?.status === 403) {
-        setErrorMessage('You are not authorized to add satisfaction');
+        setErrorMessage('غير مصرح لك بإضافة الرضا');
+      } else if (err.response?.status === 404) {
+        setErrorMessage('لم يتم العثور على سجل الرضا');
       } else {
-        setErrorMessage(err.response?.data?.detail || 'Failed to submit satisfaction');
+        setErrorMessage(extractErrorMessage(err));
       }
     } finally {
       setLoading(false);
@@ -124,28 +208,29 @@ const SatisfactionModal = ({ open, onClose, caseId, caseName, onSuccess }) => {
           maxHeight: '90vh',
           overflow: 'auto',
           zIndex: 10000,
+          direction: 'rtl',
         }}
       >
         <ModalClose disabled={loading} />
 
-        <Typography level="h4" sx={{ mb: 1 }}>
-          📋 Add Patient Satisfaction
+        <Typography level="h4" sx={{ mb: 1, textAlign: 'right' }}>
+          📋 {isEditMode ? 'تعديل رضا المريض' : 'إضافة رضا المريض'}
         </Typography>
 
-        <Typography level="body-sm" sx={{ mb: 2, color: 'neutral.600' }}>
-          Case: {caseName || `#${caseId}`}
+        <Typography level="body-sm" sx={{ mb: 2, color: 'neutral.600', textAlign: 'right' }}>
+          الحالة: {caseName || `#${caseId}`}
         </Typography>
 
         <Divider sx={{ mb: 2 }} />
 
         {/* Error Display */}
         {errorMessage && (
-          <Alert color="danger" variant="soft" sx={{ mb: 2 }}>
+          <Alert color="danger" variant="soft" sx={{ mb: 2, textAlign: 'right' }}>
             <Typography level="body-sm">{errorMessage}</Typography>
           </Alert>
         )}
 
-        {statusesLoading ? (
+        {initialLoading || statusesLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
             <CircularProgress />
           </Box>
@@ -153,9 +238,9 @@ const SatisfactionModal = ({ open, onClose, caseId, caseName, onSuccess }) => {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {/* Satisfaction Status (required) */}
             <FormControl required>
-              <FormLabel>Satisfaction Status</FormLabel>
+              <FormLabel sx={{ textAlign: 'right' }}>حالة الرضا</FormLabel>
               <Select
-                placeholder="Select status..."
+                placeholder="اختر الحالة..."
                 value={satisfactionStatusId}
                 onChange={(e, value) => setSatisfactionStatusId(value)}
                 disabled={loading}
@@ -168,64 +253,93 @@ const SatisfactionModal = ({ open, onClose, caseId, caseName, onSuccess }) => {
               >
                 {statuses.map((status) => (
                   <Option key={status.satisfaction_status_id} value={status.satisfaction_status_id}>
-                    {status.status_name_en} / {status.status_name_ar}
+                    {status.status_name_ar} / {status.status_name_en}
                   </Option>
                 ))}
               </Select>
             </FormControl>
 
             {/* Feedback Needed */}
-            <FormControl>
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                cursor: loading ? 'not-allowed' : 'pointer',
+                py: 0.5,
+              }}
+              onClick={() => !loading && setFeedbackNeeded(!feedbackNeeded)}
+            >
               <Checkbox
-                label="Feedback was requested from patient"
                 checked={feedbackNeeded}
-                onChange={(e) => setFeedbackNeeded(e.target.checked)}
                 disabled={loading}
+                sx={{ pointerEvents: 'none' }}
               />
-            </FormControl>
+              <Typography level="body-md" sx={{ mr: 1, userSelect: 'none' }}>
+                تم طلب التغذية الراجعة من المريض
+              </Typography>
+            </Box>
 
             {/* Feedback Given */}
-            <FormControl>
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                cursor: loading ? 'not-allowed' : 'pointer',
+                py: 0.5,
+              }}
+              onClick={() => !loading && setFeedbackGiven(!feedbackGiven)}
+            >
               <Checkbox
-                label="Feedback was provided by patient"
                 checked={feedbackGiven}
-                onChange={(e) => setFeedbackGiven(e.target.checked)}
                 disabled={loading}
+                sx={{ pointerEvents: 'none' }}
               />
-            </FormControl>
+              <Typography level="body-md" sx={{ mr: 1, userSelect: 'none' }}>
+                تم تقديم التغذية الراجعة من المريض
+              </Typography>
+            </Box>
 
-            {/* Feedback Datetime (optional, shown if feedback_given) */}
+            {/* Feedback Details (shown if feedback_given) */}
             {feedbackGiven && (
-              <FormControl>
-                <FormLabel>Feedback Date & Time</FormLabel>
-                <Input
-                  type="datetime-local"
-                  value={feedbackDatetime}
-                  onChange={(e) => setFeedbackDatetime(e.target.value)}
-                  disabled={loading}
-                />
-              </FormControl>
+              <>
+                <FormControl>
+                  <FormLabel sx={{ textAlign: 'right' }}>تاريخ التغذية الراجعة</FormLabel>
+                  <Input
+                    type="date"
+                    value={feedbackDatetime}
+                    onChange={(e) => setFeedbackDatetime(e.target.value)}
+                    disabled={loading}
+                  />
+                </FormControl>
+                
+                <FormControl>
+                  <FormLabel sx={{ textAlign: 'right' }}>نص التغذية الراجعة</FormLabel>
+                  <Textarea
+                    placeholder="أدخل تفاصيل التغذية الراجعة هنا..."
+                    value={feedbackText}
+                    onChange={(e) => setFeedbackText(e.target.value)}
+                    disabled={loading}
+                    minRows={3}
+                    maxRows={6}
+                    sx={{ direction: 'rtl', textAlign: 'right' }}
+                  />
+                </FormControl>
+              </>
             )}
 
             <Divider sx={{ my: 1 }} />
 
             {/* Info Alert */}
-            <Alert color="warning" variant="soft">
+            <Alert color="neutral" variant="soft" sx={{ textAlign: 'right' }}>
               <Typography level="body-xs">
-                ⚠️ Once submitted, satisfaction cannot be edited or deleted.
+                {isEditMode 
+                  ? '✏️ أنت تقوم بتعديل سجل رضا موجود.'
+                  : 'ℹ️ سيتم حفظ رضا المريض لهذه الحالة.'}
               </Typography>
             </Alert>
 
             {/* Footer Buttons */}
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 1 }}>
-              <Button
-                variant="outlined"
-                color="neutral"
-                onClick={onClose}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-start', mt: 1 }}>
               <Button
                 variant="solid"
                 color="primary"
@@ -233,7 +347,19 @@ const SatisfactionModal = ({ open, onClose, caseId, caseName, onSuccess }) => {
                 disabled={loading}
                 startDecorator={loading && <CircularProgress size="sm" />}
               >
-                {loading ? 'Submitting...' : 'Submit Satisfaction'}
+                {loading 
+                  ? 'جاري الحفظ...' 
+                  : isEditMode 
+                    ? 'حفظ التعديلات' 
+                    : 'إرسال الرضا'}
+              </Button>
+              <Button
+                variant="outlined"
+                color="neutral"
+                onClick={onClose}
+                disabled={loading}
+              >
+                إلغاء
               </Button>
             </Box>
           </Box>

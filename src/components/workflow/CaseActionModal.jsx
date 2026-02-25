@@ -333,6 +333,32 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
   // ============================
   // RENDER RCA FORM SECTION
   // ============================
+  
+  // Helper component for clickable checkbox rows
+  const RcaCheckboxRow = ({ label, field, disabled }) => (
+    <Box 
+      sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        py: 0.5,
+        '&:hover': { backgroundColor: disabled ? 'transparent' : 'rgba(0,0,0,0.02)' },
+        borderRadius: '4px',
+        px: 0.5,
+      }}
+      onClick={() => !disabled && updateRcaField(field, !rcaFeedback[field])}
+    >
+      <Checkbox
+        checked={rcaFeedback[field]}
+        disabled={disabled}
+        sx={{ pointerEvents: 'none' }}
+      />
+      <Typography level="body-md" sx={{ mr: 1, userSelect: 'none' }}>
+        {label}
+      </Typography>
+    </Box>
+  );
+  
   const renderRcaForm = () => (
     <Box sx={{ mt: 2 }}>
       <Typography level="title-md" sx={{ mb: 2, color: 'primary.600' }}>
@@ -346,56 +372,21 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
             <Typography level="title-sm">👥 أسباب متعلقة بالكادر</Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Checkbox
-                label="قصور في التدريب"
-                checked={rcaFeedback.Cause_Staff_Training}
-                onChange={(e) => updateRcaField('Cause_Staff_Training', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="عدم كفاية الحوافز"
-                checked={rcaFeedback.Cause_Staff_Incentives}
-                onChange={(e) => updateRcaField('Cause_Staff_Incentives', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="مشاكل في الكفاءة"
-                checked={rcaFeedback.Cause_Staff_Competency}
-                onChange={(e) => updateRcaField('Cause_Staff_Competency', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="نقص في الكادر"
-                checked={rcaFeedback.Cause_Staff_Understaffed}
-                onChange={(e) => updateRcaField('Cause_Staff_Understaffed', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="عدم الالتزام"
-                checked={rcaFeedback.Cause_Staff_NonCompliance}
-                onChange={(e) => updateRcaField('Cause_Staff_NonCompliance', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="ضعف التنسيق"
-                checked={rcaFeedback.Cause_Staff_NoCoordination}
-                onChange={(e) => updateRcaField('Cause_Staff_NoCoordination', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="أخرى (حدد أدناه)"
-                checked={rcaFeedback.Cause_Staff_Other}
-                onChange={(e) => updateRcaField('Cause_Staff_Other', e.target.checked)}
-                disabled={loading}
-              />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <RcaCheckboxRow label="قصور في التدريب" field="Cause_Staff_Training" disabled={loading} />
+              <RcaCheckboxRow label="عدم كفاية الحوافز" field="Cause_Staff_Incentives" disabled={loading} />
+              <RcaCheckboxRow label="مشاكل في الكفاءة" field="Cause_Staff_Competency" disabled={loading} />
+              <RcaCheckboxRow label="نقص في الكادر" field="Cause_Staff_Understaffed" disabled={loading} />
+              <RcaCheckboxRow label="عدم الالتزام" field="Cause_Staff_NonCompliance" disabled={loading} />
+              <RcaCheckboxRow label="ضعف التنسيق" field="Cause_Staff_NoCoordination" disabled={loading} />
+              <RcaCheckboxRow label="أخرى (حدد أدناه)" field="Cause_Staff_Other" disabled={loading} />
               {rcaFeedback.Cause_Staff_Other && (
                 <Input
                   placeholder="حدد السبب الآخر..."
                   value={rcaFeedback.Cause_Staff_OtherText}
                   onChange={(e) => updateRcaField('Cause_Staff_OtherText', e.target.value)}
                   disabled={loading}
-                  sx={{ ml: 3 }}
+                  sx={{ mr: 3 }}
                 />
               )}
             </Box>
@@ -408,38 +399,18 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
             <Typography level="title-sm">⚙️ أسباب متعلقة بالإجراءات</Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Checkbox
-                label="غير شاملة"
-                checked={rcaFeedback.Cause_Process_NotComprehensive}
-                onChange={(e) => updateRcaField('Cause_Process_NotComprehensive', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="إجراءات غير واضحة"
-                checked={rcaFeedback.Cause_Process_Unclear}
-                onChange={(e) => updateRcaField('Cause_Process_Unclear', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="عدم وجود بروتوكول"
-                checked={rcaFeedback.Cause_Process_MissingProtocol}
-                onChange={(e) => updateRcaField('Cause_Process_MissingProtocol', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="أخرى (حدد أدناه)"
-                checked={rcaFeedback.Cause_Process_Other}
-                onChange={(e) => updateRcaField('Cause_Process_Other', e.target.checked)}
-                disabled={loading}
-              />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <RcaCheckboxRow label="غير شاملة" field="Cause_Process_NotComprehensive" disabled={loading} />
+              <RcaCheckboxRow label="إجراءات غير واضحة" field="Cause_Process_Unclear" disabled={loading} />
+              <RcaCheckboxRow label="عدم وجود بروتوكول" field="Cause_Process_MissingProtocol" disabled={loading} />
+              <RcaCheckboxRow label="أخرى (حدد أدناه)" field="Cause_Process_Other" disabled={loading} />
               {rcaFeedback.Cause_Process_Other && (
                 <Input
                   placeholder="حدد السبب الآخر..."
                   value={rcaFeedback.Cause_Process_OtherText}
                   onChange={(e) => updateRcaField('Cause_Process_OtherText', e.target.value)}
                   disabled={loading}
-                  sx={{ ml: 3 }}
+                  sx={{ mr: 3 }}
                 />
               )}
             </Box>
@@ -452,38 +423,18 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
             <Typography level="title-sm">🔧 أسباب متعلقة بالمعدات</Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Checkbox
-                label="المعدات غير متوفرة"
-                checked={rcaFeedback.Cause_Equipment_NotAvailable}
-                onChange={(e) => updateRcaField('Cause_Equipment_NotAvailable', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="النظام غير مكتمل"
-                checked={rcaFeedback.Cause_Equipment_SystemIncomplete}
-                onChange={(e) => updateRcaField('Cause_Equipment_SystemIncomplete', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="صعوبة في الاستخدام"
-                checked={rcaFeedback.Cause_Equipment_HardToApply}
-                onChange={(e) => updateRcaField('Cause_Equipment_HardToApply', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="أخرى (حدد أدناه)"
-                checked={rcaFeedback.Cause_Equipment_Other}
-                onChange={(e) => updateRcaField('Cause_Equipment_Other', e.target.checked)}
-                disabled={loading}
-              />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <RcaCheckboxRow label="المعدات غير متوفرة" field="Cause_Equipment_NotAvailable" disabled={loading} />
+              <RcaCheckboxRow label="النظام غير مكتمل" field="Cause_Equipment_SystemIncomplete" disabled={loading} />
+              <RcaCheckboxRow label="صعوبة في الاستخدام" field="Cause_Equipment_HardToApply" disabled={loading} />
+              <RcaCheckboxRow label="أخرى (حدد أدناه)" field="Cause_Equipment_Other" disabled={loading} />
               {rcaFeedback.Cause_Equipment_Other && (
                 <Input
                   placeholder="حدد السبب الآخر..."
                   value={rcaFeedback.Cause_Equipment_OtherText}
                   onChange={(e) => updateRcaField('Cause_Equipment_OtherText', e.target.value)}
                   disabled={loading}
-                  sx={{ ml: 3 }}
+                  sx={{ mr: 3 }}
                 />
               )}
             </Box>
@@ -496,38 +447,18 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
             <Typography level="title-sm">🏢 أسباب متعلقة بالبيئة</Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Checkbox
-                label="طبيعة المكان/الموقع"
-                checked={rcaFeedback.Cause_Environment_PlaceNature}
-                onChange={(e) => updateRcaField('Cause_Environment_PlaceNature', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="مشاكل في المحيط"
-                checked={rcaFeedback.Cause_Environment_Surroundings}
-                onChange={(e) => updateRcaField('Cause_Environment_Surroundings', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="ظروف العمل"
-                checked={rcaFeedback.Cause_Environment_WorkConditions}
-                onChange={(e) => updateRcaField('Cause_Environment_WorkConditions', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="أخرى (حدد أدناه)"
-                checked={rcaFeedback.Cause_Environment_Other}
-                onChange={(e) => updateRcaField('Cause_Environment_Other', e.target.checked)}
-                disabled={loading}
-              />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <RcaCheckboxRow label="طبيعة المكان/الموقع" field="Cause_Environment_PlaceNature" disabled={loading} />
+              <RcaCheckboxRow label="مشاكل في المحيط" field="Cause_Environment_Surroundings" disabled={loading} />
+              <RcaCheckboxRow label="ظروف العمل" field="Cause_Environment_WorkConditions" disabled={loading} />
+              <RcaCheckboxRow label="أخرى (حدد أدناه)" field="Cause_Environment_Other" disabled={loading} />
               {rcaFeedback.Cause_Environment_Other && (
                 <Input
                   placeholder="حدد السبب الآخر..."
                   value={rcaFeedback.Cause_Environment_OtherText}
                   onChange={(e) => updateRcaField('Cause_Environment_OtherText', e.target.value)}
                   disabled={loading}
-                  sx={{ ml: 3 }}
+                  sx={{ mr: 3 }}
                 />
               )}
             </Box>
@@ -540,44 +471,19 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
             <Typography level="title-sm">🛡️ التدابير الوقائية المتخذة</Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Checkbox
-                label="اجتماعات شهرية"
-                checked={rcaFeedback.Preventive_MonthlyMeetings}
-                onChange={(e) => updateRcaField('Preventive_MonthlyMeetings', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="برامج تدريبية"
-                checked={rcaFeedback.Preventive_TrainingPrograms}
-                onChange={(e) => updateRcaField('Preventive_TrainingPrograms', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="زيادة الكادر"
-                checked={rcaFeedback.Preventive_IncreaseStaff}
-                onChange={(e) => updateRcaField('Preventive_IncreaseStaff', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="إجراءات لجنة المراجعة"
-                checked={rcaFeedback.Preventive_MMCommitteeActions}
-                onChange={(e) => updateRcaField('Preventive_MMCommitteeActions', e.target.checked)}
-                disabled={loading}
-              />
-              <Checkbox
-                label="أخرى (حدد أدناه)"
-                checked={rcaFeedback.Preventive_Other}
-                onChange={(e) => updateRcaField('Preventive_Other', e.target.checked)}
-                disabled={loading}
-              />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <RcaCheckboxRow label="اجتماعات شهرية" field="Preventive_MonthlyMeetings" disabled={loading} />
+              <RcaCheckboxRow label="برامج تدريبية" field="Preventive_TrainingPrograms" disabled={loading} />
+              <RcaCheckboxRow label="زيادة الكادر" field="Preventive_IncreaseStaff" disabled={loading} />
+              <RcaCheckboxRow label="إجراءات لجنة المراجعة" field="Preventive_MMCommitteeActions" disabled={loading} />
+              <RcaCheckboxRow label="أخرى (حدد أدناه)" field="Preventive_Other" disabled={loading} />
               {rcaFeedback.Preventive_Other && (
                 <Input
                   placeholder="حدد التدبير الوقائي الآخر..."
                   value={rcaFeedback.Preventive_OtherText}
                   onChange={(e) => updateRcaField('Preventive_OtherText', e.target.value)}
                   disabled={loading}
-                  sx={{ ml: 3 }}
+                  sx={{ mr: 3 }}
                 />
               )}
             </Box>
@@ -650,6 +556,11 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
               value={item.due_date}
               onChange={(e) => updateActionItem(index, 'due_date', e.target.value)}
               disabled={loading}
+              slotProps={{
+                input: {
+                  min: new Date(Date.now() + 86400000).toISOString().split('T')[0] // Tomorrow's date
+                }
+              }}
             />
           </FormControl>
         </Card>

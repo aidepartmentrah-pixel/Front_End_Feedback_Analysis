@@ -376,13 +376,26 @@ const UniversalIncidentsTable = ({
                   {showSatisfaction && context === "patient" && (
                     <td>
                       {incident.satisfaction?.exists ? (
-                        <Chip
-                          size="sm"
-                          color={getSatisfactionDisplay(incident.satisfaction).color}
-                          variant={getSatisfactionDisplay(incident.satisfaction).variant}
-                        >
-                          {getSatisfactionDisplay(incident.satisfaction).label}
-                        </Chip>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                          <Chip
+                            size="sm"
+                            color={getSatisfactionDisplay(incident.satisfaction).color}
+                            variant={getSatisfactionDisplay(incident.satisfaction).variant}
+                            onClick={() => onOpenSatisfaction && onOpenSatisfaction(incident)}
+                            sx={{ cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
+                          >
+                            {getSatisfactionDisplay(incident.satisfaction).label}
+                          </Chip>
+                          <IconButton
+                            size="sm"
+                            variant="plain"
+                            color="neutral"
+                            onClick={() => onOpenSatisfaction && onOpenSatisfaction(incident)}
+                            sx={{ minWidth: '24px', minHeight: '24px', p: 0.25 }}
+                          >
+                            ✏️
+                          </IconButton>
+                        </Box>
                       ) : (
                         <Button
                           size="sm"

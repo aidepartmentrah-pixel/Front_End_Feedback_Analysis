@@ -31,6 +31,7 @@ export const getCaseSatisfaction = async (caseId) => {
  * @param {boolean} data.feedback_needed - Whether feedback was requested
  * @param {boolean} data.feedback_given - Whether feedback was given
  * @param {string|null} data.feedback_datetime - ISO datetime when feedback was given
+ * @param {string|null} data.feedback_text - Feedback text/notes
  * @param {number} data.satisfaction_status_id - Status (1=Not Present, 2=Satisfied, 3=Not Satisfied)
  * @returns {Promise<Object>} { success, satisfaction_id }
  */
@@ -39,8 +40,25 @@ export const createCaseSatisfaction = async (caseId, data) => {
   return response.data;
 };
 
+/**
+ * Update satisfaction for a case
+ * @param {number} caseId - The incident case ID
+ * @param {Object} data - Satisfaction data
+ * @param {boolean} data.feedback_needed - Whether feedback was requested
+ * @param {boolean} data.feedback_given - Whether feedback was given
+ * @param {string|null} data.feedback_datetime - Date when feedback was given (YYYY-MM-DD)
+ * @param {string|null} data.feedback_text - Feedback text/notes
+ * @param {number} data.satisfaction_status_id - Status (1=Not Present, 2=Satisfied, 3=Not Satisfied)
+ * @returns {Promise<Object>} { success, message }
+ */
+export const updateCaseSatisfaction = async (caseId, data) => {
+  const response = await apiClient.put(`/api/v2/cases/${caseId}/satisfaction`, data);
+  return response.data;
+};
+
 export default {
   getSatisfactionStatuses,
   getCaseSatisfaction,
   createCaseSatisfaction,
+  updateCaseSatisfaction,
 };
