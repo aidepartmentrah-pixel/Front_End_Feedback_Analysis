@@ -88,7 +88,13 @@ Reference list of test accounts.
 ## 🧪 How to Use
 
 ### View Auth State
-The debug panel automatically appears in bottom-right corner in dev mode.
+The debug panel is available in dev mode, but disabled by default.
+
+Enable it when needed:
+
+```bash
+REACT_APP_SHOW_AUTH_DEBUG_PANEL=true
+```
 
 **Actions:**
 - Collapse/expand with arrow button
@@ -156,7 +162,11 @@ src/dev/
 ```javascript
 import AuthDebugPanel from "./dev/AuthDebugPanel";
 
-{process.env.NODE_ENV === "development" && <AuthDebugPanel />}
+const shouldShowAuthDebugPanel =
+  process.env.NODE_ENV === "development" &&
+  process.env.REACT_APP_SHOW_AUTH_DEBUG_PANEL === "true";
+
+{shouldShowAuthDebugPanel && <AuthDebugPanel />}
 ```
 
 ### apiClient.js
@@ -181,7 +191,7 @@ if (process.env.NODE_ENV === "development") {
 
 Before marking MODULE 5.6 complete, verify:
 
-- [ ] Debug panel appears in dev mode
+- [ ] Debug panel appears in dev mode when `REACT_APP_SHOW_AUTH_DEBUG_PANEL=true`
 - [ ] Debug panel shows correct auth state
 - [ ] Debug panel disappears in production build
 - [ ] Console warnings appear for auth issues

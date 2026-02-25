@@ -49,11 +49,15 @@ import UnauthorizedPage from "./pages/UnauthorizedPage";
 import ConfigPage from "./pages/ConfigPage";
 
 function App() {
+  const shouldShowAuthDebugPanel =
+    process.env.NODE_ENV === "development" &&
+    process.env.REACT_APP_SHOW_AUTH_DEBUG_PANEL === "true";
+
   return (
     <Router>
       <AuthProvider>
         {/* DEV-ONLY: Auth Debug Panel */}
-        {process.env.NODE_ENV === "development" && <AuthDebugPanel />}
+        {shouldShowAuthDebugPanel && <AuthDebugPanel />}
 
         <Routes>
           {/* Public Routes */}
