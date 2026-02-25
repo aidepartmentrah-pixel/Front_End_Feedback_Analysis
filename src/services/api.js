@@ -134,8 +134,9 @@ const api = {
   // ==================== PATIENTS API ====================
 
   // Get reserve patients only (for settings page)
+  // Returns only active patients (IsActive=1) - soft-deleted patients are filtered out
   getPatients: async (limit = 100, offset = 0, orderBy = "created_at") => {
-    return apiCall(`/api/patients/reserve?limit=${limit}&offset=${offset}&order_by=${orderBy}`);
+    return apiCall(`/api/v2/patients/reserve?limit=${limit}&offset=${offset}&order_by=${orderBy}`);
   },
 
   // Add new patient
@@ -181,12 +182,13 @@ const api = {
   },
 
   // Delete patient
-  deletePatient: async (id) => {
-    // Placeholder: replace with actual API call when backend supports it
-    return { success: true };
-    // return apiCall(`/patients/${id}`, {
-    //   method: "DELETE",
-    // });
+  deletePatient: async (id, force = false) => {
+    // Soft delete (deactivates patient by setting IsActive=0) - preserves data integrity
+    // If patient has associated incidents, always soft-deletes
+    // If force=true and no incidents, permanently deletes
+    return apiCall(`/api/v2/patients/reserve/${id}?force=${force}`, {
+      method: "DELETE"
+    });
   },
 
   // ==================== CONFIGURATION API ====================

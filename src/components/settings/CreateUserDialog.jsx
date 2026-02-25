@@ -21,7 +21,7 @@ import {
 } from "@mui/joy";
 import SaveIcon from "@mui/icons-material/Save";
 import { createUser } from "../../api/settingsUsersApi";
-import { fetchLeaves } from "../../api/orgUnits";
+import { fetchLeaves, fetchDepartments } from "../../api/orgUnits";
 
 const CreateUserDialog = ({ open, onClose, onCreated }) => {
   const [formData, setFormData] = useState({
@@ -40,6 +40,11 @@ const CreateUserDialog = ({ open, onClose, onCreated }) => {
   const [orgUnits, setOrgUnits] = useState([]);
   const [orgUnitsLoading, setOrgUnitsLoading] = useState(false);
   const [selectedOrgUnit, setSelectedOrgUnit] = useState(null);
+  
+  // Departments state
+  const [departments, setDepartments] = useState([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] = useState(null);
 
   // Available roles - expanded list
   const availableRoles = [
@@ -51,10 +56,15 @@ const CreateUserDialog = ({ open, onClose, onCreated }) => {
     { id: "WORKER", name: "Worker" },
   ];
 
-  // Fetch org units when dialog opens
+  // Fetch org units and departments when dialog opens
   useEffect(() => {
-    if (open && orgUnits.length === 0) {
-      loadOrgUnits();
+    if (open) {
+      if (orgUnits.length === 0) {
+        loadOrgUnits();
+      }
+      if (departments.length === 0) {
+        loadDepartments();
+      }
     }
   }, [open]);
 
@@ -76,8 +86,26 @@ const CreateUserDialog = ({ open, onClose, onCreated }) => {
     }
   };
 
+  const loadDepartments = async () => {
+    setDepartmentsLoading(true);
+    try {
+      const depts = await fetchDepartments();
+      // Transform to have consistent structure
+      const transformed = depts.map(dept => ({
+        id: dept.org_unit_id || dept.id,
+        name: dept.name || dept.org_unit_name || `Department ${dept.org_unit_id || dept.id}`,
+      }));
+      setDepartments(transformed);
+    } catch (err) {
+      console.error("Failed to load departments:", err);
+    } finally {
+      setDepartmentsLoading(false);
+    }
+  };
+
   // Memoized options for Autocomplete
   const orgUnitOptions = useMemo(() => orgUnits, [orgUnits]);
+  const departmentOptions = useMemo(() => departments, [departments]);
 
   // Validate form
   const validate = () => {
@@ -144,6 +172,7 @@ const CreateUserDialog = ({ open, onClose, onCreated }) => {
         org_unit_id: "",
       });
       setSelectedOrgUnit(null);
+      setSelectedDepartment(null);
       setErrors({});
       
       // Notify parent
@@ -184,9 +213,20 @@ const CreateUserDialog = ({ open, onClose, onCreated }) => {
         org_unit_id: "",
       });
       setSelectedOrgUnit(null);
+      setSelectedDepartment(null);
       setErrors({});
       setApiError(null);
       onClose();
+    }
+  };
+
+  // Handle department selection
+  const handleDepartmentChange = (event, newValue) => {
+    setSelectedDepartment(newValue);
+    if (newValue) {
+      handleChange("department_display_name", newValue.name);
+    } else {
+      handleChange("department_display_name", "");
     }
   };
 
@@ -267,13 +307,38 @@ const CreateUserDialog = ({ open, onClose, onCreated }) => {
 
               {/* Department Display Name */}
               <FormControl>
-                <FormLabel>Department Display Name</FormLabel>
-                <Input
-                  placeholder="e.g., Emergency Department"
-                  value={formData.department_display_name}
-                  onChange={(e) => handleChange("department_display_name", e.target.value)}
+                <FormLabel>Department</FormLabel>
+                <Autocomplete
+                  placeholder="Search and select department..."
+                  options={departmentOptions}
+                  value={selectedDepartment}
+                  onChange={handleDepartmentChange}
+                  getOptionLabel={(option) => option.name || ''}
+                  isOptionEqualToValue={(option, value) => option.id === value?.id}
+                  loading={departmentsLoading}
                   disabled={isSubmitting}
+                  freeSolo
+                  onInputChange={(event, newInputValue, reason) => {
+                    // Allow typing custom values
+                    if (reason === 'input') {
+                      handleChange("department_display_name", newInputValue);
+                    }
+                  }}
+                  slotProps={{
+                    listbox: {
+                      sx: { maxHeight: 200, zIndex: 10001 }
+                    },
+                    popper: {
+                      sx: { zIndex: 10001 }
+                    }
+                  }}
+                  endDecorator={departmentsLoading ? <CircularProgress size="sm" /> : null}
                 />
+                <FormHelperText>
+                  {departments.length > 0 
+                    ? `${departments.length} departments - type to search or enter custom`
+                    : 'Loading departments...'}
+                </FormHelperText>
               </FormControl>
 
               {/* Role */}

@@ -9,6 +9,7 @@ import {
   CircularProgress,
 } from "@mui/joy";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import DownloadIcon from "@mui/icons-material/Download";
 import { useAuth } from "../../context/AuthContext";
 import { isSoftwareAdmin } from "../../utils/roleGuards";
 import { canRoleSeeSettingsTab, SETTINGS_TAB_KEYS } from "../../security/roleVisibilityMap";
@@ -16,6 +17,7 @@ import { listUsers, deleteUser as deleteUserSettings, bulkDeleteUsers } from "..
 import UsersTable from "../../components/settings/UsersTable";
 import CreateUserDialog from "../../components/settings/CreateUserDialog";
 import EditUserDialog from "../../components/settings/EditUserDialog";
+import apiClient from "../../api/apiClient";
 
 /**
  * Unified Users Management Tab
@@ -165,6 +167,45 @@ const UnifiedUsersTab = () => {
     loadAllData();
   };
 
+  const handleExportCredentials = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get('/api/admin/testing/user-credentials-word', {
+        responseType: 'blob'
+      });
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = 'user_credentials.docx';
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename=([^;]+)/);
+        if (filenameMatch) {
+          filename = filenameMatch[1].trim();
+        }
+      }
+      
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      setSuccess('Credentials exported successfully');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      console.error('Export error:', err);
+      setError('Failed to export credentials. Ensure you have SOFTWARE_ADMIN role.');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
@@ -194,14 +235,26 @@ const UnifiedUsersTab = () => {
           </Typography>
         </Box>
         
-        <Button
-          startDecorator={<RefreshIcon />}
-          variant="outlined"
-          onClick={handleRefresh}
-          size="sm"
-        >
-          Refresh
-        </Button>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Button
+            startDecorator={<DownloadIcon />}
+            variant="solid"
+            color="success"
+            onClick={handleExportCredentials}
+            size="sm"
+            title="Export all user credentials to Word document"
+          >
+            Export Credentials
+          </Button>
+          <Button
+            startDecorator={<RefreshIcon />}
+            variant="outlined"
+            onClick={handleRefresh}
+            size="sm"
+          >
+            Refresh
+          </Button>
+        </Box>
       </Box>
 
       {/* Alerts */}
