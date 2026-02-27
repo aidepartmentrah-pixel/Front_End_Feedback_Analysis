@@ -55,3 +55,22 @@ export const fetchDepartments = async () => {
     throw error;
   }
 };
+
+/**
+ * Fetch all valid parent units for section creation
+ * Returns only ADMINISTRATION (Type=323) and DEPARTMENT (Type=325) units
+ * Sections (Type=324) are excluded as they cannot be parents
+ * GET /api/org-units/section-parents
+ * Returns: { parents: [...], count: number }
+ */
+export const fetchSectionParents = async () => {
+  try {
+    const response = await apiClient.get("/api/org-units/section-parents");
+    console.log("Section parents response:", response.data);
+    // Backend returns { parents: [...], count: number }
+    return response.data.parents || [];
+  } catch (error) {
+    console.error("Error fetching section parents:", error);
+    throw error;
+  }
+};

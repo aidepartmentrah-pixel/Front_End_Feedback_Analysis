@@ -16,16 +16,13 @@ import {
   Alert,
   IconButton,
   Snackbar,
-  Radio,
-  RadioGroup,
 } from "@mui/joy";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import {
   createSection,
 } from "../../api/adminUsers";
 import {
-  fetchAdministrations,
-  fetchDepartments,
+  fetchSectionParents,
 } from "../../api/orgUnits";
 
 /**
@@ -34,12 +31,10 @@ import {
  * Always creates section_admin user automatically
  */
 const SectionCreationPanel = () => {
-  // Org units state
-  const [administrations, setAdministrations] = useState([]);
-  const [departments, setDepartments] = useState([]);
+  // Org units state - unified list of valid parents (ADMINISTRATION + DEPARTMENT only)
+  const [sectionParents, setSectionParents] = useState([]);
 
   // Form state
-  const [parentType, setParentType] = useState("DEPARTMENT"); // ADMINISTRATION | DEPARTMENT
   const [selectedParent, setSelectedParent] = useState("");
   const [sectionName, setSectionName] = useState("");
 
@@ -57,31 +52,19 @@ const SectionCreationPanel = () => {
     parent: null,
   });
 
-  // Load org units on mount and when parent type changes
+  // Load org units on mount
   useEffect(() => {
     loadOrgUnits();
-  }, [parentType]);
-
-  // Reset selected parent when parent type changes
-  useEffect(() => {
-    setSelectedParent("");
-  }, [parentType]);
+  }, []);
 
   const loadOrgUnits = async () => {
     try {
       setError(null);
       
-      if (parentType === "ADMINISTRATION") {
-        // Fetch administrations
-        const admins = await fetchAdministrations();
-        // Ensure we always have an array
-        setAdministrations(Array.isArray(admins) ? admins : []);
-      } else {
-        // Fetch departments
-        const depts = await fetchDepartments();
-        // Ensure we always have an array
-        setDepartments(Array.isArray(depts) ? depts : []);
-      }
+      // Fetch all valid section parents (ADMINISTRATION + DEPARTMENT only)
+      // Backend filters out SECTION units which cannot be parents
+      const parents = await fetchSectionParents();
+      setSectionParents(Array.isArray(parents) ? parents : []);
     } catch (err) {
       setError("Failed to load organizational units");
       console.error(err);
@@ -160,7 +143,6 @@ const SectionCreationPanel = () => {
       // Reset form
       setSectionName("");
       setSelectedParent("");
-      setParentType("DEPARTMENT");
 
       // Refresh org hierarchy
       await loadOrgUnits();
@@ -245,24 +227,9 @@ const SectionCreationPanel = () => {
             )}
           </FormControl>
 
-          {/* PHASE C — F-C3 — Parent Type Radio Selector */}
-          <FormControl>
-            <FormLabel>Parent Type</FormLabel>
-            <RadioGroup
-              value={parentType}
-              onChange={(e) => setParentType(e.target.value)}
-              orientation="horizontal"
-            >
-              <Radio value="DEPARTMENT" label="Department" />
-              <Radio value="ADMINISTRATION" label="Administration" />
-            </RadioGroup>
-          </FormControl>
-
-          {/* Dynamic Parent Dropdown based on type */}
+          {/* Parent Unit Dropdown - Shows only valid parents (ADMINISTRATION or DEPARTMENT) */}
           <FormControl error={!!validationErrors.parent}>
-            <FormLabel>
-              {parentType === "ADMINISTRATION" ? "Select Administration" : "Select Department"}
-            </FormLabel>
+            <FormLabel>Select Parent Unit</FormLabel>
             <Select
               value={selectedParent}
               onChange={(e, newValue) => {
@@ -272,19 +239,19 @@ const SectionCreationPanel = () => {
                   setValidationErrors((prev) => ({ ...prev, parent: null }));
                 }
               }}
-              placeholder={`Select ${parentType === "ADMINISTRATION" ? "Administration" : "Department"}`}
+              placeholder="Select Administration or Department"
             >
-              {(parentType === "ADMINISTRATION" ? administrations : departments)
+              {sectionParents
                 .filter(Boolean)
                 .map((unit) => (
                 <Option key={unit.id || unit.ID} value={unit.id || unit.ID}>
-                  {unit.name || unit.Name}
+                  {unit.name || unit.Name} ({unit.type_name || unit.typeName})
                 </Option>
               ))}
             </Select>
-            {validationErrors.parent && (
-              <FormHelperText>{validationErrors.parent}</FormHelperText>
-            )}
+            <FormHelperText>
+              {validationErrors.parent || "Only Administrations and Departments can be parents. Sections are excluded."}
+            </FormHelperText>
           </FormControl>
 
           <Button
