@@ -7,7 +7,19 @@
  * NOT session-based authentication.
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+/**
+ * Auto-detect API base URL from current browser location.
+ */
+const getApiBaseUrl = () => {
+  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+    const hostname = window.location.hostname;
+    const backendPort = 8000;
+    return `http://${hostname}:${backendPort}`;
+  }
+  return process.env.REACT_APP_API_URL || "http://localhost:8000";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 /**
  * Helper to make config API requests with the password header.
