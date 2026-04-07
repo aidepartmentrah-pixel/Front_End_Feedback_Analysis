@@ -5,6 +5,9 @@ import axios from "axios";
  * Auto-detect API base URL from current browser location.
  * This ensures the frontend always calls the backend on the same host,
  * eliminating the need to rebuild when the VM IP changes.
+ * 
+ * Phase 1 fix: Always use HTTP for backend communication.
+ * The backend runs on HTTP port 8000 regardless of frontend protocol.
  */
 const getApiBaseUrl = () => {
   // In browser environment, derive API URL from current hostname
@@ -12,8 +15,7 @@ const getApiBaseUrl = () => {
     const hostname = window.location.hostname;
     const backendPort = 8000; // Backend always runs on port 8000
     
-    // For localhost development, use localhost
-    // For production (any IP), use that IP
+    // Always use HTTP - backend does not have HTTPS enabled
     return `http://${hostname}:${backendPort}`;
   }
   

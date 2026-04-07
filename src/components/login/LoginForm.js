@@ -9,7 +9,23 @@ import LoginIcon from "@mui/icons-material/Login";
 import SettingsIcon from "@mui/icons-material/Settings";
 import theme from "../../theme";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+/**
+ * Auto-detect API base URL from current browser location.
+ * This ensures the frontend always calls the backend on the same host,
+ * eliminating the need to rebuild when the VM IP changes.
+ * Uses window.location.protocol to match HTTP/HTTPS.
+ */
+const getApiBaseUrl = () => {
+  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+    const protocol = window.location.protocol; // 'http:' or 'https:'
+    const hostname = window.location.hostname;
+    const backendPort = 8000;
+    return `${protocol}//${hostname}:${backendPort}`;
+  }
+  return process.env.REACT_APP_API_URL || "http://localhost:8000";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const LoginForm = () => {
   const navigate = useNavigate();

@@ -9,11 +9,14 @@
 
 /**
  * Auto-detect API base URL from current browser location.
+ * Phase 1 fix: Always use HTTP for backend communication.
+ * The backend runs on HTTP port 8000 regardless of frontend protocol.
  */
 const getApiBaseUrl = () => {
   if (typeof window !== 'undefined' && window.location && window.location.hostname) {
     const hostname = window.location.hostname;
     const backendPort = 8000;
+    // Always use HTTP - backend does not have HTTPS enabled
     return `http://${hostname}:${backendPort}`;
   }
   return process.env.REACT_APP_API_URL || "http://localhost:8000";

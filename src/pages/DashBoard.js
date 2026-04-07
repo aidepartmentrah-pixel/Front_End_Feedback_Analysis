@@ -169,13 +169,19 @@ const DashboardPage = () => {
   }, [scope, selectedAdmin, selectedDept, selectedSection]);
 
   // ============================
-  // SYNC SLIDER VALUE WITH BOUNDS (Guard: bounds change reset)
+  // SYNC SLIDER VALUE AND DATE RANGE WITH BOUNDS (Guard: bounds change reset)
   // ============================
   useEffect(() => {
-    if (dateBounds.totalDays !== null) {
+    if (dateBounds.totalDays !== null && dateBounds.minDate && dateBounds.maxDate) {
       setSliderValue([0, dateBounds.totalDays]);
+      // CRITICAL: Also initialize dateRange to the actual data bounds
+      // This ensures stats are fetched for the correct date range
+      setDateRange({
+        start_date: dateBounds.minDate,
+        end_date: dateBounds.maxDate
+      });
     }
-  }, [dateBounds.totalDays]);
+  }, [dateBounds.totalDays, dateBounds.minDate, dateBounds.maxDate]);
 
   // ============================
   // CLEANUP DEBOUNCE TIMER ON UNMOUNT
@@ -192,6 +198,13 @@ const DashboardPage = () => {
   // FETCH DASHBOARD STATS
   // ============================
   useEffect(() => {
+    // Guard: Wait for dateRange to be initialized from bounds
+    // This prevents fetching with null dates which would default to today-30
+    if (!dateRange.start_date || !dateRange.end_date) {
+      console.log("⏳ Waiting for dateRange to be initialized from bounds...");
+      return;
+    }
+
     // Build params based on current scope
     const params = {
       scope,

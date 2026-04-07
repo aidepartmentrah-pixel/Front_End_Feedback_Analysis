@@ -1,6 +1,7 @@
 // src/App.js
-import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { getSystemStatus } from "./api/configApi";
 
 // Auth
 import { AuthProvider } from "./context/AuthContext";
@@ -49,10 +50,65 @@ import UnauthorizedPage from "./pages/UnauthorizedPage";
 import ConfigPage from "./pages/ConfigPage";
 
 function App() {
+  const [systemStatus, setSystemStatus] = useState(null);
+
+  // Check system status on mount (before auth)
+  useEffect(() => {
+    getSystemStatus()
+      .then((status) => setSystemStatus(status))
+      .catch((err) => {
+        console.error("[App] Failed to get system status:", err);
+        // Treat backend unreachable as bootstrap mode
+        setSystemStatus({ bootstrap_mode: true, error: true });
+      });
+  }, []);
+
   const shouldShowAuthDebugPanel =
     process.env.NODE_ENV === "development" &&
     process.env.REACT_APP_SHOW_AUTH_DEBUG_PANEL === "true";
 
+  // Loading state while checking system status
+  if (systemStatus === null) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#f5f5f5",
+        fontFamily: "system-ui, sans-serif",
+      }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{
+            width: 40,
+            height: 40,
+            border: "4px solid #e0e0e0",
+            borderTop: "4px solid #1976d2",
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite",
+            margin: "0 auto 16px",
+          }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <p style={{ color: "#666", margin: 0 }}>Checking system status...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Bootstrap mode: DB not configured - show only config/login routes
+  if (systemStatus.bootstrap_mode) {
+    return (
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/config" element={<ConfigPage />} />
+          <Route path="*" element={<Navigate to="/config" replace />} />
+        </Routes>
+      </Router>
+    );
+  }
+
+  // Normal mode: full application
   return (
     <Router>
       <AuthProvider>

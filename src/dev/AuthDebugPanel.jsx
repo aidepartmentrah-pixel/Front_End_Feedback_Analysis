@@ -25,7 +25,16 @@ const AuthDebugPanel = () => {
     return null;
   }
 
-  const apiBaseUrl = process.env.REACT_APP_API_URL || "http://localhost:8000";
+  // Use dynamic hostname detection for dev panel too
+  const getApiBaseUrl = () => {
+    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+      const hostname = window.location.hostname;
+      const backendPort = 8000;
+      return `http://${hostname}:${backendPort}`;
+    }
+    return process.env.REACT_APP_API_URL || "http://localhost:8000";
+  };
+  const apiBaseUrl = getApiBaseUrl();
 
   return (
     <Sheet
