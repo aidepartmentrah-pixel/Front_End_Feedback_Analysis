@@ -2,32 +2,29 @@
 import axios from "axios";
 
 /**
- * Auto-detect API base URL from current browser location.
- * This ensures the frontend always calls the backend on the same host,
- * eliminating the need to rebuild when the VM IP changes.
+ * API Base URL Configuration
  * 
- * Phase 1 fix: Always use HTTP for backend communication.
- * The backend runs on HTTP port 8000 regardless of frontend protocol.
+ * Phase 4: Use same-origin /api paths through IIS reverse proxy.
+ * IIS forwards /api/* to backend on localhost:8000 internally.
+ * Browser only sees single HTTPS origin - no cross-origin, no mixed content.
+ * 
+ * This approach:
+ * - Works with both HTTP and HTTPS
+ * - No port 8000 exposed to browser
+ * - No protocol mismatch issues
+ * - Works regardless of VM IP (same-origin relative paths)
  */
 const getApiBaseUrl = () => {
-  // In browser environment, derive API URL from current hostname
-  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
-    const hostname = window.location.hostname;
-    const backendPort = 8000; // Backend always runs on port 8000
-    
-    // Always use HTTP - backend does not have HTTPS enabled
-    return `http://${hostname}:${backendPort}`;
-  }
-  
-  // Fallback for SSR, testing, or if window is not available
-  return process.env.REACT_APP_API_URL || "http://localhost:8000";
+  // Use same-origin (empty string) - all /api/* calls go through IIS proxy
+  // IIS URL Rewrite + ARR forwards these to http://localhost:8000 internally
+  return "";
 };
 
 const API_BASE_URL = getApiBaseUrl();
 
-// Log the detected API URL (helpful for debugging)
+// Log API configuration (helpful for debugging in console)
 if (typeof window !== 'undefined') {
-  console.log(`[apiClient] Using API base URL: ${API_BASE_URL}`);
+  console.log(`[apiClient] Using same-origin /api paths (reverse proxy mode)`);
 }
 
 // Create axios instance with session cookie support
