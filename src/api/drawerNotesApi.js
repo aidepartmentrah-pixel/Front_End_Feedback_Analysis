@@ -30,7 +30,7 @@ export async function listDrawerNotes({ labelIds = [], patientAdmissionId = null
   params.append('limit', limit);
   params.append('offset', offset);
 
-  const response = await apiClient.get(`/api/v2/drawer-notes?${params.toString()}`);
+  const response = await apiClient.get(`/api/v2/drawer-notes/?${params.toString()}`);
   return response.data;
 }
 
@@ -67,7 +67,7 @@ export async function createDrawerNote({ note_text, label_ids, patient_admission
     payload.patient_admission_id = patient_admission_id;
   }
   
-  const response = await apiClient.post("/api/v2/drawer-notes", payload);
+  const response = await apiClient.post("/api/v2/drawer-notes/", payload);
   return response.data;
 }
 

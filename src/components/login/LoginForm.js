@@ -10,19 +10,15 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import theme from "../../theme";
 
 /**
- * Auto-detect API base URL from current browser location.
- * This ensures the frontend always calls the backend on the same host,
- * eliminating the need to rebuild when the VM IP changes.
- * Uses window.location.protocol to match HTTP/HTTPS.
+ * API Base URL Configuration
+ * 
+ * Phase 4: Use same-origin /api paths through IIS reverse proxy.
+ * IIS forwards /api/* to backend on localhost:8000 internally.
+ * Browser only sees single origin - no cross-origin, no port 8000 visible.
  */
 const getApiBaseUrl = () => {
-  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
-    const protocol = window.location.protocol; // 'http:' or 'https:'
-    const hostname = window.location.hostname;
-    const backendPort = 8000;
-    return `${protocol}//${hostname}:${backendPort}`;
-  }
-  return process.env.REACT_APP_API_URL || "http://localhost:8000";
+  // Use same-origin (empty string) - all /api/* calls go through IIS proxy
+  return "";
 };
 
 const API_BASE_URL = getApiBaseUrl();

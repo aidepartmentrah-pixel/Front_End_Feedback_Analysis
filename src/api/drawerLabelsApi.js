@@ -10,7 +10,7 @@ import apiClient from "./apiClient";
  * @throws {Error} Propagates API errors to caller
  */
 export async function listDrawerLabels() {
-  const response = await apiClient.get("/api/v2/drawer-labels");
+  const response = await apiClient.get("/api/v2/drawer-labels/");
   return response.data;
 }
 
@@ -22,7 +22,7 @@ export async function listDrawerLabels() {
  * @throws {Error} Propagates API errors to caller
  */
 export async function createDrawerLabel(label_name) {
-  const response = await apiClient.post("/api/v2/drawer-labels", {
+  const response = await apiClient.post("/api/v2/drawer-labels/", {
     label_name,
   });
   return response.data;

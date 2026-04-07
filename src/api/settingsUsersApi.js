@@ -6,7 +6,7 @@ import apiClient from "./apiClient";
  * @returns {Promise<Object>} Response data with users list
  */
 export async function listUsers() {
-  const response = await apiClient.get("/api/settings/users");
+  const response = await apiClient.get("/api/settings/users/");
   return response.data;
 }
 
@@ -22,7 +22,7 @@ export async function listUsers() {
  * @returns {Promise<Object>} Response data with created user
  */
 export async function createUser(payload) {
-  const response = await apiClient.post("/api/settings/users", payload);
+  const response = await apiClient.post("/api/settings/users/", payload);
   return response.data;
 }
 
