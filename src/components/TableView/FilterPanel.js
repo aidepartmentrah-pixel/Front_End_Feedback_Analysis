@@ -1,10 +1,51 @@
 // src/components/TableView/FilterPanel.js
-import React from "react";
+import React, { useState } from "react";
 import { Box, Card, Typography, Select, Option, Button, CircularProgress, Input } from "@mui/joy";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import ClearIcon from "@mui/icons-material/Clear";
 import YearPicker from "./YearPicker";
 import theme from '../../theme';
+
+// Searchable dropdown — renders a text input on top of the option list to filter items
+function SearchableSelect({ value, onChange, options, placeholder, size = "sm", getOptionKey, getOptionLabel }) {
+  const [search, setSearch] = useState("");
+  const filtered = options.filter(o =>
+    !search || getOptionLabel(o).toLowerCase().includes(search.toLowerCase())
+  );
+  return (
+    <Select
+      placeholder={placeholder}
+      value={value}
+      onChange={(_, v) => { setSearch(""); onChange(v); }}
+      size={size}
+      slotProps={{
+        listbox: {
+          sx: { zIndex: 1300, bgcolor: "#fff" },
+          // Reset search when closed
+          onMouseLeave: () => {},
+        }
+      }}
+    >
+      <Option value={null} sx={{ position: "sticky", top: 0, bgcolor: "#fff", zIndex: 2, borderBottom: "1px solid #eee", p: 0 }}>
+        <Input
+          size="sm"
+          placeholder="Search…"
+          value={search}
+          onChange={e => { e.stopPropagation(); setSearch(e.target.value); }}
+          onClick={e => e.stopPropagation()}
+          onKeyDown={e => e.stopPropagation()}
+          sx={{ width: "100%", border: "none", borderRadius: 0, "--Input-focusedHighlight": "transparent" }}
+        />
+      </Option>
+      <Option value={null} sx={{ color: "#000" }}>{placeholder}</Option>
+      {filtered.map(o => (
+        <Option key={getOptionKey(o)} value={getOptionKey(o)} sx={{ color: "#000" }}>
+          {getOptionLabel(o)}
+        </Option>
+      ))}
+    </Select>
+  );
+}
 
 const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => {
   const handleFilterChange = (field, value) => {
@@ -60,6 +101,59 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
         )}
       </Box>
 
+      {/* Quick Time Filters */}
+      <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
+        <Typography level="body-xs" sx={{ alignSelf: "center", color: "#666", fontWeight: 600 }}>Quick:</Typography>
+        {/* Today quick filter */}
+        {(() => {
+          const todayStr = new Date().toISOString().split("T")[0];
+          const isActive = filters.start_date === todayStr && filters.end_date === todayStr;
+          return (
+            <Button
+              key="today"
+              size="sm"
+              variant={isActive ? "solid" : "soft"}
+              color={isActive ? "primary" : "neutral"}
+              onClick={() => {
+                if (isActive) {
+                  onChange({ ...filters, start_date: null, end_date: null });
+                } else {
+                  onChange({ ...filters, start_date: todayStr, end_date: todayStr, year: null, month: null });
+                }
+              }}
+            >
+              Today
+            </Button>
+          );
+        })()}
+        {[7, 30, 60].map(days => {
+          const end = new Date();
+          const start = new Date();
+          start.setDate(start.getDate() - days);
+          const startStr = start.toISOString().split("T")[0];
+          const endStr = end.toISOString().split("T")[0];
+          const isActive = filters.start_date === startStr && filters.end_date === endStr;
+          return (
+            <Button
+              key={days}
+              size="sm"
+              variant={isActive ? "solid" : "soft"}
+              color={isActive ? "primary" : "neutral"}
+              onClick={() => {
+                if (isActive) {
+                  // Toggle off — clear date range
+                  onChange({ ...filters, start_date: null, end_date: null });
+                } else {
+                  onChange({ ...filters, start_date: startStr, end_date: endStr, year: null, month: null });
+                }
+              }}
+            >
+              Last {days} days
+            </Button>
+          );
+        })}
+      </Box>
+
       {/* Filter Grid */}
       <Box
         sx={{
@@ -68,40 +162,17 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
           gap: 2,
         }}
       >
-        {/* Issuing Org Unit */}
+        {/* Issuing Org Unit (searchable) */}
         <Box>
-          <Typography level="body-sm" sx={{ mb: 0.5, fontWeight: 600 }}>
-            Issuing Department
-          </Typography>
-          <Select
-            placeholder="All departments"
+          <Typography level="body-sm" sx={{ mb: 0.5, fontWeight: 600 }}>Issuing Department</Typography>
+          <SearchableSelect
             value={filters.issuing_org_unit_id}
-            onChange={(_, value) => handleFilterChange("issuing_org_unit_id", value)}
-            size="sm"
-            slotProps={{
-              listbox: {
-                onMouseLeave: (e) => {
-                  const popup = e.currentTarget.closest('[role="presentation"]');
-                  if (popup) {
-                    popup.style.display = 'none';
-                    setTimeout(() => popup.remove(), 0);
-                  }
-                },
-                sx: { 
-                  zIndex: 1300,
-                  backgroundColor: "#fff",
-                  color: "#000",
-                }
-              }
-            }}
-          >
-            <Option value={null} sx={{ color: "#000" }}>All departments</Option>
-            {filterOptions?.issuing_org_units && Array.isArray(filterOptions.issuing_org_units) && filterOptions.issuing_org_units.map((item) => (
-              <Option key={item.id} value={item.id} sx={{ color: "#000" }}>
-                {item.name || item.name_en || item.name_ar || `Dept ${item.id}`}{item.count ? ` (${item.count})` : ""}
-              </Option>
-            ))}
-          </Select>
+            onChange={(v) => handleFilterChange("issuing_org_unit_id", v)}
+            options={filterOptions?.issuing_org_units || []}
+            placeholder="All departments"
+            getOptionKey={(item) => item.id}
+            getOptionLabel={(item) => (item.name || item.name_en || item.name_ar || `Dept ${item.id}`) + (item.count ? ` (${item.count})` : "")}
+          />
         </Box>
 
         {/* Domain */}
@@ -331,6 +402,51 @@ const FilterPanel = ({ filters, filterOptions, loading, onChange, onClear }) => 
             ))}
           </Select>
         </Box>
+
+        {/* Target Section (searchable) */}
+        {filterOptions?.sections && filterOptions.sections.length > 0 && (
+          <Box>
+            <Typography level="body-sm" sx={{ mb: 0.5, fontWeight: 600 }}>Target Section</Typography>
+            <SearchableSelect
+              value={filters.target_department_id}
+              onChange={(v) => handleFilterChange("target_department_id", v)}
+              options={filterOptions.sections}
+              placeholder="All sections"
+              getOptionKey={(s) => s.section_id}
+              getOptionLabel={(s) => s.section_name + (s.department_name ? ` — ${s.department_name}` : "")}
+            />
+          </Box>
+        )}
+
+        {/* Target Department (searchable) */}
+        {filterOptions?.target_departments && filterOptions.target_departments.length > 0 && (
+          <Box>
+            <Typography level="body-sm" sx={{ mb: 0.5, fontWeight: 600 }}>Target Department</Typography>
+            <SearchableSelect
+              value={filters.target_dept_parent_id}
+              onChange={(v) => handleFilterChange("target_dept_parent_id", v)}
+              options={filterOptions.target_departments}
+              placeholder="All departments"
+              getOptionKey={(d) => d.id}
+              getOptionLabel={(d) => d.name + (d.administration_name ? ` (${d.administration_name})` : "")}
+            />
+          </Box>
+        )}
+
+        {/* Target Administration (searchable) */}
+        {filterOptions?.target_administrations && filterOptions.target_administrations.length > 0 && (
+          <Box>
+            <Typography level="body-sm" sx={{ mb: 0.5, fontWeight: 600 }}>Target Administration</Typography>
+            <SearchableSelect
+              value={filters.target_admin_id}
+              onChange={(v) => handleFilterChange("target_admin_id", v)}
+              options={filterOptions.target_administrations}
+              placeholder="All administrations"
+              getOptionKey={(a) => a.id}
+              getOptionLabel={(a) => a.name}
+            />
+          </Box>
+        )}
 
         {/* Year */}
         <Box>

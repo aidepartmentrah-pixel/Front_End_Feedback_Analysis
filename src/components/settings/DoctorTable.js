@@ -173,7 +173,7 @@ const DoctorTable = ({ doctors, onEdit, onDelete, loading }) => {
             {filteredDoctors.length === 0 ? (
               <tr>
                 <td colSpan="6" style={{ textAlign: "center", padding: "40px" }}>
-                  <Typography level="body-md" sx={{ color: "#999" }}>
+                  <Typography level="body-md" sx={{ color: theme.colors.textTertiary }}>
                     {searchTerm || filterStatus !== "all" 
                       ? "No doctors found matching your filters" 
                       : "No reserve doctors found. Add one using the form above."}
@@ -234,8 +234,8 @@ const DoctorTable = ({ doctors, onEdit, onDelete, loading }) => {
                           fontSize: "11px",
                           fontWeight: 600,
                           textTransform: "uppercase",
-                          backgroundColor: doctor.status === "active" ? "#d4edda" : "#e0e0e0",
-                          color: doctor.status === "active" ? "#155724" : "#666",
+                          backgroundColor: doctor.status === "active" ? theme.colors.successLight : theme.colors.border,
+                          color: doctor.status === "active" ? theme.colors.successHover : theme.colors.textSecondary,
                         }}
                       >
                         {doctor.status}
@@ -243,7 +243,7 @@ const DoctorTable = ({ doctors, onEdit, onDelete, loading }) => {
                     )}
                   </td>
                   <td>
-                    <Typography level="body-xs" sx={{ color: "#666" }}>
+                    <Typography level="body-xs" sx={{ color: theme.colors.textSecondary }}>
                       {doctor.last_synced_at || "N/A"}
                     </Typography>
                   </td>
@@ -312,10 +312,10 @@ const DoctorTable = ({ doctors, onEdit, onDelete, loading }) => {
         sx={{
           p: 2,
           borderTop: "1px solid rgba(102, 126, 234, 0.1)",
-          background: "#f9fafb",
+          background: theme.colors.surfaceHover,
         }}
       >
-        <Typography level="body-sm" sx={{ color: "#666" }}>
+        <Typography level="body-sm" sx={{ color: theme.colors.textSecondary }}>
           Total: {filteredDoctors.length} doctor(s)
         </Typography>
       </Box>

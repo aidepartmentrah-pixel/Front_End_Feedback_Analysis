@@ -62,6 +62,9 @@ const SeasonalReportsPage = () => {
   const [generatingReport, setGeneratingReport] = useState(false);
   const [error, setError] = useState(null);
 
+  // Loading overlay error (shown inside the modal, auto-dismisses)
+  const [exportError, setExportError] = useState(null);
+
   // Confirmation dialog state
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
@@ -258,9 +261,15 @@ const SeasonalReportsPage = () => {
     } catch (err) {
       console.error("❌ Error generating report:", err);
       setError(err.message || "Failed to generate report");
-    } finally {
-      setGeneratingReport(false);
+      setExportError(err.message || "فشل توليد التقرير");
+      // Auto-dismiss the modal error state after 3.5 s
+      setTimeout(() => {
+        setGeneratingReport(false);
+        setExportError(null);
+      }, 3500);
+      return; // skip finally's setGeneratingReport(false)
     }
+    setGeneratingReport(false);
   };
 
   // Get selected quarter names
@@ -591,6 +600,75 @@ const SeasonalReportsPage = () => {
           </Alert>
         )}
       </Box>
+
+      {/* ── Report Generation Loading Overlay ── */}
+      <Modal
+        open={generatingReport}
+        sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        <ModalDialog
+          sx={{
+            maxWidth: 420,
+            width: "90%",
+            textAlign: "center",
+            p: 5,
+            borderRadius: "16px",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+            background: "linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)",
+          }}
+        >
+          {/* Animated spinner */}
+          <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+            <CircularProgress
+              size="lg"
+              sx={{ "--CircularProgress-size": "72px", "--CircularProgress-trackThickness": "6px" }}
+            />
+          </Box>
+
+          {!exportError ? (
+            <>
+              <Typography
+                level="h4"
+                sx={{
+                  fontFamily: "'Traditional Arabic', serif",
+                  direction: "rtl",
+                  mb: 1,
+                  color: "#1a1a2e",
+                  fontWeight: 700,
+                }}
+              >
+                جارِ إنشاء التقرير...
+              </Typography>
+              <Typography
+                level="body-md"
+                sx={{
+                  fontFamily: "'Traditional Arabic', serif",
+                  direction: "rtl",
+                  color: "#555",
+                  mb: 2,
+                }}
+              >
+                يرجى الانتظار، قد تستغرق هذه العملية من 10 إلى 20 ثانية
+              </Typography>
+              <Typography level="body-xs" sx={{ color: "#999" }}>
+                Generating report — please do not close this window
+              </Typography>
+            </>
+          ) : (
+            <>
+              <Typography level="h4" sx={{ color: "#c0392b", mb: 1 }}>
+                ❌ فشل التصدير
+              </Typography>
+              <Typography level="body-sm" sx={{ color: "#555", direction: "rtl" }}>
+                {exportError}
+              </Typography>
+              <Typography level="body-xs" sx={{ color: "#999", mt: 1 }}>
+                سيتم إغلاق هذه النافذة تلقائياً...
+              </Typography>
+            </>
+          )}
+        </ModalDialog>
+      </Modal>
     </MainLayout>
   );
 };

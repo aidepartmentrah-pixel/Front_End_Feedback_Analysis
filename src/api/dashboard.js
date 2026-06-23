@@ -146,3 +146,41 @@ export async function fetchDashboardDateBounds({
     throw new Error(`Failed to load dashboard date bounds: ${error.message}`);
   }
 }
+
+/**
+ * Fetch operational dashboard summary (HCAT Performance & Delay Monitoring - Session 2)
+ * @param {Object} params - Query parameters
+ * @param {string} params.scope - Scope level: "hospital" | "administration" | "department" | "section"
+ * @param {number} [params.administration_id] - Administration ID (required for administration, department, section scopes)
+ * @param {number} [params.department_id] - Department ID (required for department, section scopes)
+ * @param {number} [params.section_id] - Section ID (required for section scope)
+ * @returns {Promise<Object>} { open_cases, closed_cases, force_closed_cases, late_replies, currently_overdue, extra_time_granted }
+ */
+export async function fetchOperationalSummary({
+  scope,
+  administration_id = null,
+  department_id = null,
+  section_id = null,
+}) {
+  const queryParams = new URLSearchParams();
+  queryParams.append("scope", scope);
+
+  if (administration_id !== null) {
+    queryParams.append("administration_id", administration_id);
+  }
+  if (department_id !== null) {
+    queryParams.append("department_id", department_id);
+  }
+  if (section_id !== null) {
+    queryParams.append("section_id", section_id);
+  }
+
+  const url = `/api/dashboard/operational-summary?${queryParams.toString()}`;
+
+  try {
+    const response = await apiClient.get(url);
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to load operational summary: ${error.message}`);
+  }
+}

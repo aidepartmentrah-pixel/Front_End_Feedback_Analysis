@@ -57,6 +57,23 @@ export const fetchDepartments = async () => {
 };
 
 /**
+ * Fetch all active org units that can be targeted in a complaint:
+ * Administration (type 323), Department (type 325), Section (type 324).
+ * Used in Insert page target unit dropdown.
+ * GET /api/org-units/all-targets
+ * Returns: { units: [...], count: number }
+ */
+export const fetchAllTargetUnits = async () => {
+  try {
+    const response = await apiClient.get("/api/org-units/all-targets");
+    return response.data.units || [];
+  } catch (error) {
+    console.error("Error fetching target units:", error);
+    throw error;
+  }
+};
+
+/**
  * Fetch all valid parent units for section creation
  * Returns only ADMINISTRATION (Type=323) and DEPARTMENT (Type=325) units
  * Sections (Type=324) are excluded as they cannot be parents

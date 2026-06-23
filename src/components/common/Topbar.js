@@ -1,13 +1,12 @@
 import React from "react";
-import { Box, Typography, Sheet, Button } from "@mui/joy";
+import { Box, Typography, Sheet } from "@mui/joy";
 import { useLocation } from "react-router-dom";
-import LogoutIcon from "@mui/icons-material/Logout";
 import { useAuth } from "../../context/AuthContext";
 import brandTheme from "../../theme/brandTheme";
 
 const TopBar = () => {
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   
   // Format role for display
   const formatRole = (role) => {
@@ -39,7 +38,7 @@ const TopBar = () => {
       case "/export":
         return "📤 Export";
       case "/insight":
-        return "🔍 Workflow Insight";
+        return "🔍 Workflow Page";
       case "/inbox":
         return "📥 Workflow Inbox";
       default:
@@ -65,15 +64,11 @@ const TopBar = () => {
         {getPageTitle()}
       </Typography>
       
-      {/* User Info & Logout */}
+      {/* User Info */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 2.5 }}>
-        <Box sx={{ 
-          textAlign: "right",
-          pr: 2,
-          borderRight: `2px solid ${brandTheme.topbar.borderBottom}`
-        }}>
-          <Typography level="body-sm" sx={{ 
-            color: brandTheme.topbar.userText, 
+        <Box sx={{ textAlign: "right" }}>
+          <Typography level="body-sm" sx={{
+            color: brandTheme.topbar.userText,
             fontWeight: 600,
             fontSize: "0.95rem"
           }}>
@@ -81,8 +76,8 @@ const TopBar = () => {
             Welcome, {user?.display_name ?? user?.username ?? "User"}
           </Typography>
           {user?.department_display_name && (
-            <Typography level="body-xs" sx={{ 
-              color: brandTheme.topbar.userTextSecondary, 
+            <Typography level="body-xs" sx={{
+              color: brandTheme.topbar.userTextSecondary,
               fontSize: "0.75rem",
               fontWeight: 500
             }}>
@@ -91,8 +86,8 @@ const TopBar = () => {
             </Typography>
           )}
           {!user?.department_display_name && displayRole && (
-            <Typography level="body-xs" sx={{ 
-              color: brandTheme.topbar.userTextSecondary, 
+            <Typography level="body-xs" sx={{
+              color: brandTheme.topbar.userTextSecondary,
               fontSize: "0.75rem",
               fontWeight: 500
             }}>
@@ -100,31 +95,6 @@ const TopBar = () => {
             </Typography>
           )}
         </Box>
-        <Button
-          size="md"
-          variant="solid"
-          startDecorator={<LogoutIcon />}
-          onClick={logout}
-          sx={{
-            bgcolor: brandTheme.button.primary.background,
-            color: brandTheme.button.primary.text,
-            fontWeight: 600,
-            px: 2.5,
-            py: 1,
-            borderRadius: "8px",
-            boxShadow: brandTheme.shadows.button,
-            transition: "all 0.3s ease",
-            "&:hover": {
-              bgcolor: brandTheme.button.primary.hover,
-              transform: "translateY(-1px)",
-            },
-            "&:active": {
-              transform: "translateY(0)",
-            }
-          }}
-        >
-          Logout
-        </Button>
       </Box>
     </Sheet>
   );

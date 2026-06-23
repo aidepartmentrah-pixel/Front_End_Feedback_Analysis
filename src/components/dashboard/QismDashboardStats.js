@@ -1,16 +1,17 @@
 // src/components/dashboard/QismDashboardStats.js
 import React, { useState } from "react";
 import { Grid, Box, Typography, Card, Alert, Modal, ModalDialog, Sheet } from "@mui/joy";
-import { useAuth } from "../../context/AuthContext";
-import { hasFullOperationalAccess } from "../../utils/roleGuards";
 import MetricCard from "./MetricCard";
+import DashboardSection from "./DashboardSection";
 import ChartCard from "./ChartCard";
 import Top5ClassificationChart from "./Top5ClassificationChart";
-import RecentActivityFeed from "./RecentActivityFeed";
+import UniversalChart from "./UniversalChart";
 import InfoIcon from "@mui/icons-material/Info";
+import BarChartIcon from "@mui/icons-material/BarChart";
+import HealthAndSafetyIcon from "@mui/icons-material/HealthAndSafety";
+import MonitorHeartIcon from "@mui/icons-material/MonitorHeart";
 
-const QismDashboardStats = ({ qism, stats, loading }) => {
-  const { user } = useAuth();
+const QismDashboardStats = ({ qism, stats, loading, operationalSummary = null }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState({ title: "", data: [] });
 
@@ -36,7 +37,13 @@ const QismDashboardStats = ({ qism, stats, loading }) => {
     top5Classification: []
   };
 
-  const recentActivity = stats?.recentActivity || [];
+  // Distribution histograms (Session 5) - read directly off the backend response
+  const distributionCharts = {
+    severity: stats?.charts?.severity?.data || [],
+    harm: stats?.charts?.harm?.data || [],
+    category: stats?.charts?.category?.data || [],
+    subcategory: stats?.charts?.subcategory?.data || [],
+  };
 
   // Skip the old mock data object
 const _oldMockData = {
@@ -202,68 +209,106 @@ const _oldMockData = {
             </Box>
           </Alert>
 
-          {/* Metrics Row */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid xs={12} sm={6} md={2.4}>
-          <MetricCard 
-            title="Total Incidents / Patients" 
-            value={`${metrics.totalIncidents} / ${metrics.uniquePatients}`} 
-            color="#667eea"
-            trend={trends.incidentsPatients}
-          />
-        </Grid>
-        <Grid xs={12} sm={6} md={2.4}>
-          <MetricCard
-            title="Open / Closed / Forcibly Closed"
-            value={`${metrics.openClosed.open} / ${metrics.openClosed.closed} / ${metrics.openClosed.forciblyClosed}`}
-            color="#ff4757"
-            trend={trends.openClosed}
-          />
-        </Grid>
-        <Grid xs={12} sm={6} md={2.4}>
-          <MetricCard
-            title="Severity"
-            value={`H:${metrics.severityBreakdown.high} M:${metrics.severityBreakdown.medium} L:${metrics.severityBreakdown.low}`}
-            color="#ffa502"
-            trend={trends.severity}
-          />
-        </Grid>
-        <Grid xs={12} sm={6} md={2.4}>
-          <MetricCard
-            title="Domain"
-            value={`C:${metrics.domainBreakdown.clinical} M:${metrics.domainBreakdown.management} R:${metrics.domainBreakdown.relational}`}
-            color="#2ed573"
-            trend={trends.domain}
-          />
-        </Grid>
-        <Grid xs={12} sm={6} md={2.4}>
-          <MetricCard
-            title="Red Flags"
-            value={metrics.redFlags}
-            color="#ff4757"
-            trend={trends.redFlags}
-          />
-        </Grid>
-      </Grid>
+          {/* ── Section 1: Operational Overview ── */}
+          <DashboardSection title="Operational Overview" icon={<BarChartIcon />} accentColor="#667eea">
+            <Grid container spacing={2}>
+              <Grid xs={12} sm={4}>
+                <MetricCard title="Total Incidents / Patients" value={`${metrics.totalIncidents} / ${metrics.uniquePatients}`} color="#667eea" trend={trends.incidentsPatients} subtitle="All cases" />
+              </Grid>
+              <Grid xs={12} sm={4}>
+                <MetricCard title="Open Cases" value={operationalSummary?.open_cases ?? 0} color="#2ed573" subtitle="Active cases" />
+              </Grid>
+              <Grid xs={12} sm={4}>
+                <MetricCard title="Closed Cases" value={operationalSummary?.closed_cases ?? 0} color="#667eea" subtitle="Resolved cases" />
+              </Grid>
+            </Grid>
+          </DashboardSection>
+
+          {/* ── Section 2: Quality Indicators ── */}
+          <DashboardSection title="Quality Indicators" icon={<HealthAndSafetyIcon />} accentColor="#a29bfe">
+            <Grid container spacing={2}>
+              <Grid xs={12} sm={4}>
+                <MetricCard title="Severity" color="#ffa502" rows={[
+                  { label: "High",   value: metrics.severityBreakdown?.high   ?? 0, color: "#ff4757" },
+                  { label: "Medium", value: metrics.severityBreakdown?.medium ?? 0, color: "#ffa502" },
+                  { label: "Low",    value: metrics.severityBreakdown?.low    ?? 0, color: "#2ed573" },
+                ]} />
+              </Grid>
+              <Grid xs={12} sm={4}>
+                <MetricCard title="Domain" color="#2ed573" rows={[
+                  { label: "Clinical",   value: metrics.domainBreakdown?.clinical   ?? 0, color: "#667eea" },
+                  { label: "Management", value: metrics.domainBreakdown?.management ?? 0, color: "#a29bfe" },
+                  { label: "Relational", value: metrics.domainBreakdown?.relational ?? 0, color: "#00cec9" },
+                ]} />
+              </Grid>
+              <Grid xs={12} sm={4}>
+                <MetricCard title="Ordinary / Red Flag / Never Event" color="#ff4757" rows={[
+                  { label: "Ordinary",    value: metrics.ordinary    ?? 0, color: "#2ed573" },
+                  { label: "Red Flag",    value: metrics.redFlags    ?? 0, color: "#ff4757" },
+                  { label: "Never Event", value: metrics.neverEvents ?? 0, color: "#ff4757" },
+                ]} />
+              </Grid>
+            </Grid>
+          </DashboardSection>
+
+          {/* ── Section 3: Workflow Health ── */}
+          {(() => {
+            const forceClosed  = operationalSummary?.force_closed_cases ?? 0;
+            const overdueCount = operationalSummary?.currently_overdue  ?? 0;
+            const forcePct     = metrics.totalIncidents > 0 ? Math.round((forceClosed / metrics.totalIncidents) * 100) : 0;
+            return (
+              <DashboardSection title="Workflow Health" icon={<MonitorHeartIcon />} accentColor="#fd79a8">
+                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                  {[
+                    <MetricCard key="late"    title="Late Replies"       value={operationalSummary?.late_replies ?? 0} color="#ffa502" subtitle="Cases awaiting response" />,
+                    <MetricCard key="force"   title="Force Closed"       value={forceClosed}  color="#ff4757" subtitle={`${forcePct}% of total cases`} badge={forceClosed > 0 ? "Requires review" : null} />,
+                    <MetricCard key="overdue" title="Currently Overdue"  value={overdueCount} color={overdueCount > 0 ? "#ff4757" : "#2ed573"} subtitle={overdueCount > 0 ? "Past due cases" : "On track"} />,
+                    <MetricCard key="extra"   title="Extra Time Granted" value={operationalSummary?.extra_time_granted ?? 0} color="#2ed573" subtitle="Cases with extended time" />,
+                    <MetricCard key="notices" title="Notices"            value={metrics?.noticeCount ?? 0} color="#00cec9" subtitle="System notices" />,
+                  ].map((card, i) => (
+                    <Box key={i} sx={{ flex: "1 1 160px", minWidth: 0 }}>{card}</Box>
+                  ))}
+                </Box>
+              </DashboardSection>
+            );
+          })()}
 
       {/* Chart */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid xs={12}>
           <ChartCard title="Top 5 Classifications">
-            <Top5ClassificationChart 
+            <Top5ClassificationChart
               data={charts.top5Classification}
               onBarClick={handleChartClick}
             />
           </ChartCard>
         </Grid>
+        <Grid xs={12} md={6}>
+          <ChartCard title="Stage Histogram">
+            <UniversalChart data={stats?.charts?.stage?.data || []} type="line" height={350} />
+          </ChartCard>
+        </Grid>
+        <Grid xs={12} md={6}>
+          <ChartCard title="Severity Distribution">
+            <UniversalChart data={distributionCharts.severity} type="donut" height={350} />
+          </ChartCard>
+        </Grid>
+        <Grid xs={12} md={6}>
+          <ChartCard title="Harm Distribution">
+            <UniversalChart data={distributionCharts.harm} type="donut" height={350} />
+          </ChartCard>
+        </Grid>
+        <Grid xs={12} md={6}>
+          <ChartCard title="Category Distribution">
+            <UniversalChart data={distributionCharts.category} type="line" height={350} />
+          </ChartCard>
+        </Grid>
+        <Grid xs={12} md={6}>
+          <ChartCard title="Subcategory Distribution">
+            <UniversalChart data={distributionCharts.subcategory} type="bar" height={350} layout="horizontal" />
+          </ChartCard>
+        </Grid>
       </Grid>
-
-      {/* Recent Activity Feed - Hidden for limited admins (3 monkeys) */}
-      {hasFullOperationalAccess(user) && (
-        <Box sx={{ mb: 3 }}>
-          <RecentActivityFeed incidents={recentActivity} />
-        </Box>
-      )}
 
       {/* Section-Specific Insights */}
       <Card sx={{ p: 3, background: "linear-gradient(135deg, #f5f7ff 0%, #fff 100%)" }}>

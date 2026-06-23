@@ -99,8 +99,8 @@ const AddDepartmentForm = ({ onAdd, departments, viewMode }) => {
         background: "linear-gradient(135deg, #f5f7ff 0%, #fff 100%)",
       }}
     >
-      <Typography level="h4" sx={{ mb: 2, color: theme.colors.primary, fontWeight: 700 }}>
-        ➕ Add New Department
+      <Typography level="h4" sx={{ mb: 2, color: theme.colors.primary, fontWeight: 700, fontFamily: theme.settings.fontFamily }}>
+        Add New Department
       </Typography>
 
       <form onSubmit={handleSubmit}>

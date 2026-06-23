@@ -103,8 +103,8 @@ const PatientTable = ({ patients, onEdit, onDelete, loading, totalCount }) => {
       {/* Header with Search */}
       <Box sx={{ p: 2, borderBottom: "1px solid #e0e0e0" }}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-          <Typography level="h4" sx={{ color: theme.colors.primary, fontWeight: 700 }}>
-            🏥 Reserve Patients
+          <Typography level="h4" sx={{ color: theme.colors.primary, fontWeight: 700, fontFamily: theme.settings.fontFamily }}>
+            Reserve Patients
           </Typography>
           <Chip color="primary" variant="soft">
             Total: {totalCount || patients.length}
@@ -131,7 +131,7 @@ const PatientTable = ({ patients, onEdit, onDelete, loading, totalCount }) => {
       {/* Empty State */}
       {!loading && filteredPatients.length === 0 && (
         <Box sx={{ p: 4, textAlign: "center" }}>
-          <Typography level="body-md" sx={{ color: "#666" }}>
+          <Typography level="body-md" sx={{ color: theme.colors.textSecondary }}>
             {searchTerm
               ? "No patients found matching your search."
               : "No patients added yet. Add your first patient above!"}
@@ -146,7 +146,7 @@ const PatientTable = ({ patients, onEdit, onDelete, loading, totalCount }) => {
           sx={{
             "& thead th": {
               fontWeight: 700,
-              background: "linear-gradient(135deg, #f5f7ff 0%, #fff 100%)",
+              background: theme.colors.surfaceHover,
               color: theme.colors.primary,
             },
             "& tbody tr:hover": {
@@ -193,7 +193,7 @@ const PatientTable = ({ patients, onEdit, onDelete, loading, totalCount }) => {
                     {patient.full_name || `${patient.first_name || ""} ${patient.middle_name || ""} ${patient.last_name || ""}`.trim()}
                   </Typography>
                   {patient.mother_name && (
-                    <Typography level="body-xs" sx={{ color: "#666" }}>
+                    <Typography level="body-xs" sx={{ color: theme.colors.textSecondary }}>
                       Mother: {patient.mother_name}
                     </Typography>
                   )}
@@ -205,7 +205,7 @@ const PatientTable = ({ patients, onEdit, onDelete, loading, totalCount }) => {
                     {patient.phone_number || "-"}
                   </Typography>
                   {patient.phone_number2 && (
-                    <Typography level="body-xs" sx={{ color: "#666" }}>
+                    <Typography level="body-xs" sx={{ color: theme.colors.textSecondary }}>
                       {patient.phone_number2}
                     </Typography>
                   )}
@@ -294,7 +294,7 @@ const PatientTable = ({ patients, onEdit, onDelete, loading, totalCount }) => {
       {/* Footer with count */}
       {!loading && filteredPatients.length > 0 && (
         <Box sx={{ p: 2, borderTop: "1px solid #e0e0e0", textAlign: "center" }}>
-          <Typography level="body-sm" sx={{ color: "#666" }}>
+          <Typography level="body-sm" sx={{ color: theme.colors.textSecondary }}>
             Showing {filteredPatients.length} of {totalCount || patients.length} patients
             {searchTerm && ` (filtered)`}
           </Typography>

@@ -17,6 +17,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import EmailIcon from "@mui/icons-material/Email";
+import theme from "../../theme";
 
 const UsersTable = ({ users, onCreateClick, onEditClick, onDeleteClick, onBulkDeleteClick }) => {
   const [sortConfig, setSortConfig] = useState({ key: "username", direction: "asc" });
@@ -95,7 +96,7 @@ const UsersTable = ({ users, onCreateClick, onEditClick, onDeleteClick, onBulkDe
       {/* Toolbar */}
       <Card sx={{ p: 2, mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Typography level="h4">Users Management</Typography>
+          <Typography level="h4" sx={{ fontFamily: theme.settings.fontFamily, fontWeight: 700, color: theme.settings.headerColor }}>Users Management</Typography>
           {selectedUserIds.length > 0 && (
             <Chip color="primary" size="lg">
               {selectedUserIds.length} selected

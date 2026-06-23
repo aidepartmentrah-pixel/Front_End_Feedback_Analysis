@@ -3,8 +3,6 @@ import React, { useState } from "react";
 import { Card, Typography, Table, Sheet, Box, Button } from "@mui/joy";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 
 const DomainTrendTable = ({ data }) => {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -18,18 +16,6 @@ const DomainTrendTable = ({ data }) => {
       </Card>
     );
   }
-
-  const getTrendIcon = (direction) => {
-    if (direction === "increasing") return <TrendingUpIcon sx={{ fontSize: "16px", color: "#ff4757" }} />;
-    if (direction === "decreasing") return <TrendingDownIcon sx={{ fontSize: "16px", color: "#2ed573" }} />;
-    return <span style={{ fontSize: "12px", color: "#999" }}>—</span>;
-  };
-
-  const getTrendColor = (direction) => {
-    if (direction === "increasing") return "#ff4757";
-    if (direction === "decreasing") return "#2ed573";
-    return "#999";
-  };
 
   return (
     <Card sx={{ p: 3, mb: 3 }}>
@@ -68,8 +54,6 @@ const DomainTrendTable = ({ data }) => {
                 <tr style={{ background: "rgba(102, 126, 234, 0.1)" }}>
                   <th style={{ width: "150px", fontWeight: 700 }}>Domain</th>
                   <th style={{ textAlign: "center", width: "100px", fontWeight: 700 }}>Total</th>
-                  <th style={{ textAlign: "center", width: "100px", fontWeight: 700 }}>Trend</th>
-                  <th style={{ textAlign: "center", width: "100px", fontWeight: 700 }}>% Change</th>
                 </tr>
               </thead>
               <tbody>
@@ -90,19 +74,6 @@ const DomainTrendTable = ({ data }) => {
                     </td>
                     <td style={{ textAlign: "center", fontWeight: 700, fontSize: "15px" }}>
                       {item.total}
-                    </td>
-                    <td style={{ textAlign: "center" }}>
-                      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 0.5 }}>
-                        {getTrendIcon(item.trend_direction)}
-                        <span style={{ fontSize: "12px", textTransform: "capitalize" }}>
-                          {item.trend_direction || "N/A"}
-                        </span>
-                      </Box>
-                    </td>
-                    <td style={{ textAlign: "center" }}>
-                      <span style={{ color: getTrendColor(item.trend_direction), fontWeight: 600 }}>
-                        {item.trend_percentage !== null ? `${item.trend_percentage}%` : "N/A"}
-                      </span>
                     </td>
                   </tr>
                 ))}

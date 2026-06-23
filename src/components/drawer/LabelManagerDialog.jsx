@@ -123,13 +123,17 @@ const LabelManagerDialog = ({ open, onClose }) => {
   };
 
   return (
-    <Modal open={open} onClose={onClose}>
-      <ModalDialog sx={{ minWidth: 600, maxWidth: '90vw' }}>
-        <ModalClose />
-        <Typography level="h4" sx={{ mb: 2 }}>
-          Manage Labels
-        </Typography>
-
+    <Modal
+      open={open}
+      onClose={onClose}
+      sx={{ zIndex: 2000, backdropFilter: 'blur(4px)', backgroundColor: 'rgba(0,0,0,0.55)' }}
+    >
+      <ModalDialog sx={{ width: { xs: '95vw', sm: '600px' }, maxWidth: '680px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', p: 0 }}>
+        <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid', borderColor: 'divider', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography level="h4">Manage Labels</Typography>
+          <ModalClose sx={{ position: 'relative', top: 'unset', right: 'unset', mt: 0 }} />
+        </Box>
+        <Box sx={{ flex: 1, overflowY: 'auto', px: 3, py: 2.5 }}>
         {/* Error/Success Messages */}
         {error && (
           <Alert color="danger" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -198,11 +202,13 @@ const LabelManagerDialog = ({ open, onClose }) => {
                 </tr>
               </thead>
               <tbody>
-                {Array.isArray(labels) && labels.map((label) => (
-                  <React.Fragment key={label.id}>
+                {Array.isArray(labels) && labels.map((label) => {
+                  const labelId = label.label_id || label.id;
+                  return (
+                  <React.Fragment key={labelId}>
                     <tr>
                       <td>
-                        <Typography level="body-sm">{label.id}</Typography>
+                        <Typography level="body-sm">{labelId}</Typography>
                       </td>
                       <td>
                         <Typography level="body-sm">
@@ -210,14 +216,14 @@ const LabelManagerDialog = ({ open, onClose }) => {
                         </Typography>
                       </td>
                       <td>
-                        {deleteConfirmId === label.id ? (
+                        {deleteConfirmId === labelId ? (
                           <Box sx={{ display: 'flex', gap: 0.5 }}>
                             <Button
                               size="sm"
                               color="danger"
                               variant="solid"
-                              onClick={() => handleDisableLabel(label.id)}
-                              loading={deletingId === label.id}
+                              onClick={() => handleDisableLabel(labelId)}
+                              loading={deletingId === labelId}
                             >
                               Confirm
                             </Button>
@@ -234,7 +240,7 @@ const LabelManagerDialog = ({ open, onClose }) => {
                           <IconButton
                             size="sm"
                             color="danger"
-                            onClick={() => setDeleteConfirmId(label.id)}
+                            onClick={() => setDeleteConfirmId(labelId)}
                             disabled={deletingId !== null}
                           >
                             <DeleteIcon />
@@ -243,13 +249,17 @@ const LabelManagerDialog = ({ open, onClose }) => {
                       </td>
                     </tr>
                   </React.Fragment>
-                ))}
+                  );
+                })}
               </tbody>
             </Table>
           </Box>
         )}
 
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+        </Box>{/* end scrollable content */}
+
+        {/* Footer */}
+        <Box sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
           <Button variant="outlined" onClick={onClose}>
             Close
           </Button>

@@ -46,6 +46,7 @@
     ]
   },
   "devDependencies": {
-    "msw": "^2.12.7"
+    "msw": "^2.12.7",
+    "playwright": "^1.61.0"
   }
 }

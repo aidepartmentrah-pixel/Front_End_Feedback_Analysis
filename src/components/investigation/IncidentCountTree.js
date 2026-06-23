@@ -4,25 +4,35 @@ import { Box, Card, Typography, Button } from "@mui/joy";
 import DownloadIcon from "@mui/icons-material/Download";
 import html2canvas from "html2canvas";
 
-const TreeNode = ({ name, displayValue, level, x, y, children, parentX, parentY, nodeColor, nodeSize = "normal", isVirtualRoot = false }) => {
+const TreeNode = ({
+  name, displayValue, level, x, y, children,
+  parentX, parentY, parentWidth, parentHeight,
+  nodeColor, nodeSize = "normal", countScale = 1,
+  isVirtualRoot = false,
+}) => {
   // Default neutral colors (used for Number of Incidents tree)
   const defaultColors = {
-    '-1': { bg: "#1f2937", text: "#fff", border: "#111827" },  // Virtual hospital root
+    '-1': { bg: "#1f2937", text: "#fff", border: "#111827" },
     0: { bg: "#9ca3af", text: "#fff", border: "#6b7280" },
     1: { bg: "#9ca3af", text: "#fff", border: "#6b7280" },
     2: { bg: "#9ca3af", text: "#fff", border: "#6b7280" },
     3: { bg: "#9ca3af", text: "#fff", border: "#6b7280" },
   };
 
-  // Use provided color or default
   const color = nodeColor || defaultColors[level] || defaultColors[3];
-  
-  // Dynamic sizing based on content and node size
-  const sizeMultiplier = nodeSize === "large" ? 1.5 : nodeSize === "small" ? 0.8 : 1;
-  const nodeWidth = 240 * sizeMultiplier;
-  const nodeHeight = 85 * sizeMultiplier;
 
-  // For virtual root, just render children without showing the root node itself
+  // For large (multi-line) nodes don't apply count scaling to avoid text overflow.
+  // Normal nodes: scale width only (height is fixed so the Arabic title always has room).
+  const BASE_WIDTH  = 200;
+  const BASE_HEIGHT = 90; // fixed — enough for 1-line title + value box
+  const widthScale  = nodeSize === "large" ? 1.5 : countScale;
+  const nodeWidth   = Math.round(BASE_WIDTH  * widthScale);
+  const nodeHeight  = nodeSize === "large" ? Math.round(BASE_HEIGHT * 1.5) : BASE_HEIGHT;
+  const fontSize    = nodeSize === "large" ? "0.82rem" : "0.8rem";
+  const valueFontSize = nodeSize === "large" ? "0.82rem"
+    : `${Math.max(0.7, 0.88 * countScale).toFixed(2)}rem`;
+  const lineThickness = Math.max(1.5, 2.5 * Math.min(countScale, 1.4));
+
   if (isVirtualRoot) {
     return (
       <g>
@@ -30,7 +40,7 @@ const TreeNode = ({ name, displayValue, level, x, y, children, parentX, parentY,
           <TreeNode
             key={child.node_id || idx}
             {...child}
-            parentX={undefined}  // No parent for root administrations
+            parentX={undefined}
             parentY={undefined}
           />
         ))}
@@ -38,17 +48,21 @@ const TreeNode = ({ name, displayValue, level, x, y, children, parentX, parentY,
     );
   }
 
+  // Use the parent's actual width/height for line origin so lines meet edges correctly
+  const lineX1 = parentX !== undefined ? parentX + (parentWidth  ?? nodeWidth)  : undefined;
+  const lineY1 = parentY !== undefined ? parentY + (parentHeight ?? nodeHeight) / 2 : undefined;
+
   return (
     <g>
       {/* Connecting line from parent */}
-      {parentX !== undefined && parentY !== undefined && (
+      {lineX1 !== undefined && lineY1 !== undefined && (
         <line
-          x1={parentX + nodeWidth}
-          y1={parentY + nodeHeight / 2}
+          x1={lineX1}
+          y1={lineY1}
           x2={x}
           y2={y + nodeHeight / 2}
           stroke={color.border}
-          strokeWidth="3"
+          strokeWidth={lineThickness}
           opacity="0.6"
         />
       )}
@@ -59,8 +73,8 @@ const TreeNode = ({ name, displayValue, level, x, y, children, parentX, parentY,
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: "6px",
-            padding: "10px 14px",
+            gap: "5px",
+            padding: "8px 12px",
             backgroundColor: color.bg,
             color: color.text,
             borderRadius: "8px",
@@ -70,21 +84,34 @@ const TreeNode = ({ name, displayValue, level, x, y, children, parentX, parentY,
             fontFamily: "Inter, system-ui, sans-serif",
           }}
         >
-          <span style={{ fontWeight: 700, fontSize: "0.9rem", lineHeight: "1.2" }}>
+          <span style={{
+            fontWeight: 700,
+            fontSize,
+            lineHeight: "1.2",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            direction: "rtl",
+            textAlign: "right",
+          }}>
             {name}
           </span>
           <span
             style={{
-              padding: "6px 10px",
+              padding: "5px 8px",
               borderRadius: "4px",
               backgroundColor: "white",
               color: color.bg,
               fontWeight: 800,
-              fontSize: "0.85rem",
+              fontSize: valueFontSize,
               textAlign: "center",
               whiteSpace: "pre-wrap",
               lineHeight: "1.4",
               wordBreak: "break-word",
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             {displayValue}
@@ -92,20 +119,22 @@ const TreeNode = ({ name, displayValue, level, x, y, children, parentX, parentY,
         </div>
       </foreignObject>
 
-      {/* Render children */}
+      {/* Render children — pass this node's actual dimensions as parent reference */}
       {children && children.map((child, idx) => (
         <TreeNode
           key={child.node_id || idx}
           {...child}
           parentX={x}
           parentY={y}
+          parentWidth={nodeWidth}
+          parentHeight={nodeHeight}
         />
       ))}
     </g>
   );
 };
 
-const IncidentCountTree = ({ data, selectedAdmin, selectedDept, selectedSection, treeType = "incident_count" }) => {
+const IncidentCountTree = ({ data, periodLabel, selectedAdmin, selectedDept, selectedSection, treeType = "incident_count" }) => {
   const treeRef = useRef(null);
 
   // If no data is provided, show placeholder
@@ -181,17 +210,23 @@ const IncidentCountTree = ({ data, selectedAdmin, selectedDept, selectedSection,
       
       const currentX = X_POSITIONS[level] || X_POSITIONS[X_POSITIONS.length - 1];
       
+      const rawDomains = node.domain_breakdown || {};
       const transformed = {
         node_id: node.node_id,
         name: node.node_name_ar || node.node_name,
         nameEn: node.node_name,
         nameAr: node.node_name_ar,
         count: node.value || 0,
+        totalIncidents: node.total_incidents || 0,
         nodeType: node.node_type,
         level: level,
         x: currentX,
         y: currentY,
-        domains: node.domain_breakdown || { medical: 0, nursing: 0, administrative: 0 },
+        domains: {
+          clinical:   rawDomains["Clinical"]   ?? 0,
+          management: rawDomains["Management"] ?? 0,
+          relational: rawDomains["Relational"] ?? 0,
+        },
         severity: node.severity_breakdown || { low: 0, medium: 0, high: 0 },
         redFlags: node.red_flag_count || 0,
         neverEver: node.never_event_count || 0,
@@ -675,10 +710,10 @@ const IncidentCountTree = ({ data, selectedAdmin, selectedDept, selectedSection,
 
       case "domain_distribution_numbers": {
         // Count-based threshold evaluation
-        const clinical = node.domains.medical;
-        const management = node.domains.administrative;
-        const relational = node.domains.nursing;
-        
+        const clinical = node.domains.clinical;
+        const management = node.domains.management;
+        const relational = node.domains.relational;
+
         const clinicalPass = clinical <= thresholds.domainCount.clinical;
         const managementPass = management <= thresholds.domainCount.management;
         const relationalPass = relational <= thresholds.domainCount.relational;
@@ -696,12 +731,12 @@ const IncidentCountTree = ({ data, selectedAdmin, selectedDept, selectedSection,
       }
 
       case "domain_distribution_percentage": {
-        // Percentage-based threshold evaluation
-        const total = node.count;
-        const clinicalPct = (node.domains.medical / total) * 100;
-        const managementPct = (node.domains.administrative / total) * 100;
-        const relationalPct = (node.domains.nursing / total) * 100;
-        
+        // Percentage-based threshold evaluation — backend already stored percentages
+        const totalInc = node.totalIncidents || 0;
+        const clinicalPct = totalInc > 0 ? node.domains.clinical : 0;
+        const managementPct = totalInc > 0 ? node.domains.management : 0;
+        const relationalPct = totalInc > 0 ? node.domains.relational : 0;
+
         const clinicalPass = clinicalPct <= thresholds.domainPercentage.clinical;
         const managementPass = managementPct <= thresholds.domainPercentage.management;
         const relationalPass = relationalPct <= thresholds.domainPercentage.relational;
@@ -772,6 +807,17 @@ const IncidentCountTree = ({ data, selectedAdmin, selectedDept, selectedSection,
         }
       }
 
+      case "notice_count": {
+        // Teal gradient by hierarchy level — distinct from blue complaint gradient
+        const tealColors = {
+          0: { bg: "#0891b2", text: "#fff", border: "#0e7490" },
+          1: { bg: "#0d9488", text: "#fff", border: "#0f766e" },
+          2: { bg: "#059669", text: "#fff", border: "#047857" },
+          3: { bg: "#047857", text: "#fff", border: "#065f46" },
+        };
+        return tealColors[level] || tealColors[3];
+      }
+
       default:
         return {
           bg: "#9ca3af",
@@ -788,53 +834,81 @@ const IncidentCountTree = ({ data, selectedAdmin, selectedDept, selectedSection,
     // Evaluate color based on judgment protocol
     transformed.nodeColor = evaluateNodeColor(node, node.level);
     
+    // Count-based scale: width ranges 0.85 (zero) → 1.4 (max count).
+    // Height stays fixed so Arabic title is always readable.
+    const countScale = maxCount > 0
+      ? Math.max(0.85, Math.min(1.4, 0.85 + (node.count / maxCount) * 0.55))
+      : 1;
+
     switch (treeType) {
       case "incident_count":
         transformed.displayValue = node.count.toString();
         transformed.nodeSize = "normal";
+        transformed.countScale = countScale;
         break;
-        
-      case "domain_distribution_numbers":
-        transformed.displayValue = `Clinical: ${node.domains.medical}\nManagement: ${node.domains.administrative}\nRelational: ${node.domains.nursing}`;
+
+      case "domain_distribution_numbers": {
+        const hasData = node.totalIncidents > 0;
+        transformed.displayValue = hasData
+          ? `Clinical: ${node.domains.clinical}\nManagement: ${node.domains.management}\nRelational: ${node.domains.relational}`
+          : "Clinical: 0\nManagement: 0\nRelational: 0";
         transformed.nodeSize = "large";
+        transformed.countScale = 1;
         break;
-        
-      case "domain_distribution_percentage":
-        const total = node.count;
-        const clinicalPct = total > 0 ? ((node.domains.medical / total) * 100).toFixed(1) : "0.0";
-        const managementPct = total > 0 ? ((node.domains.administrative / total) * 100).toFixed(1) : "0.0";
-        const relationalPct = total > 0 ? ((node.domains.nursing / total) * 100).toFixed(1) : "0.0";
-        transformed.displayValue = `Clinical: ${clinicalPct}%\nManagement: ${managementPct}%\nRelational: ${relationalPct}%`;
+      }
+
+      case "domain_distribution_percentage": {
+        const hasData = node.totalIncidents > 0;
+        transformed.displayValue = hasData
+          ? `Clinical: ${node.domains.clinical.toFixed(1)}%\nManagement: ${node.domains.management.toFixed(1)}%\nRelational: ${node.domains.relational.toFixed(1)}%`
+          : "Clinical: 0.0%\nManagement: 0.0%\nRelational: 0.0%";
         transformed.nodeSize = "large";
+        transformed.countScale = 1;
         break;
-        
-      case "severity_distribution_numbers":
-        transformed.displayValue = `Low: ${node.severity.low}\nMedium: ${node.severity.medium}\nHigh: ${node.severity.high}`;
+      }
+
+      case "severity_distribution_numbers": {
+        const sevTotal = node.severity.low + node.severity.medium + node.severity.high;
+        transformed.displayValue = sevTotal === 0
+          ? "Low: 0\nMedium: 0\nHigh: 0"
+          : `Low: ${node.severity.low}\nMedium: ${node.severity.medium}\nHigh: ${node.severity.high}`;
         transformed.nodeSize = "large";
+        transformed.countScale = 1;
         break;
-        
-      case "severity_distribution_percentage":
-        const sevTotal = node.count;
-        const lowPct = sevTotal > 0 ? ((node.severity.low / sevTotal) * 100).toFixed(1) : "0.0";
-        const medSevPct = sevTotal > 0 ? ((node.severity.medium / sevTotal) * 100).toFixed(1) : "0.0";
-        const highPct = sevTotal > 0 ? ((node.severity.high / sevTotal) * 100).toFixed(1) : "0.0";
-        transformed.displayValue = `Low: ${lowPct}%\nMedium: ${medSevPct}%\nHigh: ${highPct}%`;
+      }
+
+      case "severity_distribution_percentage": {
+        const sevCount = node.count;
+        transformed.displayValue = sevCount === 0
+          ? "Low: 0.0%\nMedium: 0.0%\nHigh: 0.0%"
+          : `Low: ${((node.severity.low / sevCount) * 100).toFixed(1)}%\nMedium: ${((node.severity.medium / sevCount) * 100).toFixed(1)}%\nHigh: ${((node.severity.high / sevCount) * 100).toFixed(1)}%`;
         transformed.nodeSize = "large";
+        transformed.countScale = 1;
         break;
-        
+      }
+
       case "red_flag_incidents":
         transformed.displayValue = node.redFlags === 0 ? "0" : `⚠️ ${node.redFlags}`;
         transformed.nodeSize = "normal";
+        transformed.countScale = countScale;
         break;
-        
+
       case "never_event_incidents":
         transformed.displayValue = node.neverEver === 0 ? "✓ 0" : `⚠️ ${node.neverEver}`;
         transformed.nodeSize = "normal";
+        transformed.countScale = countScale;
         break;
-        
+
+      case "notice_count":
+        transformed.displayValue = node.count.toString();
+        transformed.nodeSize = "normal";
+        transformed.countScale = countScale;
+        break;
+
       default:
         transformed.displayValue = node.count.toString();
         transformed.nodeSize = "normal";
+        transformed.countScale = countScale;
     }
     
     if (node.children) {
@@ -866,8 +940,22 @@ const IncidentCountTree = ({ data, selectedAdmin, selectedDept, selectedSection,
     };
   };
 
-  // The API handles filtering now, so we just transform the data
-  // The baseTreeData already represents the filtered view based on scope
+  // ========================================
+  // FIND MAX COUNT FOR SIZE SCALING
+  // ========================================
+  const findMaxCount = (node) => {
+    if (!node) return 0;
+    let max = node.count || 0;
+    if (node.children) {
+      node.children.forEach(c => { max = Math.max(max, findMaxCount(c)); });
+    }
+    return max;
+  };
+  const maxCount = findMaxCount(baseTreeData) || 1;
+
+  // ========================================
+  // PROCESS TREE
+  // ========================================
   const getProcessedTree = () => {
     return transformNodeData(baseTreeData);
   };
@@ -944,6 +1032,7 @@ const IncidentCountTree = ({ data, selectedAdmin, selectedDept, selectedSection,
       "severity_distribution_percentage": "Severity Distribution (Percentage)",
       "red_flag_incidents": "Red Flag Incident",
       "never_event_incidents": "Never Event Incident",
+      "notice_count": "Number of Notices",
     };
     return titles[treeType] || "Incident Tree";
   };
@@ -957,6 +1046,7 @@ const IncidentCountTree = ({ data, selectedAdmin, selectedDept, selectedSection,
       "severity_distribution_percentage": "Evaluates High severity incidents using percentage thresholds. Color reflects policy compliance.",
       "red_flag_incidents": "Critical-risk incidents concentration. Red intensity increases with count (no green state).",
       "never_event_incidents": "Zero-tolerance incidents tracking. Binary judgment: 0 = acceptable (green), ≥1 = violation (red).",
+      "notice_count": "Distribution of Notice records (positive feedback / recognition). Counts notices only — complaints are excluded. Teal color gradient by hierarchy level.",
     };
     return descriptions[treeType] || "Incident distribution tree visualization.";
   };
@@ -972,11 +1062,11 @@ const IncidentCountTree = ({ data, selectedAdmin, selectedDept, selectedSection,
             {getTreeDescription()}
           </Typography>
           {/* Display API metadata */}
-          {data.season_label && (
+          {(periodLabel || data.season_label) && (
             <Typography level="body-xs" sx={{ color: "#999", fontStyle: "italic" }}>
-              📅 Season: {data.season_label} | 
+              📅 Period: {periodLabel || data.season_label} |{" "}
               🔍 Scope: {data.scope.level}
-              {isHospitalWide && ` (${data.tree.length} Administrations)`} | 
+              {isHospitalWide && ` (${data.tree.length} Administrations)`} |{" "}
               📊 Total Incidents: {data.summary?.total_incidents || 0}
             </Typography>
           )}

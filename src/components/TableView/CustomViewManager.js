@@ -33,7 +33,7 @@ import {
   DEFAULT_VIEW_COLUMNS,
 } from "../../api/customViews";
 
-const CustomViewManager = ({ onViewSelect }) => {
+const CustomViewManager = ({ onViewSelect, isAdmin = false }) => {
   const [views, setViews] = useState([]);
   const [selectedView, setSelectedView] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -246,13 +246,15 @@ const CustomViewManager = ({ onViewSelect }) => {
           <Typography level="h4" sx={{ color: "#1976d2" }}>
             📊 Custom Table Views
           </Typography>
-          <Button
-            startDecorator={<AddIcon />}
-            onClick={handleCreateNew}
-            sx={{ ml: "auto" }}
-          >
-            New View
-          </Button>
+          {isAdmin && (
+            <Button
+              startDecorator={<AddIcon />}
+              onClick={handleCreateNew}
+              sx={{ ml: "auto" }}
+            >
+              New View
+            </Button>
+          )}
         </Box>
 
         {error && (
@@ -309,43 +311,45 @@ const CustomViewManager = ({ onViewSelect }) => {
                 onClick={() => handleSelectView(view)}
               >
                 <span>{view.ViewName}</span>
-                <Box sx={{ display: "flex", gap: 0.5 }}>
-                  <IconButton
-                    size="md"
-                    variant="plain"
-                    sx={{
-                      color: "inherit",
-                      "&:hover": {
-                        bgcolor: selectedView && getViewId(selectedView) === viewId ? "rgba(255,255,255,0.2)" : "rgba(33,150,243,0.1)",
-                      },
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      console.log("Edit button clicked for view:", view);
-                      handleEditView(view);
-                    }}
-                  >
-                    <EditIcon sx={{ fontSize: 20 }} />
-                  </IconButton>
-                  <IconButton
-                    size="md"
-                    variant="plain"
-                    color="danger"
-                    sx={{
-                      "&:hover": {
-                        bgcolor: "rgba(211, 47, 47, 0.1)",
-                      },
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      console.log("Delete button clicked");
-                      console.log("viewId to delete:", viewId);
-                      handleDeleteView(viewId);
-                    }}
-                  >
-                    <DeleteIcon sx={{ fontSize: 20 }} />
-                  </IconButton>
-                </Box>
+                {isAdmin && (
+                  <Box sx={{ display: "flex", gap: 0.5 }}>
+                    <IconButton
+                      size="md"
+                      variant="plain"
+                      sx={{
+                        color: "inherit",
+                        "&:hover": {
+                          bgcolor: selectedView && getViewId(selectedView) === viewId ? "rgba(255,255,255,0.2)" : "rgba(33,150,243,0.1)",
+                        },
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log("Edit button clicked for view:", view);
+                        handleEditView(view);
+                      }}
+                    >
+                      <EditIcon sx={{ fontSize: 20 }} />
+                    </IconButton>
+                    <IconButton
+                      size="md"
+                      variant="plain"
+                      color="danger"
+                      sx={{
+                        "&:hover": {
+                          bgcolor: "rgba(211, 47, 47, 0.1)",
+                        },
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log("Delete button clicked");
+                        console.log("viewId to delete:", viewId);
+                        handleDeleteView(viewId);
+                      }}
+                    >
+                      <DeleteIcon sx={{ fontSize: 20 }} />
+                    </IconButton>
+                  </Box>
+                )}
               </Box>
               );
             })}
@@ -354,82 +358,149 @@ const CustomViewManager = ({ onViewSelect }) => {
       </Card>
 
       {/* Create/Edit Modal */}
-      <Modal 
-        open={showDialog} 
+      <Modal
+        open={showDialog}
         onClose={() => setShowDialog(false)}
-        sx={{ zIndex: 2000 }}
+        sx={{
+          zIndex: 2000,
+          backdropFilter: "blur(4px)",
+          backgroundColor: "rgba(0,0,0,0.55)",
+        }}
       >
         <ModalDialog
           sx={{
-            maxWidth: 800,
-            maxHeight: "90vh",
-            overflow: "auto",
-            zIndex: 2000,
+            width: { xs: "95vw", sm: "80vw", md: "820px" },
+            maxWidth: "900px",
+            maxHeight: "88vh",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            p: 0,
+            boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
           }}
         >
-          <DialogTitle>
-            {(() => {
-              const isEditing = editingViewId && editingViewId > 0;
-              console.log("Rendering title - editingViewId:", editingViewId, "isEditing:", isEditing);
-              return isEditing ? "Edit View" : "Create New View";
-            })()}
-          </DialogTitle>
-          <DialogContent>
+          {/* Header */}
+          <Box sx={{ px: 3, py: 2.5, borderBottom: "1px solid", borderColor: "divider", flexShrink: 0 }}>
+            <Typography level="h4" sx={{ fontWeight: 700 }}>
+              {editingViewId && editingViewId > 0 ? "Edit Custom View" : "Create New Custom View"}
+            </Typography>
+            <Typography level="body-sm" sx={{ color: "#888", mt: 0.5 }}>
+              Choose a name and select which columns to display in this view.
+            </Typography>
+          </Box>
+
+          {/* Scrollable content */}
+          <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 2.5 }}>
             {dialogError && (
               <Box
                 sx={{
-                  p: 1,
-                  mb: 2,
+                  p: 1.5,
+                  mb: 2.5,
                   bgcolor: "#ffebee",
                   border: "1px solid #ef5350",
-                  borderRadius: "4px",
+                  borderRadius: "6px",
                   color: "#c62828",
+                  fontSize: "13px",
                 }}
               >
                 {dialogError}
               </Box>
             )}
 
-            <FormControl sx={{ mb: 2 }}>
-              <FormLabel>View Name *</FormLabel>
+            <FormControl sx={{ mb: 3 }}>
+              <FormLabel sx={{ fontWeight: 600 }}>View Name *</FormLabel>
               <Input
                 value={viewName}
                 onChange={(e) => setViewName(e.target.value)}
                 placeholder="e.g., Detailed Case View"
+                sx={{ maxWidth: 360 }}
               />
             </FormControl>
 
-            <FormLabel sx={{ mb: 1, display: "block" }}>
-              Select Columns to Show *
-            </FormLabel>
+            <Box sx={{ mb: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <Typography level="title-sm" sx={{ fontWeight: 700 }}>
+                Select Columns to Display *
+              </Typography>
+              <Button
+                size="sm"
+                variant="plain"
+                color="primary"
+                onClick={() => {
+                  const allSelected = Object.values(selectedColumns).every(Boolean);
+                  const next = {};
+                  DEFAULT_VIEW_COLUMNS.forEach(c => { next[c.key] = !allSelected; });
+                  setSelectedColumns(next);
+                }}
+              >
+                {Object.values(selectedColumns).every(Boolean) ? "Deselect All" : "Select All"}
+              </Button>
+            </Box>
 
-            <Grid container spacing={1}>
-              {DEFAULT_VIEW_COLUMNS.map((col) => (
-                <Grid xs={12} sm={6} key={col.key}>
-                  <FormControl>
-                    <Checkbox
-                      label={col.label}
-                      checked={selectedColumns[col.key] || false}
-                      onChange={(e) =>
-                        setSelectedColumns((prev) => ({
-                          ...prev,
-                          [col.key]: e.target.checked,
-                        }))
-                      }
-                    />
-                  </FormControl>
-                </Grid>
-              ))}
-            </Grid>
-          </DialogContent>
-          <DialogActions>
-            <Button variant="plain" onClick={() => setShowDialog(false)}>
+            {/* Column groups */}
+            {[
+              {
+                label: "Case Identity",
+                keys: ["ShowIncidentNumber", "ShowIncidentRequestCaseID", "ShowFeedbackRecievedDate", "ShowCreatedAt", "ShowCreatedByUserID"],
+              },
+              {
+                label: "Patient & Location",
+                keys: ["ShowPatientName", "ShowIssuingOrgUnitID", "ShowBuildingID", "ShowIsInPatient"],
+              },
+              {
+                label: "Classification",
+                keys: ["ShowDomainID", "ShowCategoryID", "ShowSubCategoryID", "ShowClassificationID", "ShowFeedbackIntentTypeID", "ShowClinicalRiskTypeID", "ShowSourceID"],
+              },
+              {
+                label: "Status & Severity",
+                keys: ["ShowSeverityID", "ShowStageID", "ShowHarmLevelID", "ShowCaseStatusID", "ShowExplanationStatusID"],
+              },
+              {
+                label: "Text & Responses",
+                keys: ["ShowComplaintText", "ShowImmediateAction", "ShowTakenAction", "ShowSectionAnswer", "ShowDepartmentAnswer", "ShowAdministrationAnswer"],
+              },
+              {
+                label: "Operational Indicators",
+                keys: ["ShowTargetDepartment", "ShowSatisfactionStatus", "ShowSatisfactionDate", "ShowRedFlagIndicator", "ShowNeverEventIndicator", "ShowMorbidityIndicator", "ShowLateIndicator", "ShowForceClosedIndicator", "ShowLastEdited"],
+              },
+            ].map(group => {
+              const groupCols = DEFAULT_VIEW_COLUMNS.filter(c => group.keys.includes(c.key));
+              if (groupCols.length === 0) return null;
+              return (
+                <Box key={group.label} sx={{ mb: 2.5 }}>
+                  <Typography level="body-xs" sx={{ fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", mb: 1 }}>
+                    {group.label}
+                  </Typography>
+                  <Grid container spacing={1}>
+                    {groupCols.map((col) => (
+                      <Grid xs={12} sm={6} md={4} key={col.key}>
+                        <Checkbox
+                          label={col.label}
+                          checked={selectedColumns[col.key] || false}
+                          onChange={(e) =>
+                            setSelectedColumns((prev) => ({
+                              ...prev,
+                              [col.key]: e.target.checked,
+                            }))
+                          }
+                          size="sm"
+                        />
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              );
+            })}
+          </Box>
+
+          {/* Footer */}
+          <Box sx={{ px: 3, py: 2, borderTop: "1px solid", borderColor: "divider", display: "flex", justifyContent: "flex-end", gap: 1.5, flexShrink: 0 }}>
+            <Button variant="plain" color="neutral" onClick={() => setShowDialog(false)}>
               Cancel
             </Button>
             <Button variant="solid" color="primary" onClick={handleSaveView}>
-              {editingViewId ? "Update" : "Create"}
+              {editingViewId ? "Update View" : "Create View"}
             </Button>
-          </DialogActions>
+          </Box>
         </ModalDialog>
       </Modal>
     </Box>

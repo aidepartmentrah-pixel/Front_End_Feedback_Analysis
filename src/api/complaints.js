@@ -27,8 +27,12 @@ export async function fetchComplaints(params = {}) {
   
   // Filters
   if (params.issuing_org_unit_id) queryParams.append("issuing_org_unit_id", params.issuing_org_unit_id);
+  if (params.target_department_id) queryParams.append("target_department_id", params.target_department_id);
+  if (params.target_dept_parent_id) queryParams.append("target_dept_parent_id", params.target_dept_parent_id);
+  if (params.target_admin_id) queryParams.append("target_admin_id", params.target_admin_id);
   if (params.domain_id) queryParams.append("domain_id", params.domain_id);
   if (params.category_id) queryParams.append("category_id", params.category_id);
+  if (params.classification_en_id) queryParams.append("classification_en_id", params.classification_en_id);
   if (params.severity_id) queryParams.append("severity_id", params.severity_id);
   if (params.stage_id) queryParams.append("stage_id", params.stage_id);
   if (params.harm_level_id) queryParams.append("harm_level_id", params.harm_level_id);
@@ -44,6 +48,9 @@ export async function fetchComplaints(params = {}) {
   
   // View
   if (params.view) queryParams.append("view", params.view);
+
+  // Tab
+  if (params.tab) queryParams.append("tab", params.tab);
 
   const url = `/api/complaints?${queryParams.toString()}`;
   console.log("📡 Complaints API URL:", url);
@@ -215,12 +222,15 @@ export async function exportComplaints(params = {}) {
   
   // Build query string - params already have _id suffix from TableView
   const queryParams = new URLSearchParams();
-  
+
   // Search
   if (params.search) queryParams.append("search", params.search);
-  
+
   // Filters (already have _id suffix)
   if (params.issuing_org_unit_id) queryParams.append("issuing_org_unit_id", params.issuing_org_unit_id);
+  if (params.target_department_id) queryParams.append("target_department_id", params.target_department_id);
+  if (params.target_dept_parent_id) queryParams.append("target_dept_parent_id", params.target_dept_parent_id);
+  if (params.target_admin_id) queryParams.append("target_admin_id", params.target_admin_id);
   if (params.domain_id) queryParams.append("domain_id", params.domain_id);
   if (params.category_id) queryParams.append("category_id", params.category_id);
   if (params.severity_id) queryParams.append("severity_id", params.severity_id);
@@ -231,13 +241,14 @@ export async function exportComplaints(params = {}) {
   if (params.month) queryParams.append("month", params.month);
   if (params.start_date) queryParams.append("start_date", params.start_date);
   if (params.end_date) queryParams.append("end_date", params.end_date);
-  
+
   // Sorting
   if (params.sort_by) queryParams.append("sort_by", params.sort_by);
   if (params.sort_order) queryParams.append("sort_order", params.sort_order);
-  
-  // View mode
+
+  // View mode and active tab
   if (params.view) queryParams.append("view", params.view);
+  if (params.tab) queryParams.append("tab", params.tab);
 
   const url = `/api/complaints/export?${queryParams.toString()}`;
   console.log("📤 Export URL:", url);
@@ -366,4 +377,21 @@ export async function updateRecord(recordId, payload) {
     console.error("❌ Error updating record:", error.message);
     throw error;
   }
+}
+
+export async function markAsReady(caseId) {
+  const response = await apiClient.post(`/api/records/mark-ready/${caseId}`);
+  return response.data;
+}
+
+export async function publishComplaint(caseId) {
+  const response = await apiClient.post(`/api/records/publish/${caseId}`);
+  return response.data;
+}
+
+export async function bulkPublishComplaints(caseIds = null) {
+  const response = await apiClient.post("/api/records/bulk-publish", {
+    case_ids: caseIds,
+  });
+  return response.data;
 }

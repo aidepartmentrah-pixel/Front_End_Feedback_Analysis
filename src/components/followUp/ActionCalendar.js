@@ -1,5 +1,5 @@
 // src/components/followUp/ActionCalendar.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Typography, Card, Chip, IconButton, Tooltip, Button, Sheet } from "@mui/joy";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -9,8 +9,25 @@ import ErrorIcon from "@mui/icons-material/Error";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import CloseIcon from "@mui/icons-material/Close";
+import { parseDueDate, formatDueDate, getToday } from "../../utils/dateOnly";
 
-const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction }) => {
+const statusChipProps = (displayStatus) => {
+  switch (displayStatus) {
+    case 'Overdue':  return { color: 'danger',  label: 'Overdue' };
+    case 'Due Today': return { color: 'warning', label: 'Due Today' };
+    case 'Upcoming': return { color: 'primary',  label: 'Upcoming' };
+    case 'Completed': return { color: 'success', label: 'Completed' };
+    default:         return { color: 'neutral',  label: displayStatus || 'Active' };
+  }
+};
+
+const formatDisplayDate = (dueDateStr) => {
+  if (!dueDateStr) return null;
+  const d = parseDueDate(dueDateStr);
+  return d ? d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : null;
+};
+
+const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction, selectedActionId }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [hoveredDay, setHoveredDay] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
@@ -23,6 +40,18 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction 
   const daysInMonth = lastDay.getDate();
   const startingDayOfWeek = (firstDay.getDay() + 6) % 7; // Adjust to make Monday = 0
 
+  // Table → Calendar: jump to the month containing the selected action's due date
+  useEffect(() => {
+    if (selectedActionId == null) return;
+    const selected = actions.find(a => a.id === selectedActionId);
+    if (!selected || !selected.dueDate) return;
+    const due = parseDueDate(selected.dueDate);
+    if (!due) return;
+    if (due.getFullYear() !== year || due.getMonth() !== month) {
+      setCurrentDate(new Date(due.getFullYear(), due.getMonth(), 1));
+    }
+  }, [selectedActionId, actions, year, month]);
+
   const monthNames = [
     "يناير", "فبراير", "مارس", "إبريل", "مايو", "يونيو",
     "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
@@ -32,19 +61,18 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction 
 
   // Get actions for a specific date
   const getActionsForDate = (day) => {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dateStr = formatDueDate(new Date(year, month, day));
     return actions.filter(action => action.dueDate === dateStr);
   };
 
   const isToday = (day) => {
-    const today = new Date();
+    const today = getToday();
     return day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
   };
 
   const isPastDue = (day) => {
-    const today = new Date();
     const checkDate = new Date(year, month, day);
-    return checkDate < today && !isToday(day);
+    return checkDate < getToday() && !isToday(day);
   };
 
   const getPriorityColor = (priority) => {
@@ -59,27 +87,25 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction 
   const getTimingColor = (action) => {
     // Completed actions are always green
     if (action.status === "completed") return "#2ed573";
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const due = new Date(action.dueDate);
-    due.setHours(0, 0, 0, 0);
-    
+
+    const today = getToday();
+    const due = parseDueDate(action.dueDate);
+
     // Overdue
     if (due < today) return "#ff4757";
-    
+
     const in7Days = new Date(today);
     in7Days.setDate(today.getDate() + 7);
-    
+
     // Next 7 days
     if (due >= today && due <= in7Days) return "#ffa502";
-    
+
     const in14Days = new Date(today);
     in14Days.setDate(today.getDate() + 14);
-    
+
     // Next 8-14 days
     if (due > in7Days && due <= in14Days) return "#1e90ff";
-    
+
     // Further out
     return "#999";
   };
@@ -149,6 +175,7 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction 
     const dayActions = getActionsForDate(day);
     const isCurrentDay = isToday(day);
     const isPast = isPastDue(day);
+    const hasSelectedAction = selectedActionId != null && dayActions.some(a => a.id === selectedActionId);
 
     calendarDays.push(
       <Box
@@ -163,6 +190,7 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction 
           background: isCurrentDay ? "rgba(102, 126, 234, 0.08)" : isPast ? "#f9f9f9" : "white",
           borderColor: isCurrentDay ? "#667eea" : "#e0e0e0",
           borderWidth: isCurrentDay ? "2px" : "1px",
+          boxShadow: hasSelectedAction ? "inset 0 0 0 2px rgba(102,126,234,0.5)" : "none",
           position: "relative",
           overflow: "visible",
           cursor: dayActions.length > 0 ? "pointer" : "default",
@@ -171,9 +199,9 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction 
           } : {}
         }}
       >
-        <Typography 
-          level="body-sm" 
-          sx={{ 
+        <Typography
+          level="body-sm"
+          sx={{
             fontWeight: isCurrentDay ? 700 : 600,
             color: isCurrentDay ? "#667eea" : isPast ? "#999" : "#333",
             mb: 0.5
@@ -181,31 +209,42 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction 
         >
           {day}
         </Typography>
-        
+
         {dayActions.length > 0 && (
-          <Box sx={{ 
-            display: "flex", 
+          <Box sx={{
+            display: "flex",
             flexWrap: "wrap",
             gap: 0.5,
             mt: 1
           }}>
-            {dayActions.map(action => (
-              <Chip
-                key={action.id}
-                size="sm"
-                variant="solid"
-                sx={{
-                  background: getTimingColor(action),
-                  fontWeight: 700,
-                  fontSize: "0.75rem",
-                  minWidth: "28px",
-                  height: "28px",
-                  borderRadius: "50%"
-                }}
-              >
-                {actionNumberMap.get(action.id)}
-              </Chip>
-            ))}
+            {dayActions.map(action => {
+              const isSelected = selectedActionId != null && action.id === selectedActionId;
+              return (
+                <Chip
+                  key={action.id}
+                  size="sm"
+                  variant="solid"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onActionClick(action);
+                  }}
+                  sx={{
+                    background: getTimingColor(action),
+                    fontWeight: 700,
+                    fontSize: "0.75rem",
+                    minWidth: "28px",
+                    height: "28px",
+                    borderRadius: "50%",
+                    cursor: "pointer",
+                    boxShadow: isSelected ? "0 0 0 3px rgba(102,126,234,0.6)" : "none",
+                    transform: isSelected ? "scale(1.1)" : "scale(1)",
+                    transition: "transform 0.15s, box-shadow 0.15s",
+                  }}
+                >
+                  {actionNumberMap.get(action.id)}
+                </Chip>
+              );
+            })}
           </Box>
         )}
       </Box>
@@ -305,6 +344,7 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction 
                 color: timingColor
               };
 
+              const isSelected = selectedActionId != null && action.id === selectedActionId;
               return (
                 <Card
                   key={action.id}
@@ -316,6 +356,8 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction 
                     borderRadius: "8px",
                     background: style.bg,
                     borderLeft: `4px solid ${style.color}`,
+                    outline: isSelected ? "2px solid rgba(102,126,234,0.55)" : "none",
+                    outlineOffset: "-1px",
                     cursor: "pointer",
                     flexShrink: 0,
                     transition: "all 0.2s",
@@ -326,15 +368,76 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction 
                   }}
                   onClick={() => onActionClick(action)}
                 >
-                  <Typography level="body-sm" sx={{ fontWeight: 700, mb: 0.5 }}>
-                    {action.actionTitle}
-                  </Typography>
-                  <Typography level="body-xs" sx={{ color: "#666", mb: 0.5 }}>
-                    📍 {action.department} • 👤 {action.assignedTo}
-                  </Typography>
-                  <Typography level="body-xs" sx={{ color: "#666", mb: 1.5, minHeight: "40px" }}>
-                    {action.description?.substring(0, 60)}{action.description?.length > 60 ? '...' : ''}
-                  </Typography>
+                  {/* Title + status chip */}
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1, mb: 1 }}>
+                    <Typography level="body-sm" sx={{ fontWeight: 700, flex: 1, lineHeight: 1.3 }}>
+                      {action.actionTitle}
+                    </Typography>
+                    {action.displayStatus && (() => {
+                      const s = statusChipProps(action.displayStatus);
+                      return (
+                        <Chip size="sm" color={s.color} variant="soft" sx={{ flexShrink: 0, fontSize: "0.65rem" }}>
+                          {s.label}
+                        </Chip>
+                      );
+                    })()}
+                  </Box>
+
+                  {/* Context rows — only render rows where data exists */}
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.4, mb: 1.5 }}>
+                    {formatDisplayDate(action.dueDate) && (
+                      <Box sx={{ display: "flex", gap: 0.5 }}>
+                        <Typography level="body-xs" sx={{ color: "#999", fontWeight: 600, flexShrink: 0 }}>Due:</Typography>
+                        <Typography level="body-xs" sx={{ color: "#444" }}>{formatDisplayDate(action.dueDate)}</Typography>
+                      </Box>
+                    )}
+                    {action.incidentNumber && (
+                      <Box sx={{ display: "flex", gap: 0.5 }}>
+                        <Typography level="body-xs" sx={{ color: "#999", fontWeight: 600, flexShrink: 0 }}>Incident:</Typography>
+                        <Typography level="body-xs" sx={{ color: "#444" }}>{action.incidentNumber}</Typography>
+                      </Box>
+                    )}
+                    {action.patientName && (
+                      <Box sx={{ display: "flex", gap: 0.5 }}>
+                        <Typography level="body-xs" sx={{ color: "#999", fontWeight: 600, flexShrink: 0 }}>Patient:</Typography>
+                        <Typography level="body-xs" sx={{ color: "#444" }}>{action.patientName}</Typography>
+                      </Box>
+                    )}
+                    {action.orgUnitName && (
+                      <Box sx={{ display: "flex", gap: 0.5 }}>
+                        <Typography level="body-xs" sx={{ color: "#999", fontWeight: 600, flexShrink: 0 }}>Unit:</Typography>
+                        <Typography level="body-xs" sx={{ color: "#444" }}>{action.orgUnitName}</Typography>
+                      </Box>
+                    )}
+                    {action.description && (
+                      <Box sx={{ display: "flex", gap: 0.5 }}>
+                        <Typography level="body-xs" sx={{ color: "#999", fontWeight: 600, flexShrink: 0 }}>Note:</Typography>
+                        <Typography level="body-xs" sx={{ color: "#555", fontStyle: "italic" }}>
+                          {action.description.length > 80 ? action.description.substring(0, 80) + '…' : action.description}
+                        </Typography>
+                      </Box>
+                    )}
+                    {action.caseDescription && (
+                      <Typography
+                        level="body-xs"
+                        sx={{
+                          color: "#666",
+                          fontStyle: "italic",
+                          mt: 0.5,
+                          pt: 0.5,
+                          borderTop: "1px solid rgba(0,0,0,0.06)",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                        }}
+                        title={action.caseDescription}
+                      >
+                        {action.caseDescription}
+                      </Typography>
+                    )}
+                  </Box>
+
                   <Box sx={{ display: "flex", gap: 1 }}>
                     <Button
                       size="sm"

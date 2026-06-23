@@ -14,7 +14,7 @@ import './SectionCard.css';
  * Supports both controlled (via isExpanded/onToggleExpand props) 
  * and uncontrolled (internal state) expansion.
  */
-function SectionCard({ section, onForceClose, isExpanded: controlledExpanded, onToggleExpand }) {
+function SectionCard({ section, onFillData, onGiveMoreTime, isExpanded: controlledExpanded, onToggleExpand }) {
   // Internal state for uncontrolled mode
   const [internalExpanded, setInternalExpanded] = useState(false);
 
@@ -64,7 +64,7 @@ function SectionCard({ section, onForceClose, isExpanded: controlledExpanded, on
               👤 Supervisor: {section.supervisor_name}
             </span>
             <span className="pending-count">
-              ⏱️ {section.pending_count} pending subcase{section.pending_count !== 1 ? 's' : ''}
+              ⏱️ {section.pending_count} pending case{section.pending_count !== 1 ? 's' : ''}
             </span>
           </div>
         </div>
@@ -80,7 +80,8 @@ function SectionCard({ section, onForceClose, isExpanded: controlledExpanded, on
               <SubcaseCard
                 key={subcase.subcase_id}
                 subcase={subcase}
-                onForceClose={onForceClose}
+                onFillData={onFillData}
+                onGiveMoreTime={onGiveMoreTime}
               />
             ))}
           </div>

@@ -1,22 +1,26 @@
 // src/components/dashboard/GlobalDashboardStats.js
 import React, { useState } from "react";
 import { Grid, Box, Modal, ModalDialog, Typography, Sheet, Button, Select, Option, IconButton, Menu, MenuItem } from "@mui/joy";
-import { useAuth } from "../../context/AuthContext";
-import { hasFullOperationalAccess } from "../../utils/roleGuards";
 import MetricCard from "./MetricCard";
+import DashboardSection from "./DashboardSection";
 import ChartCard from "./ChartCard";
 import UniversalChart from "./UniversalChart";
-import RecentActivityFeed from "./RecentActivityFeed";
 import TuneIcon from "@mui/icons-material/Tune";
+import BarChartIcon from "@mui/icons-material/BarChart";
+import HealthAndSafetyIcon from "@mui/icons-material/HealthAndSafety";
+import MonitorHeartIcon from "@mui/icons-material/MonitorHeart";
 
-const GlobalDashboardStats = ({ stats, loading, chartModes = {}, setChartModes = () => {}, chartTypes = {}, setChartTypes = () => {} }) => {
-  const { user } = useAuth();
+const GlobalDashboardStats = ({ stats, loading, operationalSummary = null, chartModes = {}, setChartModes = () => {}, chartTypes = {}, setChartTypes = () => {} }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState({ title: "", data: [] });
   const [chartMenuAnchor, setChartMenuAnchor] = useState({
     classification: null,
     stage: null,
-    department: null
+    department: null,
+    severity: null,
+    harm: null,
+    category: null,
+    subcategory: null,
   });
 
   // Default chart modes
@@ -26,11 +30,16 @@ const GlobalDashboardStats = ({ stats, loading, chartModes = {}, setChartModes =
     department_mode: chartModes.department_mode || "issuing"
   };
 
-  // Default chart types
+  // Default chart types - distributed across bar/line/donut so the dashboard
+  // doesn't look monotonous; still user-switchable via the per-chart menu.
   const types = {
     classification: chartTypes.classification || "bar",
-    stage: chartTypes.stage || "bar",
-    department: chartTypes.department || "bar"
+    stage: chartTypes.stage || "line",
+    department: chartTypes.department || "bar",
+    severity: chartTypes.severity || "donut",
+    harm: chartTypes.harm || "donut",
+    category: chartTypes.category || "line",
+    subcategory: chartTypes.subcategory || "bar",
   };
 
   const handleModeChange = (key, value) => {
@@ -77,6 +86,9 @@ const GlobalDashboardStats = ({ stats, loading, chartModes = {}, setChartModes =
     severityBreakdown: stats?.metrics?.severityBreakdown || stats?.severityBreakdown || { high: 0, medium: 0, low: 0 },
     domainBreakdown: stats?.metrics?.domainBreakdown || stats?.domainBreakdown || { clinical: 0, management: 0, relational: 0 },
     redFlags: stats?.metrics?.redFlags || stats?.redFlags || 0,
+    neverEvents: stats?.metrics?.neverEvents || stats?.neverEvents || 0,
+    ordinary: stats?.metrics?.ordinary || stats?.ordinary || 0,
+    noticeCount: stats?.metrics?.noticeCount || 0,
   };
 
   // Trends may be partial from API, provide defaults
@@ -86,6 +98,8 @@ const GlobalDashboardStats = ({ stats, loading, chartModes = {}, setChartModes =
     severity: stats?.trends?.severity || { value: 0, direction: "neutral" },
     domain: stats?.trends?.domain || { value: 0, direction: "neutral" },
     redFlags: stats?.trends?.redFlags || { value: 0, direction: "neutral" },
+    neverEvents: stats?.trends?.neverEvents || { value: 0, direction: "neutral" },
+    ordinary: stats?.trends?.ordinary || { value: 0, direction: "neutral" },
   };
 
   const charts = {
@@ -115,14 +129,10 @@ const GlobalDashboardStats = ({ stats, loading, chartModes = {}, setChartModes =
       return [...(dataArray || [])]
         .sort((a, b) => (b.count || 0) - (a.count || 0)); // Sort from highest to lowest
     })(),
+    severity: [...(stats?.charts?.severity?.data || [])],
+    harm: [...(stats?.charts?.harm?.data || [])],
+    category: [...(stats?.charts?.category?.data || [])],
   };
-
-  // recentActivity uses timestamp (not date) and numeric severity/status
-  const recentActivity = (stats?.recentActivity || []).map(item => ({
-    ...item,
-    date: item.timestamp || item.date, // Add date field for RecentActivityFeed compatibility
-    caseID: item.caseID || item.id || "N/A",
-  }));
 
   console.log("📊 Mapped metrics:", metrics);
   console.log("📈 Mapped trends:", trends);
@@ -162,6 +172,47 @@ const GlobalDashboardStats = ({ stats, loading, chartModes = {}, setChartModes =
     setModalOpen(true);
   };
 
+  // Reusable chart card: title + type-switcher menu (bar/pie/donut/line) + UniversalChart
+  const renderChartCard = (key, title, data, onBarClick) => (
+    <ChartCard title={title}>
+      <Box sx={{ mb: 2, display: "flex", justifyContent: "flex-end" }}>
+        <IconButton
+          size="sm"
+          onClick={(e) => setChartMenuAnchor(prev => ({ ...prev, [key]: e.currentTarget }))}
+          sx={{ bgcolor: "transparent", border: "1px solid #ddd", borderRadius: "4px" }}
+        >
+          <TuneIcon sx={{ fontSize: "20px" }} />
+        </IconButton>
+        <Menu
+          anchorEl={chartMenuAnchor[key]}
+          open={Boolean(chartMenuAnchor[key])}
+          onClose={() => setChartMenuAnchor(prev => ({ ...prev, [key]: null }))}
+          placement="bottom-end"
+        >
+          {["bar", "pie", "donut", "line"].map(type => (
+            <MenuItem
+              key={type}
+              selected={types[key] === type}
+              onClick={() => {
+                handleTypeChange(key, type);
+                setChartMenuAnchor(prev => ({ ...prev, [key]: null }));
+              }}
+            >
+              {type.charAt(0).toUpperCase() + type.slice(1)}
+            </MenuItem>
+          ))}
+        </Menu>
+      </Box>
+      <UniversalChart
+        data={data}
+        type={types[key]}
+        height={450}
+        layout={types[key] === "bar" ? "horizontal" : "vertical"}
+        onBarClick={onBarClick}
+      />
+    </ChartCard>
+  );
+
   return (
     <Box>
       {loading && (
@@ -172,175 +223,122 @@ const GlobalDashboardStats = ({ stats, loading, chartModes = {}, setChartModes =
 
       {!loading && (
         <>
-          {/* Metrics Row */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid xs={12} sm={6} md={2.4}>
-              <MetricCard 
-                title="Total Incidents / Patients" 
-                value={`${metrics.totalIncidents} / ${metrics.uniquePatients}`} 
-                color="#667eea"
-                trend={trends.incidentsPatients}
-              />
+          {/* ── Section 1: Operational Overview ── */}
+          <DashboardSection title="Operational Overview" icon={<BarChartIcon />} accentColor="#667eea">
+            <Grid container spacing={2}>
+              <Grid xs={12} sm={4}>
+                <MetricCard
+                  title="Total Incidents / Patients"
+                  value={`${metrics.totalIncidents} / ${metrics.uniquePatients}`}
+                  color="#667eea"
+                  trend={trends.incidentsPatients}
+                  subtitle="All cases"
+                />
+              </Grid>
+              <Grid xs={12} sm={4}>
+                <MetricCard
+                  title="Open Cases"
+                  value={operationalSummary?.open_cases ?? 0}
+                  color="#2ed573"
+                  subtitle="Active cases"
+                />
+              </Grid>
+              <Grid xs={12} sm={4}>
+                <MetricCard
+                  title="Closed Cases"
+                  value={operationalSummary?.closed_cases ?? 0}
+                  color="#667eea"
+                  subtitle="Resolved cases"
+                />
+              </Grid>
             </Grid>
-            <Grid xs={12} sm={6} md={2.4}>
-              <MetricCard
-                title="Open / Closed / Forcibly Closed"
-                value={`${metrics.openClosed.open} / ${metrics.openClosed.closed} / ${metrics.openClosed.forciblyClosed}`}
-                color="#ff4757"
-                trend={trends.openClosed}
-              />
+          </DashboardSection>
+
+          {/* ── Section 2: Quality Indicators ── */}
+          <DashboardSection title="Quality Indicators" icon={<HealthAndSafetyIcon />} accentColor="#a29bfe">
+            <Grid container spacing={2}>
+              <Grid xs={12} sm={4}>
+                <MetricCard
+                  title="Severity"
+                  color="#ffa502"
+                  rows={[
+                    { label: "High",   value: metrics.severityBreakdown.high,   color: "#ff4757" },
+                    { label: "Medium", value: metrics.severityBreakdown.medium, color: "#ffa502" },
+                    { label: "Low",    value: metrics.severityBreakdown.low,    color: "#2ed573" },
+                  ]}
+                />
+              </Grid>
+              <Grid xs={12} sm={4}>
+                <MetricCard
+                  title="Domain"
+                  color="#2ed573"
+                  rows={[
+                    { label: "Clinical",    value: metrics.domainBreakdown.clinical,    color: "#667eea" },
+                    { label: "Management",  value: metrics.domainBreakdown.management,  color: "#a29bfe" },
+                    { label: "Relational",  value: metrics.domainBreakdown.relational,  color: "#00cec9" },
+                  ]}
+                />
+              </Grid>
+              <Grid xs={12} sm={4}>
+                <MetricCard
+                  title="Ordinary / Red Flag / Never Event"
+                  color="#ff4757"
+                  rows={[
+                    { label: "Ordinary",     value: metrics.ordinary,    color: "#2ed573" },
+                    { label: "Red Flag",     value: metrics.redFlags,    color: "#ff4757" },
+                    { label: "Never Event",  value: metrics.neverEvents, color: "#ff4757" },
+                  ]}
+                />
+              </Grid>
             </Grid>
-            <Grid xs={12} sm={6} md={2.4}>
-              <MetricCard
-                title="Severity"
-                value={`H:${metrics.severityBreakdown.high} M:${metrics.severityBreakdown.medium} L:${metrics.severityBreakdown.low}`}
-                color="#ffa502"
-                trend={trends.severity}
-              />
-            </Grid>
-            <Grid xs={12} sm={6} md={2.4}>
-              <MetricCard
-                title="Domain"
-                value={`C:${metrics.domainBreakdown.clinical} M:${metrics.domainBreakdown.management} R:${metrics.domainBreakdown.relational}`}
-                color="#2ed573"
-                trend={trends.domain}
-              />
-            </Grid>
-            <Grid xs={12} sm={6} md={2.4}>
-              <MetricCard
-                title="Red Flags"
-                value={metrics.redFlags}
-                color="#ff4757"
-                trend={trends.redFlags}
-              />
-            </Grid>
-          </Grid>
+          </DashboardSection>
+
+          {/* ── Section 3: Workflow Health ── */}
+          {(() => {
+            const forceClosed  = operationalSummary?.force_closed_cases ?? 0;
+            const overdueCount = operationalSummary?.currently_overdue  ?? 0;
+            const forcePct     = metrics.totalIncidents > 0
+              ? Math.round((forceClosed / metrics.totalIncidents) * 100)
+              : 0;
+            return (
+              <DashboardSection title="Workflow Health" icon={<MonitorHeartIcon />} accentColor="#fd79a8">
+                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                  {[
+                    <MetricCard key="late"    title="Late Replies"       value={operationalSummary?.late_replies ?? 0}  color="#ffa502" subtitle="Cases awaiting response" />,
+                    <MetricCard key="force"   title="Force Closed"       value={forceClosed}  color="#ff4757" subtitle={`${forcePct}% of total cases`} badge={forceClosed > 0 ? "Requires review" : null} />,
+                    <MetricCard key="overdue" title="Currently Overdue"  value={overdueCount} color={overdueCount > 0 ? "#ff4757" : "#2ed573"} subtitle={overdueCount > 0 ? "Past due cases" : "On track"} />,
+                    <MetricCard key="extra"   title="Extra Time Granted" value={operationalSummary?.extra_time_granted ?? 0} color="#2ed573" subtitle="Cases with extended time" />,
+                    <MetricCard key="notices" title="Notices"            value={metrics.noticeCount} color="#00cec9" subtitle="System notices" />,
+                  ].map((card, i) => (
+                    <Box key={i} sx={{ flex: "1 1 160px", minWidth: 0 }}>{card}</Box>
+                  ))}
+                </Box>
+              </DashboardSection>
+            );
+          })()}
 
           {/* Charts Row */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid xs={12} md={4}>
-              <ChartCard title="Top 5 Classifications">
-                <Box sx={{ mb: 2, display: "flex", justifyContent: "flex-end" }}>
-                  <IconButton
-                    size="sm"
-                    onClick={(e) => setChartMenuAnchor(prev => ({ ...prev, classification: e.currentTarget }))}
-                    sx={{ bgcolor: "transparent", border: "1px solid #ddd", borderRadius: "4px" }}
-                  >
-                    <TuneIcon sx={{ fontSize: "20px" }} />
-                  </IconButton>
-                  <Menu
-                    anchorEl={chartMenuAnchor.classification}
-                    open={Boolean(chartMenuAnchor.classification)}
-                    onClose={() => setChartMenuAnchor(prev => ({ ...prev, classification: null }))}
-                    placement="bottom-end"
-                  >
-                    {["bar", "pie", "donut", "line"].map(type => (
-                      <MenuItem
-                        key={type}
-                        selected={types.classification === type}
-                        onClick={() => {
-                          handleTypeChange("classification", type);
-                          setChartMenuAnchor(prev => ({ ...prev, classification: null }));
-                        }}
-                      >
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </MenuItem>
-                    ))}
-                  </Menu>
-                </Box>
-                <UniversalChart 
-                  data={charts.top5Classification}
-                  type={types.classification}
-                  height={450}
-                  layout={types.classification === "bar" ? "horizontal" : "vertical"}
-                  onBarClick={(item) => handleChartClick("classification", item)}
-                />
-              </ChartCard>
+              {renderChartCard("classification", "Top 5 Classifications", charts.top5Classification, (item) => handleChartClick("classification", item))}
             </Grid>
             <Grid xs={12} md={4}>
-              <ChartCard title="Stage Histogram">
-                <Box sx={{ mb: 2, display: "flex", justifyContent: "flex-end" }}>
-                  <IconButton
-                    size="sm"
-                    onClick={(e) => setChartMenuAnchor(prev => ({ ...prev, stage: e.currentTarget }))}
-                    sx={{ bgcolor: "transparent", border: "1px solid #ddd", borderRadius: "4px" }}
-                  >
-                    <TuneIcon sx={{ fontSize: "20px" }} />
-                  </IconButton>
-                  <Menu
-                    anchorEl={chartMenuAnchor.stage}
-                    open={Boolean(chartMenuAnchor.stage)}
-                    onClose={() => setChartMenuAnchor(prev => ({ ...prev, stage: null }))}
-                    placement="bottom-end"
-                  >
-                    {["bar", "pie", "donut", "line"].map(type => (
-                      <MenuItem
-                        key={type}
-                        selected={types.stage === type}
-                        onClick={() => {
-                          handleTypeChange("stage", type);
-                          setChartMenuAnchor(prev => ({ ...prev, stage: null }));
-                        }}
-                      >
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </MenuItem>
-                    ))}
-                  </Menu>
-                </Box>
-                <UniversalChart 
-                  data={charts.stageHistogram}
-                  type={types.stage}
-                  height={450}
-                  layout={types.stage === "bar" ? "horizontal" : "vertical"}
-                  onBarClick={(item) => handleChartClick("stage", item)}
-                />
-              </ChartCard>
+              {renderChartCard("stage", "Stage Histogram", charts.stageHistogram, (item) => handleChartClick("stage", item))}
             </Grid>
             <Grid xs={12} md={4}>
-              <ChartCard title="Issuing Department">
-                <Box sx={{ mb: 2, display: "flex", justifyContent: "flex-end" }}>
-                  <IconButton
-                    size="sm"
-                    onClick={(e) => setChartMenuAnchor(prev => ({ ...prev, department: e.currentTarget }))}
-                    sx={{ bgcolor: "transparent", border: "1px solid #ddd", borderRadius: "4px" }}
-                  >
-                    <TuneIcon sx={{ fontSize: "20px" }} />
-                  </IconButton>
-                  <Menu
-                    anchorEl={chartMenuAnchor.department}
-                    open={Boolean(chartMenuAnchor.department)}
-                    onClose={() => setChartMenuAnchor(prev => ({ ...prev, department: null }))}
-                    placement="bottom-end"
-                  >
-                    {["bar", "pie", "donut", "line"].map(type => (
-                      <MenuItem
-                        key={type}
-                        selected={types.department === type}
-                        onClick={() => {
-                          handleTypeChange("department", type);
-                          setChartMenuAnchor(prev => ({ ...prev, department: null }));
-                        }}
-                      >
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </MenuItem>
-                    ))}
-                  </Menu>
-                </Box>
-                <UniversalChart 
-                  data={charts.issuingDept}
-                  type={types.department}
-                  height={450}
-                  layout={types.department === "bar" ? "horizontal" : "vertical"}
-                  onBarClick={(item) => handleChartClick("department", item)}
-                />
-              </ChartCard>
+              {renderChartCard("department", "Issuing Department", charts.issuingDept, (item) => handleChartClick("department", item))}
+            </Grid>
+            <Grid xs={12} md={4}>
+              {renderChartCard("severity", "Severity Distribution", charts.severity)}
+            </Grid>
+            <Grid xs={12} md={4}>
+              {renderChartCard("harm", "Harm Distribution", charts.harm)}
+            </Grid>
+            <Grid xs={12} md={4}>
+              {renderChartCard("category", "Category Distribution", charts.category)}
             </Grid>
           </Grid>
 
-          {/* Recent Activity Feed - Hidden for limited admins (3 monkeys) */}
-          {hasFullOperationalAccess(user) && (
-            <RecentActivityFeed recentActivity={recentActivity} />
-          )}
         </>
       )}
 

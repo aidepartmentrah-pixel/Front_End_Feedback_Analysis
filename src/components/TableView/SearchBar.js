@@ -6,20 +6,20 @@ import SearchIcon from "@mui/icons-material/Search";
 const SearchBar = ({ value, onChange }) => {
   const [localValue, setLocalValue] = useState(value);
   const isExternalUpdate = useRef(false);
+  const timerRef = useRef(null);
 
   // Debounce: Only call onChange after 500ms of inactivity
   useEffect(() => {
-    // Don't trigger onChange if this update came from external prop sync
     if (isExternalUpdate.current) {
       isExternalUpdate.current = false;
       return;
     }
 
-    const timer = setTimeout(() => {
-      onChange(localValue);
+    timerRef.current = setTimeout(() => {
+      onChange(localValue.trim());
     }, 500);
 
-    return () => clearTimeout(timer);
+    return () => clearTimeout(timerRef.current);
   }, [localValue, onChange]);
 
   // Sync with external value changes (without triggering onChange)
@@ -28,11 +28,19 @@ const SearchBar = ({ value, onChange }) => {
     setLocalValue(value);
   }, [value]);
 
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      clearTimeout(timerRef.current);
+      onChange(localValue.trim());
+    }
+  };
+
   return (
     <Input
-      placeholder="Search by complaint number, patient name, text..."
+      placeholder="Search by case number, incident number, patient number..."
       value={localValue}
       onChange={(e) => setLocalValue(e.target.value)}
+      onKeyDown={handleKeyDown}
       startDecorator={<SearchIcon />}
       size="lg"
       sx={{

@@ -112,6 +112,18 @@ export const canViewInsight = (user) => {
 };
 
 /**
+ * FC-S5 — Check if user can access the Manual Fill page.
+ * Only COMPLAINT_SUPERVISOR and WORKER may fill data on behalf of other roles.
+ * @param {Object} user - user object from AuthContext
+ * @returns {boolean}
+ */
+export const canManualFill = (user) => {
+  const role = getPrimaryRole(user);
+  if (!role) return false;
+  return role === 'COMPLAINT_SUPERVISOR' || role === 'WORKER';
+};
+
+/**
  * PHASE J — Check if user can view the Reporting page
  * Maps to pageKey: "reporting"
  * Uses central visibility map
@@ -224,7 +236,7 @@ export const canGenerateSeasonalReports = (user) => {
  */
 export const isSoftwareAdmin = (user) => {
   if (!user || !user.roles || !Array.isArray(user.roles)) return false;
-  return user.roles.includes('SOFTWARE_ADMIN');
+  return user.roles.includes('SOFTWARE_ADMIN') || user.roles.includes('COMPLAINT_SUPERVISOR');
 };
 
 /**

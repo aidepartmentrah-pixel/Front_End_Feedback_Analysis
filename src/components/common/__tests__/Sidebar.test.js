@@ -380,10 +380,10 @@ describe('PHASE J — Sidebar Visibility Contract Tests', () => {
       '📊 Dashboard': 'dashboard',
       '📥 Inbox': 'inbox',
       '📋 Follow Up': 'follow-up',
-      '💡 Insight': 'insight',
+      '💡 Workflow Page': 'insight',
       '📊 Reporting': 'reporting',
       '🔍 Investigation': 'investigation',
-      '📈 Trend Monitoring': 'trend-monitoring',
+      '🎯 Target Analysis': 'trend-monitoring',
       '📋 Table View': 'table-view',
       '➕ Insert Record': 'insert',
       '📋 History': 'history',
@@ -494,10 +494,10 @@ describe('PHASE J — Sidebar Visibility Contract Tests', () => {
       expect(screen.getByText('📊 Dashboard')).toBeInTheDocument();
       expect(screen.getByText('📥 Inbox')).toBeInTheDocument();
       expect(screen.getByText('📋 Follow Up')).toBeInTheDocument();
-      expect(screen.getByText('💡 Insight')).toBeInTheDocument();
+      expect(screen.getByText('💡 Workflow Page')).toBeInTheDocument();
       expect(screen.getByText('📊 Reporting')).toBeInTheDocument();
       expect(screen.getByText('🔍 Investigation')).toBeInTheDocument();
-      expect(screen.getByText('📈 Trend Monitoring')).toBeInTheDocument();
+      expect(screen.getByText('🎯 Target Analysis')).toBeInTheDocument();
       expect(screen.getByText('📋 Table View')).toBeInTheDocument();
       expect(screen.getByText('➕ Insert Record')).toBeInTheDocument();
       expect(screen.getByText('📋 History')).toBeInTheDocument();
@@ -524,7 +524,7 @@ describe('PHASE J — Sidebar Visibility Contract Tests', () => {
       expect(screen.getByText('📊 Dashboard')).toBeInTheDocument();
       expect(screen.getByText('📥 Inbox')).toBeInTheDocument();
       expect(screen.getByText('📋 Follow Up')).toBeInTheDocument();
-      expect(screen.getByText('📈 Trend Monitoring')).toBeInTheDocument();
+      expect(screen.getByText('🎯 Target Analysis')).toBeInTheDocument();
       expect(screen.getByText('🚩 Critical Issues')).toBeInTheDocument();
     });
     
@@ -532,7 +532,7 @@ describe('PHASE J — Sidebar Visibility Contract Tests', () => {
       renderSidebarWithUser(adminAdmin);
       
       // Should NOT see
-      expect(screen.queryByText('💡 Insight')).not.toBeInTheDocument();
+      expect(screen.queryByText('💡 Workflow Page')).not.toBeInTheDocument();
       expect(screen.queryByText('📊 Reporting')).not.toBeInTheDocument();
       expect(screen.queryByText('🔍 Investigation')).not.toBeInTheDocument();
       expect(screen.queryByText('📋 Table View')).not.toBeInTheDocument();
@@ -552,11 +552,11 @@ describe('PHASE J — Sidebar Visibility Contract Tests', () => {
       expect(screen.getByText('📊 Dashboard')).toBeInTheDocument();
       expect(screen.getByText('📥 Inbox')).toBeInTheDocument();
       expect(screen.getByText('📋 Follow Up')).toBeInTheDocument();
-      expect(screen.getByText('📈 Trend Monitoring')).toBeInTheDocument();
+      expect(screen.getByText('🎯 Target Analysis')).toBeInTheDocument();
       expect(screen.getByText('🚩 Critical Issues')).toBeInTheDocument();
       
       // Should NOT see
-      expect(screen.queryByText('💡 Insight')).not.toBeInTheDocument();
+      expect(screen.queryByText('💡 Workflow Page')).not.toBeInTheDocument();
       expect(screen.queryByText('📊 Reporting')).not.toBeInTheDocument();
       expect(screen.queryByText('⚙️ Settings')).not.toBeInTheDocument();
     });
@@ -570,11 +570,11 @@ describe('PHASE J — Sidebar Visibility Contract Tests', () => {
       expect(screen.getByText('📊 Dashboard')).toBeInTheDocument();
       expect(screen.getByText('📥 Inbox')).toBeInTheDocument();
       expect(screen.getByText('📋 Follow Up')).toBeInTheDocument();
-      expect(screen.getByText('📈 Trend Monitoring')).toBeInTheDocument();
+      expect(screen.getByText('🎯 Target Analysis')).toBeInTheDocument();
       expect(screen.getByText('🚩 Critical Issues')).toBeInTheDocument();
       
       // Should NOT see
-      expect(screen.queryByText('💡 Insight')).not.toBeInTheDocument();
+      expect(screen.queryByText('💡 Workflow Page')).not.toBeInTheDocument();
       expect(screen.queryByText('📊 Reporting')).not.toBeInTheDocument();
       expect(screen.queryByText('⚙️ Settings')).not.toBeInTheDocument();
     });

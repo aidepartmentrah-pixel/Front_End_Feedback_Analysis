@@ -1,6 +1,6 @@
 // src/pages/ReportingPage.js
 import React, { useState, useEffect } from "react";
-import { Box, Typography, Card } from "@mui/joy";
+import { Box, Typography, Card, Chip, Modal, ModalDialog, CircularProgress } from "@mui/joy";
 import theme from '../theme';
 import MainLayout from "../components/common/MainLayout";
 import { fetchDashboardHierarchy } from "../api/dashboard";
@@ -8,6 +8,7 @@ import {
   fetchMonthlyReport,
   fetchSeasonalReport,
   exportReport,
+  exportWorkflowActivityReport,
   downloadBlob
 } from "../api/reports";
 import {
@@ -44,6 +45,10 @@ const ReportingPage = () => {
   const [reportData, setReportData] = useState(null);
   const [loadingReport, setLoadingReport] = useState(false);
   const [reportError, setReportError] = useState(null);
+
+  // Export loading overlay state
+  const [exportingWord, setExportingWord] = useState(false);
+  const [exportError, setExportError] = useState(null);
 
   // Fetch hierarchy and available quarters on mount
   useEffect(() => {
@@ -111,6 +116,14 @@ const ReportingPage = () => {
         month: "",
         fromDate: "",
         toDate: ""
+      }));
+    } else if (reportType === "workflow_activity") {
+      // Force date range mode for workflow activity (no month/quarter picker)
+      setFilters(f => ({
+        ...f,
+        dateMode: "range",
+        trimester: "",
+        month: "",
       }));
     }
   }, [reportType]);
@@ -470,6 +483,21 @@ const ReportingPage = () => {
       }
     }
 
+    // Always set scope + hospital_id for workflow_activity (backend requires explicit scope)
+    if (reportType === "workflow_activity") {
+      payload.filters.scope = reportScope.level;
+      payload.filters.hospital_id = hierarchy?.hospital_id || 1;
+      if (reportScope.administrationIds.length > 0) {
+        payload.filters.administration_ids = reportScope.administrationIds.join(",");
+      }
+      if (reportScope.departmentIds.length > 0) {
+        payload.filters.department_ids = reportScope.departmentIds.join(",");
+      }
+      if (reportScope.sectionIds.length > 0) {
+        payload.filters.section_ids = reportScope.sectionIds.join(",");
+      }
+    }
+
     // Add orgunit_id and orgunit_type for seasonal reports (Backend V2 format)
     if (reportType === "seasonal") {
       let orgunit_id = null;
@@ -510,7 +538,111 @@ const ReportingPage = () => {
 
   // Handle Word export
   const handleExportWord = async () => {
-    // Check if report is loaded
+    // Workflow Activity: export-only, no prior generate step required
+    if (reportType === "workflow_activity") {
+      if (!filters.fromDate || !filters.toDate) {
+        alert(
+          "⚠️ الرجاء تحديد نطاق التاريخ\n\nPlease select a date range (From Date and To Date) before exporting."
+        );
+        return;
+      }
+      if (isDateRangeInvalid) {
+        alert(
+          "⚠️ خطأ في نطاق التاريخ\n\nFrom Date must be before To Date."
+        );
+        return;
+      }
+
+      const confirmed = window.confirm(
+        "📄 تصدير تقرير نشاط سير العمل\n\nExport Section Workflow Activity Report?\n\nهل تريد المتابعة؟"
+      );
+      if (!confirmed) return;
+
+      try {
+        const payload = buildExportPayload();
+        const result = await exportWorkflowActivityReport(payload.filters);
+        downloadBlob(result.blob, result.filename);
+        alert("تم تصدير تقرير نشاط سير العمل بنجاح!\n\nWorkflow Activity Report exported successfully!");
+      } catch (error) {
+        console.error("Workflow activity export error:", error);
+        alert("فشل التصدير\n\nExport failed: " + error.message);
+      }
+      return;
+    }
+
+    // Seasonal comparison export — routes to the correct comparison endpoint
+    if (reportType === "seasonal" && comparisonType !== "single") {
+      const requiredCount = getRequiredSeasonCount();
+      if (!selectedSeasons || selectedSeasons.length !== requiredCount) {
+        alert(
+          `⚠️ الرجاء تحديد ${requiredCount} فصول بالضبط\n` +
+          `Please select exactly ${requiredCount} quarters before exporting.`
+        );
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `📄 تصدير تقرير مقارنة ${requiredCount} فصول\n\n` +
+        `Export ${requiredCount}-Quarter Seasonal Comparison Report?\n\n` +
+        `هل تريد المتابعة؟`
+      );
+      if (!confirmed) return;
+
+      // Resolve orgunit from current scope (same logic as handleGenerateReport)
+      let orgunit_id = hierarchy?.hospital_id || 1;
+      let orgunit_type = 0;
+      if (reportScope.level === "administration") {
+        orgunit_id = reportScope.administrationIds[0] || hierarchy?.hospital_id || 1;
+        orgunit_type = 1;
+      } else if (reportScope.level === "department") {
+        orgunit_id = reportScope.departmentIds[0] || hierarchy?.hospital_id || 1;
+        orgunit_type = 2;
+      } else if (reportScope.level === "section") {
+        orgunit_id = reportScope.sectionIds[0] || hierarchy?.hospital_id || 1;
+        orgunit_type = 3;
+      }
+
+      setExportingWord(true);
+      setExportError(null);
+
+      try {
+        const params = {
+          season_ids: selectedSeasons,
+          orgunit_id: Number(orgunit_id),
+          orgunit_type: orgunit_type,
+          format: "docx",
+        };
+
+        let result;
+        switch (comparisonType) {
+          case "compare-2": result = await generate2QuarterComparison(params); break;
+          case "compare-3": result = await generate3QuarterComparison(params); break;
+          case "compare-4": result = await generate4QuarterComparison(params); break;
+          default: throw new Error("Invalid comparison type");
+        }
+
+        // Extract filename from Content-Disposition or fall back to a sensible default
+        let filename = `Seasonal_Comparison_${requiredCount}Q.docx`;
+        if (result.contentDisposition) {
+          const match = result.contentDisposition.match(/filename[^;=\n]*=\s*["']?([^"'\n;]+)["']?/i);
+          if (match) filename = match[1].trim();
+        }
+
+        setExportingWord(false);
+        downloadBlob(result.blob, filename);
+        alert(
+          `✅ تم تصدير تقرير المقارنة الموسمية بنجاح!\n\n` +
+          `Seasonal comparison exported successfully!\n\nFile: ${filename}`
+        );
+      } catch (error) {
+        console.error("Comparison export error:", error);
+        setExportError(error.message || "فشل التصدير / Export failed");
+        setTimeout(() => { setExportingWord(false); setExportError(null); }, 3500);
+      }
+      return;
+    }
+
+    // Standard monthly/seasonal export — requires a loaded report
     if (!reportData) {
       alert(
         "⚠️ لم يتم توليد التقرير (No Report Loaded)\n\n" +
@@ -531,39 +663,40 @@ const ReportingPage = () => {
       return;
     }
 
-    // Export using centralized API
     try {
-      // Get record count from reportData
       const recordCount = reportData?.data?.length || reportData?.records?.length || "unknown";
       const countText = recordCount !== "unknown" ? `${recordCount} records` : "this report";
-      
-      // Confirmation dialog
+
       const confirmed = window.confirm(
         `📄 Word Export Confirmation\n\n` +
         `You are about to export ${countText}.\n\n` +
         `أنت على وشك تصدير ${recordCount !== "unknown" ? recordCount + " سجل" : "هذا التقرير"}.\n\n` +
         `Continue? هل تريد المتابعة؟`
       );
-      
+
       if (!confirmed) {
         console.log("❌ Word export cancelled by user");
         return;
       }
-      
+
+      setExportingWord(true);
+      setExportError(null);
+
       const payload = buildExportPayload();
-      const result = await exportReport({ 
-        report_type: reportType, 
-        format: "docx", 
-        filters: payload.filters 
+      const result = await exportReport({
+        report_type: reportType,
+        format: "docx",
+        filters: payload.filters
       });
-      
+
+      setExportingWord(false);
       downloadBlob(result.blob, result.filename);
-      
+
       if (result.isZip) {
         alert(
           `تم تصدير التقرير بنجاح!\n\nReport export successful!\n\n` +
           `File: ${result.filename}\n\n` +
-          `ZIP Contents:\n`  +
+          `ZIP Contents:\n` +
           `- Regular seasonal report\n` +
           `- Comparison report with charts\n` +
           `${reportScope.level !== 'hospital' && reportScope.level !== 'section' ? '- Summary report (multi-unit)\n' : ''}\n` +
@@ -576,7 +709,11 @@ const ReportingPage = () => {
       }
     } catch (error) {
       console.error("Word export error:", error);
-      alert("فشل التصدير\n\nExport failed: " + error.message);
+      setExportError(error.message || "فشل التصدير / Export failed");
+      setTimeout(() => {
+        setExportingWord(false);
+        setExportError(null);
+      }, 3500);
     }
   };
 
@@ -603,7 +740,7 @@ const ReportingPage = () => {
         <ReportTypeSwitch reportType={reportType} setReportType={setReportType} />
 
         {/* Filters */}
-        <ReportFilters 
+        <ReportFilters
           filters={filters} 
           setFilters={setFilters} 
           reportType={reportType}
@@ -638,7 +775,8 @@ const ReportingPage = () => {
             {/* Report Type */}
             <Box>
               <Typography level="title-md" sx={{ fontWeight: 700, color: theme.colors.primary }}>
-                {reportType === "monthly" ? "📅 شهري (Monthly)" : "🍃 فصلي (Seasonal)"}
+                {reportType === "monthly" && "📅 شهري (Monthly)"}
+                {reportType === "seasonal" && "🍃 فصلي (Seasonal)"}
               </Typography>
             </Box>
 
@@ -717,10 +855,10 @@ const ReportingPage = () => {
 
         {/* Action Buttons */}
         <ReportActions
-          onGenerate={handleGenerateReport}
+          onGenerate={reportType === "workflow_activity" ? null : handleGenerateReport}
           onExportWord={handleExportWord}
           disableGenerate={isGenerateDisabled}
-          disableExport={!reportData}
+          disableExport={reportType === "workflow_activity" ? false : !reportData}
           loading={loadingReport}
         />
 
@@ -744,9 +882,77 @@ const ReportingPage = () => {
             </Typography>
           </Card>
         )}
-
-
       </Box>
+
+      {/* ── Report Generation Loading Overlay ── */}
+      <Modal
+        open={exportingWord}
+        sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        <ModalDialog
+          sx={{
+            maxWidth: 420,
+            width: "90%",
+            textAlign: "center",
+            p: 5,
+            borderRadius: "16px",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+            background: "linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)",
+          }}
+        >
+          {/* Animated spinner */}
+          <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+            <CircularProgress
+              size="lg"
+              sx={{ "--CircularProgress-size": "72px", "--CircularProgress-trackThickness": "6px" }}
+            />
+          </Box>
+
+          {!exportError ? (
+            <>
+              <Typography
+                level="h4"
+                sx={{
+                  fontFamily: "'Traditional Arabic', serif",
+                  direction: "rtl",
+                  mb: 1,
+                  color: "#1a1a2e",
+                  fontWeight: 700,
+                }}
+              >
+                جارِ إنشاء التقرير...
+              </Typography>
+              <Typography
+                level="body-md"
+                sx={{
+                  fontFamily: "'Traditional Arabic', serif",
+                  direction: "rtl",
+                  color: "#555",
+                  mb: 2,
+                }}
+              >
+                يرجى الانتظار، قد تستغرق هذه العملية من 10 إلى 20 ثانية
+              </Typography>
+              <Typography level="body-xs" sx={{ color: "#999" }}>
+                Generating report — please do not close this window
+              </Typography>
+            </>
+          ) : (
+            <>
+              <Typography level="h4" sx={{ color: "#c0392b", mb: 1 }}>
+                ❌ فشل التصدير
+              </Typography>
+              <Typography level="body-sm" sx={{ color: "#555", direction: "rtl" }}>
+                {exportError}
+              </Typography>
+              <Typography level="body-xs" sx={{ color: "#999", mt: 1 }}>
+                سيتم إغلاق هذه النافذة تلقائياً...
+              </Typography>
+            </>
+          )}
+        </ModalDialog>
+      </Modal>
+
     </MainLayout>
   );
 };

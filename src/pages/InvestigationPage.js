@@ -9,161 +9,210 @@ import {
   FormControl,
   FormLabel,
   CircularProgress,
+  Button,
+  Input,
 } from "@mui/joy";
-import theme from '../theme';
+import theme from "../theme";
 import MainLayout from "../components/common/MainLayout";
 import IncidentCountTree from "../components/investigation/IncidentCountTree";
 import { fetchDashboardHierarchy } from "../api/dashboard";
 import { fetchInvestigationTree, fetchSeasons } from "../api/investigation";
 
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+const CURRENT_YEAR = new Date().getFullYear();
+
+/** Years to show in the yearly selector: 5 years back up to current year */
+const AVAILABLE_YEARS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - 5 + i);
+
+/** Given a period type + the relevant state, return { start_date, end_date } or null */
+function resolveDateRange({ periodType, selectedSeason, availableSeasons, selectedYear, customFrom, customTo }) {
+  if (periodType === "seasonal") {
+    const season = availableSeasons.find((s) => s.season_id === selectedSeason);
+    if (!season || !season.start_date || !season.end_date) return null;
+    return { start_date: season.start_date, end_date: season.end_date };
+  }
+  if (periodType === "yearly") {
+    if (!selectedYear) return null;
+    return { start_date: `${selectedYear}-01-01`, end_date: `${selectedYear}-12-31` };
+  }
+  if (periodType === "custom") {
+    if (!customFrom || !customTo) return null;
+    if (customFrom > customTo) return null;
+    return { start_date: customFrom, end_date: customTo };
+  }
+  return null;
+}
+
+/** Human-readable label for the selected period */
+function buildPeriodLabel({ periodType, selectedSeason, availableSeasons, selectedYear, customFrom, customTo }) {
+  if (periodType === "seasonal") {
+    const season = availableSeasons.find((s) => s.season_id === selectedSeason);
+    return season ? season.season_label : "";
+  }
+  if (periodType === "yearly") return selectedYear || "";
+  if (periodType === "custom") {
+    if (!customFrom || !customTo) return "";
+    return `${customFrom} – ${customTo}`;
+  }
+  return "";
+}
+
+// ─── component ──────────────────────────────────────────────────────────────
+
 const InvestigationPage = () => {
-  // Season selection state - now uses season_id from API
-  const [selectedSeason, setSelectedSeason] = useState("");
+  // ── period type ────────────────────────────────────────────────────────────
+  const [periodType, setPeriodType] = useState("seasonal"); // "seasonal" | "yearly" | "custom"
+
+  // seasonal
   const [availableSeasons, setAvailableSeasons] = useState([]);
+  const [selectedSeason, setSelectedSeason] = useState("");
   const [loadingSeasons, setLoadingSeasons] = useState(true);
-  
-  // Other filters
+
+  // yearly
+  const [selectedYear, setSelectedYear] = useState(String(CURRENT_YEAR));
+
+  // custom
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+
+  // ── org scope ──────────────────────────────────────────────────────────────
   const [selectedAdmin, setSelectedAdmin] = useState("");
   const [selectedDept, setSelectedDept] = useState("");
   const [selectedSection, setSelectedSection] = useState("");
-  const [selectedTreeType, setSelectedTreeType] = useState("incident_count");
-
-  // Hierarchy state
   const [hierarchy, setHierarchy] = useState(null);
   const [loadingHierarchy, setLoadingHierarchy] = useState(true);
 
-  // Investigation tree data state
+  // ── visualization type ────────────────────────────────────────────────────
+  const [selectedTreeType, setSelectedTreeType] = useState("incident_count");
+
+  // ── tree data ──────────────────────────────────────────────────────────────
   const [treeData, setTreeData] = useState(null);
   const [loadingTree, setLoadingTree] = useState(false);
   const [treeError, setTreeError] = useState(null);
 
-  // Fetch seasons on mount
+  // ── load seasons ───────────────────────────────────────────────────────────
   useEffect(() => {
-    console.log("🔄 Fetching available seasons...");
     fetchSeasons()
       .then((data) => {
-        setAvailableSeasons(data.seasons || []);
-        // Set current season as default
-        if (data.current_season) {
-          setSelectedSeason(data.current_season);
-          console.log("✅ Default season set to:", data.current_season);
-        }
+        const seasons = data.seasons || [];
+        setAvailableSeasons(seasons);
+        if (data.current_season) setSelectedSeason(data.current_season);
       })
-      .catch((error) => {
-        console.error("❌ Failed to load seasons:", error);
-        // Fallback to empty - user will need to select manually
-      })
+      .catch((err) => console.error("Failed to load seasons:", err))
       .finally(() => setLoadingSeasons(false));
   }, []);
 
-  // Fetch hierarchy on mount
+  // ── load hierarchy ─────────────────────────────────────────────────────────
   useEffect(() => {
     fetchDashboardHierarchy()
       .then((data) => setHierarchy(data))
-      .catch((error) => console.error("Failed to load hierarchy:", error))
+      .catch((err) => console.error("Failed to load hierarchy:", err))
       .finally(() => setLoadingHierarchy(false));
   }, []);
 
-  // Fetch investigation tree when filters change
+  // ── fetch tree ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    console.log("=== INVESTIGATION PAGE STATE ===");
-    console.log("🔄 Filter state changed:", {
+    const dateRange = resolveDateRange({
+      periodType,
       selectedSeason,
-      selectedAdmin,
-      selectedDept,
-      selectedSection,
-      selectedTreeType,
+      availableSeasons,
+      selectedYear,
+      customFrom,
+      customTo,
     });
-    
-    // Validate required fields before fetching
-    if (!selectedSeason || !selectedTreeType) {
-      console.warn("⚠️ Missing required fields (season or tree type), skipping fetch");
-      if (!selectedSeason) {
-        setTreeError("Please select a season");
-      }
+
+    if (!dateRange) {
+      setTreeError(
+        periodType === "custom"
+          ? "Please select a valid From Date and To Date (From must be before To)"
+          : periodType === "seasonal"
+          ? "Please select a season"
+          : "Please select a year"
+      );
+      setTreeData(null);
       return;
     }
 
-    console.log("🔄 Fetching investigation tree data...");
+    if (!selectedTreeType) return;
+
     setLoadingTree(true);
     setTreeError(null);
 
-    // Use season_id directly from the API
-    const seasonId = selectedSeason;
-    console.log("📅 Using season ID:", seasonId);
-
-    // Convert empty strings to null for optional IDs
-    const administrationId = selectedAdmin && selectedAdmin !== "" ? selectedAdmin : null;
-    const departmentId = selectedDept && selectedDept !== "" ? selectedDept : null;
-    const sectionId = selectedSection && selectedSection !== "" ? selectedSection : null;
-
-    console.log("📦 Prepared parameters for API call:", {
-      season: seasonId,
-      tree_type: selectedTreeType,
-      administration_id: administrationId,
-      department_id: departmentId,
-      section_id: sectionId,
-    });
+    const administrationId = selectedAdmin || null;
+    const departmentId     = selectedDept   || null;
+    const sectionId        = selectedSection || null;
 
     fetchInvestigationTree({
-      season: seasonId,
-      tree_type: selectedTreeType,
+      start_date: dateRange.start_date,
+      end_date:   dateRange.end_date,
+      tree_type:  selectedTreeType,
       administration_id: administrationId,
-      department_id: departmentId,
-      section_id: sectionId,
+      department_id:     departmentId,
+      section_id:        sectionId,
     })
-      .then((data) => {
-        console.log("✅ Investigation tree loaded successfully:", data);
-        setTreeData(data);
-      })
-      .catch((error) => {
-        console.error("❌ Failed to load investigation tree:", error);
-        setTreeError(error.message);
-      })
-      .finally(() => {
-        setLoadingTree(false);
-        console.log("=================================");
-      });
-  }, [selectedSeason, selectedAdmin, selectedDept, selectedSection, selectedTreeType]);
+      .then((data) => setTreeData(data))
+      .catch((err) => setTreeError(err.message))
+      .finally(() => setLoadingTree(false));
+  }, [
+    periodType,
+    selectedSeason,
+    availableSeasons,
+    selectedYear,
+    customFrom,
+    customTo,
+    selectedAdmin,
+    selectedDept,
+    selectedSection,
+    selectedTreeType,
+  ]);
 
-  // Tree type options (updated to match API naming)
-  const treeTypes = [
-    { value: "incident_count", label: "Number of Incidents" },
-    { value: "domain_distribution_numbers", label: "Domain Distribution (Numbers)" },
-    { value: "domain_distribution_percentage", label: "Domain Distribution (Percentage)" },
-    { value: "severity_distribution_numbers", label: "Severity Distribution (Numbers)" },
-    { value: "severity_distribution_percentage", label: "Severity Distribution (Percentage)" },
-    { value: "red_flag_incidents", label: "Red Flag Incident" },
-    { value: "never_event_incidents", label: "Never Event Incident" },
-  ];
+  // ── org helper fns ─────────────────────────────────────────────────────────
+  const getDepartments = () =>
+    selectedAdmin && hierarchy ? hierarchy.Department?.[selectedAdmin] || [] : [];
 
-  // Department options (filtered by selected administration)
-  const getDepartments = () => {
-    if (!selectedAdmin || !hierarchy) {
-      return [];
-    }
-    return hierarchy.Department?.[selectedAdmin] || [];
-  };
+  const getSections = () =>
+    selectedDept && hierarchy ? hierarchy.Section?.[selectedDept] || [] : [];
 
-  // Section options (filtered by selected department)
-  const getSections = () => {
-    if (!selectedDept || !hierarchy) {
-      return [];
-    }
-    return hierarchy.Section?.[selectedDept] || [];
-  };
-
-  const handleAdminChange = (event, newValue) => {
+  const handleAdminChange = (_, newValue) => {
     setSelectedAdmin(newValue);
     setSelectedDept("");
     setSelectedSection("");
   };
 
-  const handleDeptChange = (event, newValue) => {
+  const handleDeptChange = (_, newValue) => {
     setSelectedDept(newValue);
     setSelectedSection("");
   };
 
+  // ── derived ────────────────────────────────────────────────────────────────
+  const periodLabel = buildPeriodLabel({
+    periodType,
+    selectedSeason,
+    availableSeasons,
+    selectedYear,
+    customFrom,
+    customTo,
+  });
+
+  const PERIOD_BUTTONS = [
+    { value: "seasonal", label: "📅 Seasonal" },
+    { value: "yearly",   label: "📆 Yearly"   },
+    { value: "custom",   label: "🗓 Custom Range" },
+  ];
+
+  const treeTypes = [
+    { value: "incident_count",                   label: "Number of Incidents" },
+    { value: "domain_distribution_numbers",      label: "Domain Distribution (Numbers)" },
+    { value: "domain_distribution_percentage",   label: "Domain Distribution (Percentage)" },
+    { value: "severity_distribution_numbers",    label: "Severity Distribution (Numbers)" },
+    { value: "severity_distribution_percentage", label: "Severity Distribution (Percentage)" },
+    { value: "red_flag_incidents",               label: "Red Flag Incident" },
+    { value: "never_event_incidents",            label: "Never Event Incident" },
+    { value: "notice_count",                     label: "Number of Notices" },
+  ];
+
+  // ── render ─────────────────────────────────────────────────────────────────
   return (
     <MainLayout>
       <Box sx={{ p: 3 }}>
@@ -183,50 +232,125 @@ const InvestigationPage = () => {
           </Typography>
           <Typography level="body-md" sx={{ color: "#666" }}>
             Exploratory analysis tool to understand why departments crossed policy
-            thresholds. Analyze incident patterns and concentrations across the organizational structure.
+            thresholds. Analyze incident patterns and concentrations across the
+            organizational structure.
           </Typography>
         </Box>
 
-        {/* Top Controls */}
+        {/* Investigation Scope */}
         <Card variant="soft" sx={{ p: 3, mb: 4 }}>
           <Typography level="title-lg" sx={{ mb: 2, fontWeight: 700 }}>
             🎯 Investigation Scope
           </Typography>
+
+          {/* ── Period Type Toggle ── */}
+          <Box sx={{ mb: 3 }}>
+            <Typography level="body-sm" sx={{ fontWeight: 600, mb: 1 }}>
+              Period Type
+            </Typography>
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+              {PERIOD_BUTTONS.map(({ value, label }) => (
+                <Button
+                  key={value}
+                  variant={periodType === value ? "solid" : "outlined"}
+                  color="primary"
+                  size="sm"
+                  onClick={() => setPeriodType(value)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </Box>
+          </Box>
+
+          {/* ── Period Controls ── */}
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr 1fr" },
-              gap: 3,
+              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, 1fr)" },
+              gap: 2,
+              mb: 3,
             }}
           >
-            {/* Season Selector - Dynamic from API */}
-            <FormControl>
-              <FormLabel sx={{ fontWeight: 600 }}>📅 Season</FormLabel>
-              <Select
-                value={selectedSeason}
-                onChange={(e, newValue) => setSelectedSeason(newValue)}
-                size="lg"
-                disabled={loadingSeasons}
-                placeholder={loadingSeasons ? "Loading seasons..." : "Select Season"}
-              >
-                {availableSeasons.map((season) => (
-                  <Option key={season.season_id} value={season.season_id}>
-                    {season.season_label}
-                    {season.is_current && " (Current)"}
-                  </Option>
-                ))}
-              </Select>
-            </FormControl>
+            {/* Seasonal: quarter dropdown */}
+            {periodType === "seasonal" && (
+              <FormControl>
+                <FormLabel sx={{ fontWeight: 600 }}>Quarter</FormLabel>
+                <Select
+                  value={selectedSeason}
+                  onChange={(_, v) => setSelectedSeason(v)}
+                  size="md"
+                  disabled={loadingSeasons}
+                  placeholder={loadingSeasons ? "Loading..." : "Select quarter"}
+                >
+                  {availableSeasons.map((s) => (
+                    <Option key={s.season_id} value={s.season_id}>
+                      {s.season_label}
+                      {s.is_current ? " (Current)" : ""}
+                    </Option>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
 
-            {/* Administration Selector */}
+            {/* Yearly: year dropdown */}
+            {periodType === "yearly" && (
+              <FormControl>
+                <FormLabel sx={{ fontWeight: 600 }}>Year</FormLabel>
+                <Select
+                  value={selectedYear}
+                  onChange={(_, v) => setSelectedYear(v)}
+                  size="md"
+                >
+                  {AVAILABLE_YEARS.map((y) => (
+                    <Option key={y} value={String(y)}>
+                      {y}
+                      {y === CURRENT_YEAR ? " (Current)" : ""}
+                    </Option>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {/* Custom: from + to date inputs */}
+            {periodType === "custom" && (
+              <>
+                <FormControl>
+                  <FormLabel sx={{ fontWeight: 600 }}>From Date</FormLabel>
+                  <Input
+                    type="date"
+                    value={customFrom}
+                    onChange={(e) => setCustomFrom(e.target.value)}
+                    size="md"
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel sx={{ fontWeight: 600 }}>To Date</FormLabel>
+                  <Input
+                    type="date"
+                    value={customTo}
+                    onChange={(e) => setCustomTo(e.target.value)}
+                    size="md"
+                  />
+                </FormControl>
+              </>
+            )}
+          </Box>
+
+          {/* ── Org Scope Filters ── */}
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" },
+              gap: 2,
+            }}
+          >
             <FormControl>
-              <FormLabel sx={{ fontWeight: 600 }}>
-                📋 الإدارة (Administration)
-              </FormLabel>
+              <FormLabel sx={{ fontWeight: 600 }}>📋 الإدارة (Administration)</FormLabel>
               <Select
                 value={selectedAdmin}
                 onChange={handleAdminChange}
-                size="lg"
+                size="md"
                 disabled={loadingHierarchy}
               >
                 <Option value="">كل الإدارات</Option>
@@ -238,15 +362,12 @@ const InvestigationPage = () => {
               </Select>
             </FormControl>
 
-            {/* Department Selector */}
             <FormControl>
-              <FormLabel sx={{ fontWeight: 600 }}>
-                🏢 الدائرة (Department)
-              </FormLabel>
+              <FormLabel sx={{ fontWeight: 600 }}>🏢 الدائرة (Department)</FormLabel>
               <Select
                 value={selectedDept}
                 onChange={handleDeptChange}
-                size="lg"
+                size="md"
                 disabled={!selectedAdmin || loadingHierarchy}
               >
                 <Option value="">كل الدوائر</Option>
@@ -258,15 +379,12 @@ const InvestigationPage = () => {
               </Select>
             </FormControl>
 
-            {/* Section Selector */}
             <FormControl>
-              <FormLabel sx={{ fontWeight: 600 }}>
-                📍 القسم (Section)
-              </FormLabel>
+              <FormLabel sx={{ fontWeight: 600 }}>📍 القسم (Section)</FormLabel>
               <Select
                 value={selectedSection}
-                onChange={(e, newValue) => setSelectedSection(newValue)}
-                size="lg"
+                onChange={(_, v) => setSelectedSection(v)}
+                size="md"
                 disabled={!selectedDept || loadingHierarchy}
               >
                 <Option value="">كل الأقسام</Option>
@@ -280,7 +398,7 @@ const InvestigationPage = () => {
           </Box>
         </Card>
 
-        {/* Tree Type Selector */}
+        {/* Visualization Type */}
         <Card variant="soft" sx={{ p: 3, mb: 4 }}>
           <Typography level="title-lg" sx={{ mb: 2, fontWeight: 700 }}>
             🌳 Visualization Type
@@ -288,19 +406,19 @@ const InvestigationPage = () => {
           <FormControl>
             <Select
               value={selectedTreeType}
-              onChange={(e, newValue) => setSelectedTreeType(newValue)}
+              onChange={(_, v) => setSelectedTreeType(v)}
               size="lg"
             >
-              {treeTypes.map((type) => (
-                <Option key={type.value} value={type.value}>
-                  {type.label}
+              {treeTypes.map((t) => (
+                <Option key={t.value} value={t.value}>
+                  {t.label}
                 </Option>
               ))}
             </Select>
           </FormControl>
         </Card>
 
-        {/* Investigation Tree */}
+        {/* Loading */}
         {loadingTree && (
           <Card sx={{ p: 4, textAlign: "center", mb: 3 }}>
             <CircularProgress size="lg" />
@@ -310,26 +428,24 @@ const InvestigationPage = () => {
           </Card>
         )}
 
-        {treeError && (
+        {/* Error */}
+        {!loadingTree && treeError && (
           <Card sx={{ p: 3, mb: 3, bgcolor: "danger.softBg" }}>
             <Typography color="danger" sx={{ fontWeight: 600, mb: 1 }}>
               ❌ Error loading investigation tree
             </Typography>
-            <Typography level="body-sm" color="danger" sx={{ mb: 2 }}>
+            <Typography level="body-sm" color="danger">
               {treeError}
             </Typography>
-            {treeError.includes("not found") && (
-              <Typography level="body-xs" sx={{ color: "#991b1b", fontStyle: "italic" }}>
-                💡 Tip: The selected season may not have data in the database. Try selecting a different season or year that has recorded incidents.
-              </Typography>
-            )}
           </Card>
         )}
 
+        {/* Tree */}
         {!loadingTree && !treeError && treeData && (
-          <IncidentCountTree 
+          <IncidentCountTree
             data={treeData}
-            selectedAdmin={selectedAdmin} 
+            periodLabel={periodLabel}
+            selectedAdmin={selectedAdmin}
             selectedDept={selectedDept}
             selectedSection={selectedSection}
             treeType={selectedTreeType}

@@ -24,23 +24,52 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Card, Typography, Table, Chip, Button, CircularProgress, Tabs, TabList, Tab, TabPanel, Input, ButtonGroup } from '@mui/joy';
 import SearchIcon from '@mui/icons-material/Search';
+import LockIcon from '@mui/icons-material/Lock';
+import HistoryIcon from '@mui/icons-material/History';
+import FlagIcon from '@mui/icons-material/Flag';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import CampaignIcon from '@mui/icons-material/Campaign';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/common/MainLayout';
 import ErrorPanel from '../components/common/ErrorPanel';
 import { getWorkflowInbox, getWorkflowInboxArchive } from '../api/workflowApi';
-import CaseActionModal from '../components/workflow/CaseActionModal';
-import ResponseViewerModal from '../components/workflow/ResponseViewerModal';
+import AccountabilityBox from '../components/workflow/AccountabilityBox';
+import CaseReviewModal from '../components/workflow/CaseReviewModal';
 import SeasonalReportViewerModal from '../components/workflow/SeasonalReportViewerModal';
-import IncidentViewerModal from '../components/workflow/IncidentViewerModal';
+import PatientServicesDecisionModal from '../components/workflow/PatientServicesDecisionModal';
+import NoticeModal from '../components/workflow/NoticeModal';
 import { useAuth } from '../context/AuthContext';
+import { getRowTheme } from '../utils/inboxTheme';
+import { classifyInboxArea, splitInboxAreas } from '../utils/inboxClassifier';
+import { getDeadlineCountdown, isCountdownEligible } from '../utils/deadlineCountdown';
+
+// Maps iconKey strings (returned by inboxTheme) → MUI icon components
+const TYPE_ICON_MAP = {
+  Campaign:     <CampaignIcon    sx={{ fontSize: 14, verticalAlign: 'middle', mr: 0.5 }} />,
+  BarChart:     <BarChartIcon    sx={{ fontSize: 14, verticalAlign: 'middle', mr: 0.5 }} />,
+  CheckCircle:  <CheckCircleIcon sx={{ fontSize: 14, verticalAlign: 'middle', mr: 0.5 }} />,
+};
+
+const BADGE_ICON_MAP = {
+  Lock:         <LockIcon         sx={{ fontSize: 12 }} />,
+  History:      <HistoryIcon      sx={{ fontSize: 12 }} />,
+  Flag:         <FlagIcon         sx={{ fontSize: 12 }} />,
+  WarningAmber: <WarningAmberIcon sx={{ fontSize: 12 }} />,
+  Favorite:     <FavoriteIcon     sx={{ fontSize: 12 }} />,
+};
 
 const WorkflowInboxPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  
-  // Check if user is UNIVERSAL_SECTION role (for action filtering)
-  const isUniversalSection = user?.roles?.includes('UNIVERSAL_SECTION');
-  
+
+  // Roles that get an accountability box (own force-closed cases shown for awareness)
+  const showAccountability = user?.roles?.includes('SECTION_ADMIN') || user?.roles?.includes('DEPARTMENT_ADMIN');
+
   // ============================
   // STATE
   // ============================
@@ -55,26 +84,25 @@ const WorkflowInboxPage = () => {
   // Case type filter state: 'all', 'incident', 'seasonal'
   const [caseTypeFilter, setCaseTypeFilter] = useState('all');
 
-  // Modal state for Case Action Modal
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalActionCode, setModalActionCode] = useState(null);
-  const [modalSubcaseId, setModalSubcaseId] = useState(null);
-  const [modalSubcaseIds, setModalSubcaseIds] = useState([]); // For bulk operations
+  // Unified review modal — covers all workflow actions for incident cases
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewModalItem, setReviewModalItem] = useState(null);
 
-  // Modal state for Response Viewer Modal
-  const [responseViewerOpen, setResponseViewerOpen] = useState(false);
-  const [responseViewerSubcaseId, setResponseViewerSubcaseId] = useState(null);
-
-  // Modal state for Seasonal Report Viewer Modal
+  // Seasonal report viewer
   const [seasonalViewerOpen, setSeasonalViewerOpen] = useState(false);
-  const [seasonalViewerReportId, setSeasonalViewerReportId] = useState(null);
+  const [seasonalViewerItem, setSeasonalViewerItem] = useState(null);
 
-  // Modal state for Incident Viewer Modal (read-only view for section admins)
-  const [incidentViewerOpen, setIncidentViewerOpen] = useState(false);
-  const [incidentViewerRecordId, setIncidentViewerRecordId] = useState(null);
+  // Patient Services decision viewer (read-only: archive view of completed decisions)
+  const [decisionViewerOpen, setDecisionViewerOpen] = useState(false);
+  const [decisionViewerItem, setDecisionViewerItem] = useState(null);
+
+  // Notice modal (informational notice items)
+  const [noticeModalOpen, setNoticeModalOpen] = useState(false);
+  const [noticeModalItem, setNoticeModalItem] = useState(null);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
+
 
   // ============================
   // LOAD INBOX ON MOUNT
@@ -129,103 +157,39 @@ const WorkflowInboxPage = () => {
   };
 
   // ============================
-  // MODAL HANDLERS (STEP 4.12)
+  // MODAL HANDLERS
   // ============================
-  /**
-   * Workflow inbox actions trigger CaseActionModal.
-   * Modal executes workflow transition and refreshes inbox on success.
-   */
 
-  /**
-   * Map inbox allowedActions to backend action codes
-   * @param {string} action - Action from allowedActions array
-   * @returns {string|null} Backend action code or null if not supported
-   */
-  const mapInboxActionToCaseAction = (action) => {
-    const mapping = {
-      accept: 'APPROVE',
-      reject: 'REJECT',
-      submit_response: 'SUBMIT_RESPONSE',
-      reopen: 'REOPEN',
-      direct_approve: 'DIRECT_APPROVE',  // UNIVERSAL_SECTION direct approval
-      view: null, // View navigates to detail page
-    };
-    return mapping[action] || null;
+  const openReviewModal = (item) => {
+    setReviewModalItem(item);
+    setReviewModalOpen(true);
   };
 
-  /**
-   * Open Case Action Modal with specified action
-   * @param {number|null} subcaseId - Single subcase ID (for regular operations)
-   * @param {string} actionCode - Action code for the workflow transition
-   * @param {number[]|null} subcaseIds - Array of subcase IDs (for bulk operations)
-   */
-  const openCaseActionModal = (subcaseId, actionCode, subcaseIds = null) => {
-    setModalSubcaseId(subcaseId);
-    setModalSubcaseIds(subcaseIds || []);
-    setModalActionCode(actionCode);
-    setModalOpen(true);
-  };
-
-  /**
-   * Close modal and reset state
-   */
-  const handleModalClose = () => {
-    setModalOpen(false);
-    setModalActionCode(null);
-    setModalSubcaseId(null);
-    setModalSubcaseIds([]);
-  };
-
-  /**
-   * Handle successful modal action - refresh inbox
-   */
-  const handleModalSuccess = () => {
-    handleModalClose();
+  const handleReviewSuccess = () => {
+    setReviewModalOpen(false);
+    setReviewModalItem(null);
     loadInbox();
   };
 
-  /**
-   * Open Response Viewer Modal
-   */
-  const openResponseViewer = (subcaseId) => {
-    setResponseViewerSubcaseId(subcaseId);
-    setResponseViewerOpen(true);
+  const handleSeasonalView = (item) => {
+    setSeasonalViewerItem(item);
+    setSeasonalViewerOpen(true);
   };
 
-  /**
-   * Handle action button clicks
-   */
-  const handleActionClick = (item, action) => {
-    // Handle View action
-    if (action === 'view') {
-      if (item.caseType === 'SEASONAL_REPORT_RESPONSE' && item.seasonalReportId) {
-        // Seasonal report — open viewer modal
-        setSeasonalViewerReportId(item.seasonalReportId);
-        setSeasonalViewerOpen(true);
-      } else if (item.incidentId) {
-        // Incident — open viewer modal (read-only for section admins)
-        setIncidentViewerRecordId(item.incidentId);
-        setIncidentViewerOpen(true);
-      }
-      return;
-    }
-
-    // Handle View Response action - open response viewer modal
-    if (action === 'view_response') {
-      openResponseViewer(item.subcaseId);
-      return;
-    }
-    
-    // Handle modal actions (accept, reject, submit_response)
-    const actionCode = mapInboxActionToCaseAction(action);
-    if (actionCode) {
-      openCaseActionModal(item.subcaseId, actionCode);
-    }
-  };
 
   // ============================
   // CASE TYPE & ID HELPERS
   // ============================
+  const isNoticeItem = (item) => item.messageType === 'NOTICE';
+
+  // Patient Services decision pending, shown informationally to Section/Department/
+  // Administration (no save/edit action available to them — only COMPLAINT_SUPERVISOR
+  // can record the decision). Routed through NoticeModal like any other FYI notice.
+  const isPatientServicesInfoItem = (item) =>
+    item.messageType === 'PATIENT_SERVICES_OPINION' &&
+    !item.allowedActions?.includes('save_patient_services_decision') &&
+    !item.allowedActions?.includes('edit_patient_services_decision');
+
   /**
    * Determine if an item is an incident (vs seasonal report).
    * Uses field presence as primary indicator since caseType may not be set correctly.
@@ -253,17 +217,19 @@ const WorkflowInboxPage = () => {
   };
 
   /**
-   * Filter items by search query (searches by ID numbers)
+   * Filter items by search query (searches by incident number, case ID, subcase ID)
    */
   const filterBySearch = (itemsList) => {
     if (!searchQuery.trim()) return itemsList;
     const query = searchQuery.trim().toLowerCase();
     return itemsList.filter(item => {
-      // Search by incident ID, seasonal report ID, or subcase ID
+      // Search by INC-XXXXXX incident number
+      if (item.incidentNumber && item.incidentNumber.toLowerCase().includes(query)) return true;
+      // Search by numeric case ID or formatted "Case #X"
       if (item.incidentId && String(item.incidentId).includes(query)) return true;
       if (item.seasonalReportId && String(item.seasonalReportId).includes(query)) return true;
       if (item.subcaseId && String(item.subcaseId).includes(query)) return true;
-      // Also search the formatted display ID
+      // Also search the formatted display ID (e.g. "case #5")
       const displayId = getDisplayId(item).toLowerCase();
       if (displayId.includes(query)) return true;
       return false;
@@ -290,31 +256,6 @@ const WorkflowInboxPage = () => {
   };
 
   // ============================
-  // GROUPING LOGIC FOR UNIVERSAL_SECTION
-  // ============================
-  /**
-   * Group items by incidentId for bulk operations (UNIVERSAL_SECTION only)
-   * Returns array of { incidentId, items: [...subcases] }
-   */
-  const groupItemsByIncident = (itemsList) => {
-    const grouped = {};
-    itemsList.forEach(item => {
-      const key = item.incidentId || `subcase_${item.subcaseId}`;
-      if (!grouped[key]) {
-        grouped[key] = [];
-      }
-      grouped[key].push(item);
-    });
-    
-    return Object.entries(grouped).map(([incidentId, items]) => ({
-      incidentId: items[0].incidentId, // null for seasonal reports
-      isIncident: isIncidentItem(items[0]),
-      items,
-      subcaseIds: items.map(i => i.subcaseId),
-    }));
-  };
-
-  // ============================
   // STATUS DISPLAY HELPERS
   // ============================
   /**
@@ -332,206 +273,337 @@ const WorkflowInboxPage = () => {
       ADMIN_APPROVED: { label: 'Admin Approved', color: 'success' },
       SECTION_DENIED: { label: 'Denied', color: 'danger' },
       FORCE_CLOSED: { label: 'Force Closed', color: 'neutral' },
+      WAITING_PATIENT_SERVICES_DECISION: { label: 'Patient Services Decision Required', color: 'warning' },
+      PATIENT_SERVICES_DECISION_COMPLETED: { label: 'Patient Services Decision Completed', color: 'success' },
+      // HCAT Automatic Force Close Policy (Session 6) - force-closed-by-policy statuses
+      FORCE_CLOSED_AT_SECTION: { label: 'Force-Closed (Section) — مغلق قسريا', color: 'danger' },
+      FORCE_CLOSED_AT_DEPARTMENT: { label: 'Force-Closed (Department) — مغلق قسريا', color: 'danger' },
+      FORCE_CLOSED_AT_ADMINISTRATION: { label: 'Force-Closed (Administration) — مغلق قسريا', color: 'danger' },
     };
     return statusMap[status] || { label: status?.replace(/_/g, ' ') || 'Unknown', color: 'neutral' };
+  };
+
+  /**
+   * HCAT Automatic Force Close Policy (Session 6)
+   * Map a workflow status to the responsibility level it currently sits at,
+   * so late-reply / extra-time indicators reflect the right level's fields.
+   */
+  const getCurrentLevel = (status) => {
+    if (status?.startsWith('FORCE_CLOSED_AT_')) {
+      return status.replace('FORCE_CLOSED_AT_', '').toLowerCase();
+    }
+    if (['SUBMITTED_TO_SECTION', 'RETURNED_TO_SECTION_FOR_REVISION', 'SECTION_DENIED'].includes(status)) {
+      return 'section';
+    }
+    if (['SECTION_ACCEPTED_PENDING_DEPT', 'RETURNED_TO_DEPT_FOR_REVISION', 'RETURNED_TO_DEPARTMENT_FOR_REVISION'].includes(status)) {
+      return 'department';
+    }
+    if (['DEPT_ACCEPTED_PENDING_ADMIN', 'WAITING_PATIENT_SERVICES_DECISION', 'PATIENT_SERVICES_DECISION_COMPLETED'].includes(status)) {
+      return 'administration';
+    }
+    return null;
+  };
+
+  /**
+   * HCAT Automatic Force Close Policy (Session 6)
+   * Small late-reply / extra-time chips for the level the case currently sits at.
+   */
+  const getLevelIndicatorChips = (item) => {
+    const level = getCurrentLevel(item.status);
+    if (!level) return [];
+    const chips = [];
+    if (item[`${level}LateReply`]) {
+      chips.push({ key: 'late-reply', label: 'رد متأخر', color: 'warning' });
+    }
+    if (item[`${level}ExtraTimeGrantedAt`]) {
+      chips.push({ key: 'extra-time', label: 'مهلة إضافية', color: 'warning' });
+    }
+    return chips;
   };
 
   // ============================
   // RENDER ACTION BUTTONS
   // ============================
-  // CONTRACT LOCK:
-  // Button visibility is backend-driven via allowedActions.
-  // EXCEPTION: UNIVERSAL_SECTION role only sees 'view' and 'direct_approve' actions.
-  // Backend controls action matrix.
-  /**
-   * Render action buttons based on backend-computed allowedActions.
-   * EXCEPTION: For UNIVERSAL_SECTION users, only 'view' and 'direct_approve' are shown.
-   * Backend already computed what actions are allowed.
-   */
   const renderActionButtons = (item) => {
-    let { allowedActions } = item;
+    const { allowedActions } = item;
 
-    // UNIVERSAL_SECTION special case: only allow view and direct_approve
-    if (isUniversalSection) {
-      allowedActions = allowedActions.filter(action => 
-        ['view', 'direct_approve'].includes(action)
+    // Notice items + Patient Services pending (informational) — no complaint workflow
+    if (isNoticeItem(item) || isPatientServicesInfoItem(item)) {
+      return (
+        <Button
+          size="sm"
+          variant="solid"
+          color="primary"
+          onClick={() => { setNoticeModalItem(item); setNoticeModalOpen(true); }}
+        >
+          عرض الإشعار
+        </Button>
       );
     }
 
+    // Universal primary action — opens modal for all workflow cases
+    // (force-closed cases are now handled inside CaseReviewModal)
+    const handlePrimaryAction = () => {
+      if (item.seasonalReportId) {
+        handleSeasonalView(item);
+      } else {
+        openReviewModal(item);
+      }
+    };
+
     return (
-      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-        {allowedActions.includes('view') && (
-          <Button
-            size="sm"
-            variant="outlined"
-            color="neutral"
-            onClick={() => handleActionClick(item, 'view')}
-            disabled={modalOpen}
-          >
-            عرض
-          </Button>
-        )}
-        {allowedActions.includes('view_response') && (
-          <Button
-            size="sm"
-            variant="outlined"
-            color="primary"
-            onClick={() => handleActionClick(item, 'view_response')}
-            disabled={modalOpen}
-          >
-            عرض الرد
-          </Button>
-        )}
-        {allowedActions.includes('submit_response') && (
-          <Button
-            size="sm"
-            variant="solid"
-            color="primary"
-            onClick={() => handleActionClick(item, 'submit_response')}
-            disabled={modalOpen}
-          >
-            إرسال الرد
-          </Button>
-        )}
-        {allowedActions.includes('accept') && (
-          <Button
-            size="sm"
-            variant="solid"
-            color="success"
-            onClick={() => handleActionClick(item, 'accept')}
-            disabled={modalOpen}
-          >
-            قبول
-          </Button>
-        )}
-        {allowedActions.includes('reject') && (
-          <Button
-            size="sm"
-            variant="solid"
-            color="danger"
-            onClick={() => handleActionClick(item, 'reject')}
-            disabled={modalOpen}
-          >
-            رفض
-          </Button>
-        )}
-        {allowedActions.includes('direct_approve') && (
-          <Button
-            size="sm"
-            variant="solid"
-            color="success"
-            onClick={() => handleActionClick(item, 'direct_approve')}
-            disabled={modalOpen}
-            sx={{ fontWeight: 'bold' }}
-          >
-            ⚡ اعتماد مباشر
-          </Button>
-        )}
-        {allowedActions.includes('reopen') && (
-          <Button
-            size="sm"
-            variant="solid"
-            color="warning"
-            onClick={() => handleActionClick(item, 'reopen')}
-            disabled={modalOpen}
-          >
-            إعادة إرسال للقسم
-          </Button>
-        )}
-      </Box>
+      <Button
+        size="sm"
+        variant="solid"
+        color="primary"
+        onClick={handlePrimaryAction}
+        disabled={reviewModalOpen}
+      >
+        مراجعة الحالة
+      </Button>
     );
   };
 
   // ============================
-  // RENDER GROUPED INBOX ROW (UNIVERSAL_SECTION ONLY)
+  // RENDER INBOX TABLE ROW
   // ============================
-  const renderGroupedInboxRow = (group) => {
-    const { incidentId, isIncident, items, subcaseIds } = group;
-    const firstItem = items[0];
-    const subcaseCount = items.length;
-    
-    // Get unique target org units
-    const targetUnits = [...new Set(items.map(i => i.targetOrgUnitName || `Unit ${i.targetOrgUnitId}`))];
-    
+  const renderInboxRow = (item, extraStyle) => {
+    const theme = getRowTheme(item);
+    // HCAT Automatic Force Close Policy — days-remaining countdown.
+    // Only for complaints actively pending at Section/Department/Administration.
+    const countdown = isCountdownEligible(item)
+      ? getDeadlineCountdown(item.sectionDeadlineAt || item.departmentDeadlineAt || item.administrationDeadlineAt)
+      : null;
     return (
-      <tr key={`group_${incidentId || subcaseIds[0]}`} style={{ backgroundColor: subcaseCount > 1 ? 'rgba(102, 126, 234, 0.05)' : 'inherit' }}>
+      <tr key={item.subcaseId} style={{ ...theme.rowStyle, ...extraStyle }}>
+        {/* ID */}
         <td>
-          <Typography level="body-sm" fontWeight="bold">
-            {isIncident ? `Case #${incidentId}` : `Report #${firstItem.seasonalReportId || subcaseIds[0]}`}
-          </Typography>
-          {subcaseCount > 1 && (
-            <Chip size="sm" variant="solid" color="primary" sx={{ ml: 1 }}>
-              {subcaseCount} subcases
-            </Chip>
+          {item.incidentNumber && (
+            <Typography level="body-xs" sx={{ color: 'neutral.500', fontFamily: 'monospace', mb: 0.25 }}>
+              {item.incidentNumber}
+            </Typography>
           )}
-        </td>
-        <td>
-          <Chip
-            size="sm"
-            variant="soft"
-            color={isIncident ? 'primary' : 'warning'}
-            sx={{ whiteSpace: 'nowrap' }}
-          >
-            {isIncident ? 'Incident' : 'Seasonal'}
-          </Chip>
-        </td>
-        <td>
-          <Chip
-            size="sm"
-            variant="soft"
-            color={getStatusDisplay(firstItem.status).color}
-            sx={{ whiteSpace: 'nowrap' }}
-          >
-            {getStatusDisplay(firstItem.status).label}
-          </Chip>
-        </td>
-        <td>
-          <Typography level="body-sm" sx={{ whiteSpace: 'nowrap' }}>
-            {targetUnits.length > 2 
-              ? `${targetUnits.slice(0, 2).join(', ')}... (+${targetUnits.length - 2})` 
-              : targetUnits.join(', ')}
+          <Typography level="body-sm" fontWeight="bold">
+            {getDisplayId(item)}
           </Typography>
         </td>
+
+        {/* Message Type */}
+        <td>
+          <Chip
+            size="sm"
+            variant="soft"
+            color={theme.typeChipColor}
+            startDecorator={theme.typeIconKey ? TYPE_ICON_MAP[theme.typeIconKey] : undefined}
+            sx={{ whiteSpace: 'nowrap' }}
+          >
+            {theme.typeLabel}
+          </Chip>
+        </td>
+
+        {/* Status + Stage 3 badges */}
+        <td>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            <Chip
+              size="sm"
+              variant="soft"
+              color={getStatusDisplay(item.status).color}
+              sx={{ whiteSpace: 'nowrap' }}
+            >
+              {getStatusDisplay(item.status).label}
+            </Chip>
+            {/* HCAT Automatic Force Close Policy — days-remaining countdown */}
+            {countdown && (
+              <Chip size="sm" variant="soft" color={countdown.color} sx={{ whiteSpace: 'nowrap' }}>
+                {countdown.label}
+              </Chip>
+            )}
+            {/* HCAT Session 6 — late-reply / extra-time chips */}
+            {getLevelIndicatorChips(item).map((chip) => (
+              <Chip key={chip.key} size="sm" variant="soft" color={chip.color} sx={{ whiteSpace: 'nowrap' }}>
+                {chip.label}
+              </Chip>
+            ))}
+            {/* Stage 3 — themed badges (max 2 + overflow) */}
+            {theme.visibleBadges.map((badge) => (
+              <Chip
+                key={badge.key}
+                size="sm"
+                variant="soft"
+                color={badge.color}
+                startDecorator={BADGE_ICON_MAP[badge.iconKey]}
+                sx={{ whiteSpace: 'nowrap' }}
+              >
+                {badge.label}
+              </Chip>
+            ))}
+            {theme.overflowCount > 0 && (
+              <Chip
+                size="sm"
+                variant="outlined"
+                color="neutral"
+                title={theme.overflowTooltip}
+                sx={{ whiteSpace: 'nowrap', cursor: 'default', fontWeight: 600 }}
+              >
+                +{theme.overflowCount}
+              </Chip>
+            )}
+          </Box>
+        </td>
+
+        {/* Ownership + Target Unit */}
+        <td>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            {theme.ownershipChip && (
+              <Chip
+                size="sm"
+                variant="soft"
+                color={theme.ownershipChip.color}
+                sx={{ whiteSpace: 'nowrap', alignSelf: 'flex-start', fontSize: '0.7rem', ...(theme.ownershipChip.sx || {}) }}
+              >
+                {theme.ownershipChip.label}
+              </Chip>
+            )}
+            <Typography level="body-sm" sx={{ whiteSpace: 'nowrap' }}>
+              {item.targetOrgUnitName || `Unit ${item.targetOrgUnitId}`}
+            </Typography>
+          </Box>
+        </td>
+
+        {/* Display Date (incidentDate → createdAt fallback) */}
         <td>
           <Typography level="body-sm">
-            {firstItem.createdAt?.toLocaleDateString()}
+            {(item.displayDate || item.createdAt)?.toLocaleDateString()}
           </Typography>
         </td>
+
+        <td>{renderActionButtons(item)}</td>
+      </tr>
+    );
+  };
+
+  // ============================
+  // RENDER ARCHIVE TABLE ROW
+  // ============================
+  const renderArchiveRow = (item) => {
+    const theme = getRowTheme(item);
+    return (
+      <tr key={item.subcaseId} style={theme.rowStyle}>
+        {/* ID */}
+        <td>
+          {item.incidentNumber && (
+            <Typography level="body-xs" sx={{ color: 'neutral.500', fontFamily: 'monospace', mb: 0.25 }}>
+              {item.incidentNumber}
+            </Typography>
+          )}
+          <Typography level="body-sm" fontWeight="bold">
+            {getDisplayId(item)}
+          </Typography>
+        </td>
+
+        {/* Message Type */}
+        <td>
+          <Chip
+            size="sm"
+            variant="soft"
+            color={theme.typeChipColor}
+            startDecorator={theme.typeIconKey ? TYPE_ICON_MAP[theme.typeIconKey] : undefined}
+            sx={{ whiteSpace: 'nowrap' }}
+          >
+            {theme.typeLabel}
+          </Chip>
+        </td>
+
+        {/* Status + badges */}
+        <td>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            <Chip
+              size="sm"
+              variant="soft"
+              color={getStatusDisplay(item.status).color}
+              sx={{ whiteSpace: 'nowrap' }}
+            >
+              {getStatusDisplay(item.status).label}
+            </Chip>
+            {/* HCAT Session 6 — late-reply / extra-time chips */}
+            {getLevelIndicatorChips(item).map((chip) => (
+              <Chip key={chip.key} size="sm" variant="soft" color={chip.color} sx={{ whiteSpace: 'nowrap' }}>
+                {chip.label}
+              </Chip>
+            ))}
+            {/* Stage 3 — themed badges (max 2 + overflow) */}
+            {theme.visibleBadges.map((badge) => (
+              <Chip
+                key={badge.key}
+                size="sm"
+                variant="soft"
+                color={badge.color}
+                startDecorator={BADGE_ICON_MAP[badge.iconKey]}
+                sx={{ whiteSpace: 'nowrap' }}
+              >
+                {badge.label}
+              </Chip>
+            ))}
+            {theme.overflowCount > 0 && (
+              <Chip
+                size="sm"
+                variant="outlined"
+                color="neutral"
+                title={theme.overflowTooltip}
+                sx={{ whiteSpace: 'nowrap', cursor: 'default', fontWeight: 600 }}
+              >
+                +{theme.overflowCount}
+              </Chip>
+            )}
+          </Box>
+        </td>
+
+        {/* Ownership + Target Unit */}
+        <td>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            {theme.ownershipChip && (
+              <Chip
+                size="sm"
+                variant="soft"
+                color={theme.ownershipChip.color}
+                sx={{ whiteSpace: 'nowrap', alignSelf: 'flex-start', fontSize: '0.7rem', ...(theme.ownershipChip.sx || {}) }}
+              >
+                {theme.ownershipChip.label}
+              </Chip>
+            )}
+            <Typography level="body-sm" sx={{ whiteSpace: 'nowrap' }}>
+              {item.targetOrgUnitName || `Unit ${item.targetOrgUnitId}`}
+            </Typography>
+          </Box>
+        </td>
+
+        {/* Display Date */}
+        <td>
+          <Typography level="body-sm">
+            {(item.displayDate || item.updatedAt || item.createdAt)?.toLocaleDateString()}
+          </Typography>
+        </td>
+
+        {/* Actions (unchanged) */}
         <td>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            {/* View button - opens first item */}
-            <Button
-              size="sm"
-              variant="outlined"
-              color="neutral"
-              onClick={() => handleActionClick(firstItem, 'view')}
-              disabled={modalOpen}
-            >
-              View
-            </Button>
-            
-            {/* Bulk Direct Approve button */}
-            {subcaseCount > 1 ? (
-              <Button
-                size="sm"
-                variant="solid"
-                color="success"
-                onClick={() => openCaseActionModal(null, 'DIRECT_APPROVE', subcaseIds)}
-                disabled={modalOpen}
-                sx={{ fontWeight: 'bold' }}
-              >
-                ⚡ Approve All ({subcaseCount})
+            {item.seasonalReportId ? (
+              <Button size="sm" variant="outlined" color="neutral" onClick={() => handleSeasonalView(item)}>
+                عرض
               </Button>
+            ) : item.status === 'PATIENT_SERVICES_DECISION_COMPLETED' ? (
+              item.allowedActions?.includes('edit_patient_services_decision') ? (
+                <Button size="sm" variant="soft" color="primary" onClick={() => openReviewModal(item)}>
+                  مراجعة الرأي وتعديله
+                </Button>
+              ) : (
+                <Button size="sm" variant="outlined" color="neutral" onClick={() => { setDecisionViewerItem(item); setDecisionViewerOpen(true); }}>
+                  عرض القرار
+                </Button>
+              )
             ) : (
-              <Button
-                size="sm"
-                variant="solid"
-                color="success"
-                onClick={() => openCaseActionModal(subcaseIds[0], 'DIRECT_APPROVE')}
-                disabled={modalOpen}
-                sx={{ fontWeight: 'bold' }}
-              >
-                ⚡ Direct Approve
+              <Button size="sm" variant="soft" color="primary" onClick={() => openReviewModal(item)}>
+                عرض الحالة والرد
               </Button>
             )}
           </Box>
@@ -539,113 +611,6 @@ const WorkflowInboxPage = () => {
       </tr>
     );
   };
-
-  // ============================
-  // RENDER INBOX TABLE ROW
-  // ============================
-  const renderInboxRow = (item) => (
-    <tr key={item.subcaseId}>
-      <td>
-        <Typography level="body-sm" fontWeight="bold">
-          {getDisplayId(item)}
-        </Typography>
-      </td>
-      <td>
-        <Chip
-          size="sm"
-          variant="soft"
-          color={isIncidentItem(item) ? 'primary' : 'warning'}
-          sx={{ whiteSpace: 'nowrap' }}
-        >
-          {isIncidentItem(item) ? 'Incident' : 'Seasonal'}
-        </Chip>
-      </td>
-      <td>
-        <Chip
-          size="sm"
-          variant="soft"
-          color={getStatusDisplay(item.status).color}
-          sx={{ whiteSpace: 'nowrap' }}
-        >
-          {getStatusDisplay(item.status).label}
-        </Chip>
-      </td>
-      <td>
-        <Typography level="body-sm" sx={{ whiteSpace: 'nowrap' }}>
-          {item.targetOrgUnitName || `Unit ${item.targetOrgUnitId}`}
-        </Typography>
-      </td>
-      <td>
-        <Typography level="body-sm">
-          {item.createdAt?.toLocaleDateString()}
-        </Typography>
-      </td>
-      <td>{renderActionButtons(item)}</td>
-    </tr>
-  );
-
-  // ============================
-  // RENDER ARCHIVE TABLE ROW
-  // ============================
-  const renderArchiveRow = (item) => (
-    <tr key={item.subcaseId}>
-      <td>
-        <Typography level="body-sm" fontWeight="bold">
-          {getDisplayId(item)}
-        </Typography>
-      </td>
-      <td>
-        <Chip
-          size="sm"
-          variant="soft"
-          color={isIncidentItem(item) ? 'primary' : 'warning'}
-          sx={{ whiteSpace: 'nowrap' }}
-        >
-          {isIncidentItem(item) ? 'Incident' : 'Seasonal'}
-        </Chip>
-      </td>
-      <td>
-        <Chip
-          size="sm"
-          variant="soft"
-          color={getStatusDisplay(item.status).color}
-          sx={{ whiteSpace: 'nowrap' }}
-        >
-          {getStatusDisplay(item.status).label}
-        </Chip>
-      </td>
-      <td>
-        <Typography level="body-sm" sx={{ whiteSpace: 'nowrap' }}>
-          {item.targetOrgUnitName || `Unit ${item.targetOrgUnitId}`}
-        </Typography>
-      </td>
-      <td>
-        <Typography level="body-sm">
-          {item.updatedAt?.toLocaleDateString() || item.createdAt?.toLocaleDateString()}
-        </Typography>
-      </td>
-      <td>
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          <Button
-            size="sm"
-            variant="outlined"
-            color="neutral"
-            onClick={() => handleActionClick(item, 'view')}
-          >
-            View Case
-          </Button>
-          <Button
-            size="sm"
-            variant="soft"
-            color="primary"
-            onClick={() => openResponseViewer(item.subcaseId)}
-          >
-            View Response
-          </Button>
-        </Box>
-      </td>
-    </tr>
-  );
 
   // ============================
   // RENDER EMPTY STATE CONTENT
@@ -732,35 +697,60 @@ const WorkflowInboxPage = () => {
   // ============================
   return (
     <MainLayout pageTitle="Workflow Inbox">
-      <Box sx={{ p: 3 }}>
-        <Tabs value={activeTab} onChange={handleTabChange} aria-label="Inbox tabs">
+      <Box sx={{ p: 3, width: '100%', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
+        <Tabs value={activeTab} onChange={handleTabChange} aria-label="Inbox tabs" sx={{ width: '100%', minWidth: 0 }}>
           <TabList>
             <Tab>📥 Inbox ({items.length})</Tab>
             <Tab>📋 Archive ({archiveItems.length})</Tab>
           </TabList>
 
-          {/* INBOX TAB */}
-          <TabPanel value={0} sx={{ p: 0, pt: 2 }}>
+          {/* INBOX TAB — three responsibility zones */}
+          <TabPanel value={0} sx={{ p: 0, pt: 2, width: '100%', minWidth: 0 }}>
             {loading ? (
               renderLoadingState('Loading inbox...')
             ) : error ? (
-              <ErrorPanel
-                message={error}
-                retryAction={loadInbox}
-                retryLabel="Retry Load"
-              />
+              <ErrorPanel message={error} retryAction={loadInbox} retryLabel="Retry Load" />
             ) : items.length === 0 ? (
               renderEmptyInbox()
-            ) : (
-              <Card variant="outlined">
-                <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                    <Typography level="h4">Active Items ({applyFilters(items).length})</Typography>
-                    {/* Case Type Filter Buttons */}
+            ) : (() => {
+              // Zone 1 uses full filter (search + type). Zone 2 uses search only so
+              // escalated cases always appear regardless of the type filter.
+              const { normalItems }  = splitInboxAreas(applyFilters(items));
+              const { problemItems } = splitInboxAreas(filterBySearch(items));
+
+              const tableHead = (
+                <thead>
+                  <tr>
+                    <th style={{ width: '8%' }}>ID</th>
+                    <th style={{ width: '12%' }}>Type</th>
+                    <th style={{ width: '22%' }}>Status / Indicators</th>
+                    <th style={{ width: '16%' }}>Unit</th>
+                    <th style={{ width: '10%' }}>Date</th>
+                    <th style={{ width: '32%' }}>Actions</th>
+                  </tr>
+                </thead>
+              );
+
+              // Zone 2 footer: quick Give More Time link (single-item only)
+              const singleEscalated = problemItems.length === 1 ? problemItems[0] : null;
+              const singleHasGiveMoreTime = singleEscalated?.allowedActions?.some(
+                (a) => a.includes('give') && a.includes('more_time')
+              );
+
+              return (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%', minWidth: 0 }}>
+
+                  {/* ── GLOBAL INBOX CONTROLS — above all zones ── */}
+                  <Box
+                    sx={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      flexWrap: 'wrap', gap: 1.5,
+                    }}
+                  >
                     <ButtonGroup size="sm" variant="outlined" color="neutral">
                       <Button
                         variant={caseTypeFilter === 'all' ? 'solid' : 'outlined'}
-                        color={caseTypeFilter === 'all' ? 'primary' : 'neutral'}
+                        color="neutral"
                         onClick={() => setCaseTypeFilter('all')}
                       >
                         All
@@ -770,71 +760,196 @@ const WorkflowInboxPage = () => {
                         color={caseTypeFilter === 'incident' ? 'primary' : 'neutral'}
                         onClick={() => setCaseTypeFilter('incident')}
                       >
-                        🔴 Incidents
+                        Complaints
                       </Button>
                       <Button
                         variant={caseTypeFilter === 'seasonal' ? 'solid' : 'outlined'}
                         color={caseTypeFilter === 'seasonal' ? 'warning' : 'neutral'}
+                        startDecorator={<BarChartIcon sx={{ fontSize: 14 }} />}
                         onClick={() => setCaseTypeFilter('seasonal')}
                       >
-                        📅 Seasonal
+                        Seasonal
                       </Button>
                     </ButtonGroup>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Input
+                        size="sm"
+                        placeholder="Search by INC or Case #"
+                        startDecorator={<SearchIcon />}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        sx={{ width: 180 }}
+                      />
+                      <Button size="sm" variant="outlined" color="neutral" onClick={loadInbox} disabled={reviewModalOpen}>
+                        Refresh
+                      </Button>
+                    </Box>
                   </Box>
-                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                    <Input
-                      size="sm"
-                      placeholder="Search by ID (e.g., 503)"
-                      startDecorator={<SearchIcon />}
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      sx={{ width: 200 }}
-                    />
-                    <Button
-                      size="sm"
-                      variant="outlined"
-                      color="neutral"
-                      onClick={loadInbox}
-                      disabled={modalOpen}
-                    >
-                      Refresh
-                    </Button>
-                  </Box>
-                </Box>
 
-                <Table
-                  variant="outlined"
-                  sx={{
-                    '& thead th': {
-                      fontWeight: 600,
-                      backgroundColor: 'neutral.50',
-                    },
-                    tableLayout: 'fixed',
-                  }}
-                >
-                  <thead>
-                    <tr>
-                      <th style={{ width: '8%' }}>ID</th>
-                      <th style={{ width: '12%' }}>Case Type</th>
-                      <th style={{ width: '18%' }}>Status</th>
-                      <th style={{ width: '17%' }}>Target Unit</th>
-                      <th style={{ width: '12%' }}>Created</th>
-                      <th style={{ width: '33%' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {isUniversalSection
-                      ? groupItemsByIncident(applyFilters(items)).map((group) => renderGroupedInboxRow(group))
-                      : applyFilters(items).map((item) => renderInboxRow(item))
-                    }
-                  </tbody>
-                </Table>
-              </Card>
-            )}
+                  {/* ── ZONE 1: My Active Work ── */}
+                  <Card
+                    variant="outlined"
+                    sx={{ borderRadius: 'lg', overflow: 'hidden', borderColor: 'primary.200', p: 0, width: '100%', minWidth: 0 }}
+                  >
+                    {/* Zone 1 header — no filters here, moved above */}
+                    <Box
+                      sx={{
+                        px: 2.5, py: 2,
+                        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+                        backgroundColor: '#f0f7ff',
+                        borderBottom: '1px solid', borderColor: 'primary.100',
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                        <Box sx={{ p: 0.75, borderRadius: 'sm', backgroundColor: 'primary.50', display: 'flex' }}>
+                          <AssignmentIcon sx={{ color: 'primary.500', fontSize: 22 }} />
+                        </Box>
+                        <Box>
+                          <Typography level="h4">My Active Work</Typography>
+                          <Typography level="body-sm" sx={{ color: 'neutral.500', mt: 0.25 }}>
+                            Cases that require your action now
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <Chip size="sm" variant="solid" color="primary">{normalItems.length}</Chip>
+                        <Typography level="body-xs" sx={{ color: 'neutral.400' }}>
+                          {normalItems.length === 1 ? 'Item' : 'Items'}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* Zone 1 table — wrapped for contained horizontal scroll */}
+                    {normalItems.length > 0 ? (
+                      <Box sx={{ overflowX: 'auto', width: '100%' }}>
+                        <Table
+                          variant="plain"
+                          sx={{
+                            '& thead th': { fontWeight: 600, backgroundColor: 'neutral.50', borderBottom: '1px solid', borderColor: 'neutral.100' },
+                            tableLayout: 'fixed',
+                            width: '100%',
+                            minWidth: 680,
+                          }}
+                        >
+                          {tableHead}
+                          <tbody>{normalItems.map((item) => renderInboxRow(item))}</tbody>
+                        </Table>
+                      </Box>
+                    ) : (
+                      <Box sx={{ py: 4, textAlign: 'center' }}>
+                        <Typography level="body-sm" sx={{ color: 'neutral.400' }}>
+                          No active items at your responsibility level.
+                        </Typography>
+                      </Box>
+                    )}
+                  </Card>
+
+                  {/* ── ZONE 2: Escalated / Force Closed ── (only when items exist) */}
+                  {problemItems.length > 0 && (
+                    <Card
+                      variant="outlined"
+                      sx={{ borderRadius: 'lg', overflow: 'hidden', borderColor: 'danger.300', p: 0, width: '100%', minWidth: 0 }}
+                    >
+                      {/* Zone 2 header */}
+                      <Box
+                        sx={{
+                          px: 2.5, py: 2,
+                          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+                          backgroundColor: '#fff5f5',
+                          borderBottom: '1px solid', borderColor: 'danger.100',
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                          <Box sx={{ p: 0.75, borderRadius: 'sm', backgroundColor: 'danger.100', display: 'flex' }}>
+                            <ReportProblemIcon sx={{ color: 'danger.600', fontSize: 22 }} />
+                          </Box>
+                          <Box>
+                            <Typography level="h4" sx={{ color: 'danger.700' }}>Escalated / Force Closed Cases</Typography>
+                            <Typography level="body-sm" sx={{ color: 'danger.500', mt: 0.25 }}>
+                              Cases that missed deadline or need supervisor attention
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                          <Chip size="sm" variant="solid" color="danger">{problemItems.length}</Chip>
+                          <Typography level="body-xs" sx={{ color: 'danger.400' }}>
+                            {problemItems.length === 1 ? 'Item' : 'Items'}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      {/* Zone 2 table — wrapped for contained horizontal scroll */}
+                      <Box sx={{ overflowX: 'auto', width: '100%' }}>
+                        <Table
+                          variant="plain"
+                          sx={{
+                            '& thead th': { fontWeight: 600, backgroundColor: 'neutral.50', borderBottom: '1px solid', borderColor: 'neutral.100' },
+                            tableLayout: 'fixed',
+                            width: '100%',
+                            minWidth: 680,
+                          }}
+                        >
+                          {tableHead}
+                          <tbody>
+                            {problemItems.map((item) => {
+                              const isInactive = classifyInboxArea(item) === 'PROBLEM_INACTIVE';
+                              return (
+                                <React.Fragment key={item.subcaseId}>
+                                  {renderInboxRow(item, isInactive ? { opacity: 0.55, filter: 'grayscale(0.35)' } : undefined)}
+                                  {isInactive && (
+                                    <tr>
+                                      <td colSpan={6} style={{ padding: '2px 12px 8px 16px', backgroundColor: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+                                        <Typography level="body-xs" sx={{ color: 'neutral.500', fontStyle: 'italic' }}>
+                                          انتقلت إلى المستوى الأعلى
+                                        </Typography>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
+                          </tbody>
+                        </Table>
+                      </Box>
+
+                      {/* Zone 2 footer: Give More Time quick action (single escalated case only) */}
+                      {singleHasGiveMoreTime && (
+                        <Box
+                          sx={{
+                            px: 2.5, py: 1.5,
+                            backgroundColor: '#fff5f5',
+                            borderTop: '1px solid', borderColor: 'danger.100',
+                            display: 'flex', gap: 3, alignItems: 'center',
+                          }}
+                        >
+                          <Button
+                            variant="plain"
+                            color="danger"
+                            size="sm"
+                            startDecorator={<HistoryIcon sx={{ fontSize: 16 }} />}
+                            onClick={() => openReviewModal(singleEscalated)}
+                          >
+                            Give More Time
+                          </Button>
+                        </Box>
+                      )}
+                    </Card>
+                  )}
+
+                  {/* ── ZONE 3: Accountability Log (Section/Department only) ── */}
+                  {showAccountability && (
+                    <AccountabilityBox
+                      userId={user?.user_id || user?.id || 0}
+                      onViewCase={(item) => openReviewModal(item)}
+                    />
+                  )}
+                </Box>
+              );
+            })()}
           </TabPanel>
 
           {/* ARCHIVE TAB */}
-          <TabPanel value={1} sx={{ p: 0, pt: 2 }}>
+          <TabPanel value={1} sx={{ p: 0, pt: 2, width: '100%', minWidth: 0 }}>
             {archiveLoading ? (
               renderLoadingState('Loading archive...')
             ) : archiveError ? (
@@ -846,15 +961,18 @@ const WorkflowInboxPage = () => {
             ) : archiveItems.length === 0 ? (
               renderEmptyArchive()
             ) : (
-              <Card variant="outlined">
+              <Card variant="outlined" sx={{ width: '100%', minWidth: 0 }}>
                 <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                    <Typography level="h4">Archived Items ({applyFilters(archiveItems).length})</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography level="h4">Archived Items</Typography>
+                      <Chip size="sm" variant="soft" color="neutral">{applyFilters(archiveItems).length}</Chip>
+                    </Box>
                     {/* Case Type Filter Buttons */}
                     <ButtonGroup size="sm" variant="outlined" color="neutral">
                       <Button
                         variant={caseTypeFilter === 'all' ? 'solid' : 'outlined'}
-                        color={caseTypeFilter === 'all' ? 'primary' : 'neutral'}
+                        color="neutral"
                         onClick={() => setCaseTypeFilter('all')}
                       >
                         All
@@ -864,21 +982,22 @@ const WorkflowInboxPage = () => {
                         color={caseTypeFilter === 'incident' ? 'primary' : 'neutral'}
                         onClick={() => setCaseTypeFilter('incident')}
                       >
-                        🔴 Incidents
+                        Complaints
                       </Button>
                       <Button
                         variant={caseTypeFilter === 'seasonal' ? 'solid' : 'outlined'}
                         color={caseTypeFilter === 'seasonal' ? 'warning' : 'neutral'}
+                        startDecorator={<BarChartIcon sx={{ fontSize: 14 }} />}
                         onClick={() => setCaseTypeFilter('seasonal')}
                       >
-                        📅 Seasonal
+                        Seasonal
                       </Button>
                     </ButtonGroup>
                   </Box>
                   <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                     <Input
                       size="sm"
-                      placeholder="Search by ID (e.g., 503)"
+                      placeholder="Search by INC-000168 or Case #"
                       startDecorator={<SearchIcon />}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -889,73 +1008,80 @@ const WorkflowInboxPage = () => {
                       variant="outlined"
                       color="neutral"
                       onClick={loadArchive}
-                      disabled={modalOpen}
+                      disabled={reviewModalOpen}
                     >
                       Refresh
                     </Button>
                   </Box>
                 </Box>
 
-                <Table
-                  variant="outlined"
-                  sx={{
-                    '& thead th': {
-                      fontWeight: 600,
-                      backgroundColor: 'neutral.50',
-                    },
-                    tableLayout: 'fixed',
-                  }}
-                >
-                  <thead>
-                    <tr>
-                      <th style={{ width: '8%' }}>ID</th>
-                      <th style={{ width: '12%' }}>Case Type</th>
-                      <th style={{ width: '18%' }}>Status</th>
-                      <th style={{ width: '17%' }}>Target Unit</th>
-                      <th style={{ width: '12%' }}>Processed</th>
-                      <th style={{ width: '33%' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {applyFilters(archiveItems).map((item) => renderArchiveRow(item))}
-                  </tbody>
-                </Table>
+                <Box sx={{ overflowX: 'auto', width: '100%' }}>
+                  <Table
+                    variant="outlined"
+                    sx={{
+                      '& thead th': {
+                        fontWeight: 600,
+                        backgroundColor: 'neutral.50',
+                      },
+                      tableLayout: 'fixed',
+                      width: '100%',
+                      minWidth: 680,
+                    }}
+                  >
+                    <thead>
+                      <tr>
+                        <th style={{ width: '8%' }}>ID</th>
+                        <th style={{ width: '12%' }}>Type</th>
+                        <th style={{ width: '22%' }}>Status / Indicators</th>
+                        <th style={{ width: '16%' }}>Unit</th>
+                        <th style={{ width: '10%' }}>Date</th>
+                        <th style={{ width: '32%' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {applyFilters(archiveItems).map((item) => renderArchiveRow(item))}
+                    </tbody>
+                  </Table>
+                </Box>
               </Card>
             )}
           </TabPanel>
         </Tabs>
       </Box>
 
-      {/* Case Action Modal */}
-      <CaseActionModal
-        open={modalOpen}
-        onClose={handleModalClose}
-        subcaseId={modalSubcaseId}
-        subcaseIds={modalSubcaseIds}
-        actionCode={modalActionCode}
-        onSuccess={handleModalSuccess}
+      {/* Unified Case Review Modal (section / dept / admin / supervisor) */}
+      <CaseReviewModal
+        open={reviewModalOpen}
+        onClose={() => { setReviewModalOpen(false); setReviewModalItem(null); }}
+        item={reviewModalItem}
+        onSuccess={handleReviewSuccess}
       />
 
-      {/* Response Viewer Modal (read-only) */}
-      <ResponseViewerModal
-        open={responseViewerOpen}
-        onClose={() => setResponseViewerOpen(false)}
-        subcaseId={responseViewerSubcaseId}
-      />
-
-      {/* Seasonal Report Viewer Modal (read-only) */}
+      {/* Seasonal Report Viewer */}
       <SeasonalReportViewerModal
         open={seasonalViewerOpen}
         onClose={() => setSeasonalViewerOpen(false)}
-        seasonalReportId={seasonalViewerReportId}
+        seasonalReportId={seasonalViewerItem?.seasonalReportId}
+        item={seasonalViewerItem}
+        onSuccess={() => { setSeasonalViewerOpen(false); loadInbox(); }}
       />
 
-      {/* Incident Viewer Modal (read-only for section admins) */}
-      <IncidentViewerModal
-        open={incidentViewerOpen}
-        onClose={() => setIncidentViewerOpen(false)}
-        incidentId={incidentViewerRecordId}
+      {/* Patient Services Decision Viewer (read-only: archive completed decisions) */}
+      <PatientServicesDecisionModal
+        open={decisionViewerOpen}
+        item={decisionViewerItem}
+        readOnly={true}
+        onClose={() => { setDecisionViewerOpen(false); setDecisionViewerItem(null); }}
       />
+
+      {/* Notice Modal (informational notice items) */}
+      <NoticeModal
+        open={noticeModalOpen}
+        item={noticeModalItem}
+        onClose={() => { setNoticeModalOpen(false); setNoticeModalItem(null); }}
+        onSuccess={() => { setNoticeModalOpen(false); setNoticeModalItem(null); loadInbox(); }}
+      />
+
     </MainLayout>
   );
 };

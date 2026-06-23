@@ -1,12 +1,12 @@
 // src/pages/DashboardPage.js
 import React, { useEffect, useState, useRef } from "react";
-import { fetchDashboardHierarchy, fetchDashboardStats, fetchDashboardDateBounds } from "../api/dashboard";
-import { indexToDate, clampIndex } from "../utils/dateSliderMapping";
+import { fetchDashboardHierarchy, fetchDashboardStats, fetchDashboardDateBounds, fetchOperationalSummary } from "../api/dashboard";
+import { indexToDate, dateToIndex, clampIndex } from "../utils/dateSliderMapping";
 import { hasFullOperationalAccess } from "../utils/roleGuards";
 import { useAuth } from "../context/AuthContext";
 import theme from '../theme';
 
-import { Box, Card, Typography, Select, Option, FormControl, FormLabel, Slider } from "@mui/joy";
+import { Box, Card, Typography, Select, Option, FormControl, FormLabel, Slider, Input } from "@mui/joy";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 
 // Components
@@ -17,6 +17,7 @@ import IdaraDashboardStats from "../components/dashboard/IdaraDashboardStats";
 import DayraDashboardStats from "../components/dashboard/DayraDashboardStats";
 import QismDashboardStats from "../components/dashboard/QismDashboardStats";
 import DashboardActions from "../components/dashboard/DashboardActions";
+import LatestPublicationBatches from "../components/dashboard/LatestPublicationBatches";
 
 const DashboardPage = () => {
   // Auth context
@@ -36,6 +37,8 @@ const DashboardPage = () => {
   const [dashboardStats, setDashboardStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(false);
   const [statsError, setStatsError] = useState(null);
+
+  const [operationalSummary, setOperationalSummary] = useState(null);
   
   const [boundsLoading, setBoundsLoading] = useState(false);
   
@@ -57,6 +60,9 @@ const DashboardPage = () => {
 
   // Debounce timer ref for slider updates
   const debounceTimerRef = useRef(null);
+
+  // Guard: auto-scope only fires once per session
+  const autoScopeApplied = useRef(false);
 
   // Chart mode selections
   const [chartModes, setChartModes] = useState({
@@ -80,6 +86,70 @@ const DashboardPage = () => {
       .catch((error) => console.error("Failed to load hierarchy:", error))
       .finally(() => setLoadingHierarchy(false));
   }, []);
+
+  // ============================
+  // AUTO-SCOPE: set scope to user's own org level on first load
+  // SECTION_ADMIN  → section scope  (their section pre-selected)
+  // DEPARTMENT_ADMIN → department scope (their dept pre-selected)
+  // ADMINISTRATION_ADMIN → administration scope (their admin pre-selected)
+  // Others (COMPLAINT_SUPERVISOR, SOFTWARE_ADMIN) → stay at hospital default
+  // ============================
+  useEffect(() => {
+    if (!user || !hierarchy || autoScopeApplied.current) return;
+
+    const roleCode  = user.scopes?.[0]?.role_code;
+    const orgUnitId = user.scopes?.[0]?.org_unit_id;
+    if (!roleCode || !orgUnitId) return;
+
+    if (roleCode === "SECTION_ADMIN") {
+      // Walk hierarchy: Section map is { deptId: [{ id, nameAr, nameEn }] }
+      let foundDept = null;
+      let foundAdmin = null;
+
+      for (const [deptId, sections] of Object.entries(hierarchy.Section || {})) {
+        if (sections.some(s => s.id === orgUnitId)) {
+          foundDept = Number(deptId);
+          break;
+        }
+      }
+      if (foundDept) {
+        for (const [adminId, depts] of Object.entries(hierarchy.Department || {})) {
+          if (depts.some(d => d.id === foundDept)) {
+            foundAdmin = Number(adminId);
+            break;
+          }
+        }
+      }
+      if (foundAdmin && foundDept) {
+        setScope("section");
+        setSelectedAdmin(foundAdmin);
+        setSelectedDept(foundDept);
+        setSelectedSection(orgUnitId);
+        autoScopeApplied.current = true;
+      }
+
+    } else if (roleCode === "DEPARTMENT_ADMIN") {
+      let foundAdmin = null;
+      for (const [adminId, depts] of Object.entries(hierarchy.Department || {})) {
+        if (depts.some(d => d.id === orgUnitId)) {
+          foundAdmin = Number(adminId);
+          break;
+        }
+      }
+      if (foundAdmin) {
+        setScope("department");
+        setSelectedAdmin(foundAdmin);
+        setSelectedDept(orgUnitId);
+        autoScopeApplied.current = true;
+      }
+
+    } else if (roleCode === "ADMINISTRATION_ADMIN") {
+      setScope("administration");
+      setSelectedAdmin(orgUnitId);
+      autoScopeApplied.current = true;
+    }
+    // COMPLAINT_SUPERVISOR / SOFTWARE_ADMIN: hospital default, no change
+  }, [user, hierarchy]);
 
   // ============================
   // FETCH DASHBOARD DATE BOUNDS
@@ -266,6 +336,45 @@ const DashboardPage = () => {
   }, [scope, selectedAdmin, selectedDept, selectedSection, dateRange, chartModes]);
 
   // ============================
+  // FETCH OPERATIONAL SUMMARY (HCAT Performance & Delay Monitoring - Session 2)
+  // ============================
+  useEffect(() => {
+    // Build params based on current scope (same scope-resolution as dashboard stats)
+    const params = { scope };
+
+    if (scope === "administration" || scope === "department" || scope === "section") {
+      if (selectedAdmin && selectedAdmin !== "") {
+        params.administration_id = selectedAdmin;
+      } else {
+        return; // Wait for administration selection
+      }
+    }
+
+    if (scope === "department" || scope === "section") {
+      if (selectedDept && selectedDept !== "") {
+        params.department_id = selectedDept;
+      } else {
+        return; // Wait for department selection
+      }
+    }
+
+    if (scope === "section") {
+      if (selectedSection && selectedSection !== "") {
+        params.section_id = selectedSection;
+      } else {
+        return; // Wait for section selection
+      }
+    }
+
+    fetchOperationalSummary(params)
+      .then((data) => setOperationalSummary(data))
+      .catch((error) => {
+        console.error("❌ Failed to load operational summary:", error);
+        setOperationalSummary(null);
+      });
+  }, [scope, selectedAdmin, selectedDept, selectedSection]);
+
+  // ============================
   // HELPER FUNCTIONS - copied from InvestigationPage
   // ============================
   // Compute total days between date bounds
@@ -382,6 +491,39 @@ const DashboardPage = () => {
   };
 
   // ============================
+  // FROM / TO DATE INPUT HANDLER (keeps slider in sync)
+  // ============================
+  const handleDateInputChange = (field, value) => {
+    if (!value || !dateBounds.minDate || !dateBounds.maxDate) {
+      return;
+    }
+
+    // Clamp typed date to the available bounds
+    let clamped = value;
+    if (clamped < dateBounds.minDate) clamped = dateBounds.minDate;
+    if (clamped > dateBounds.maxDate) clamped = dateBounds.maxDate;
+
+    const newRange = { ...dateRange, [field]: clamped };
+
+    // Keep start <= end
+    if (field === "start_date" && newRange.end_date && clamped > newRange.end_date) {
+      newRange.end_date = clamped;
+    }
+    if (field === "end_date" && newRange.start_date && clamped < newRange.start_date) {
+      newRange.start_date = clamped;
+    }
+
+    setDateRange(newRange);
+
+    // Sync slider thumbs to match the typed dates
+    if (dateBounds.totalDays !== null) {
+      const startIndex = clampIndex(dateToIndex(newRange.start_date, dateBounds.minDate), 0, dateBounds.totalDays);
+      const endIndex = clampIndex(dateToIndex(newRange.end_date, dateBounds.minDate), 0, dateBounds.totalDays);
+      setSliderValue([startIndex, endIndex]);
+    }
+  };
+
+  // ============================
   // VIEW FLAGS
   // ============================
   const isGlobalView = scope === "hospital";
@@ -472,7 +614,7 @@ const DashboardPage = () => {
                 value={selectedDept}
                 onChange={handleDeptChange}
                 size="lg"
-                disabled={!selectedAdmin || loadingHierarchy}
+                disabled={loadingHierarchy || !selectedAdmin || (scope !== "department" && scope !== "section")}
               >
                 <Option value="">جميع الدوائر</Option>
                 {getDepartments().map((dept) => (
@@ -492,7 +634,7 @@ const DashboardPage = () => {
                 value={selectedSection}
                 onChange={(e, newValue) => setSelectedSection(newValue)}
                 size="lg"
-                disabled={!selectedDept || loadingHierarchy}
+                disabled={loadingHierarchy || !selectedDept || scope !== "section"}
               >
                 <Option value="">جميع الأقسام</Option>
                 {getSections().map((section) => (
@@ -549,6 +691,34 @@ const DashboardPage = () => {
                   {dateBounds.maxDate}
                 </Typography>
               </Box>
+
+              {/* From / To Date Selector */}
+              <Box sx={{ display: "flex", gap: 2, mt: 2, flexWrap: "wrap" }}>
+                <FormControl sx={{ flex: 1, minWidth: 160 }}>
+                  <FormLabel sx={{ fontWeight: 600 }}>من تاريخ (From Date)</FormLabel>
+                  <Input
+                    type="date"
+                    value={dateRange.start_date || ""}
+                    onChange={(e) => handleDateInputChange("start_date", e.target.value)}
+                    disabled={boundsLoading}
+                    slotProps={{
+                      input: { lang: "en-GB", min: dateBounds.minDate || undefined, max: dateBounds.maxDate || undefined },
+                    }}
+                  />
+                </FormControl>
+                <FormControl sx={{ flex: 1, minWidth: 160 }}>
+                  <FormLabel sx={{ fontWeight: 600 }}>إلى تاريخ (To Date)</FormLabel>
+                  <Input
+                    type="date"
+                    value={dateRange.end_date || ""}
+                    onChange={(e) => handleDateInputChange("end_date", e.target.value)}
+                    disabled={boundsLoading}
+                    slotProps={{
+                      input: { lang: "en-GB", min: dateBounds.minDate || undefined, max: dateBounds.maxDate || undefined },
+                    }}
+                  />
+                </FormControl>
+              </Box>
             </Box>
           )}
         </Card>
@@ -563,10 +733,15 @@ const DashboardPage = () => {
         />
 
         {/* Conditional Dashboard Views */}
-        {isGlobalView && <GlobalDashboardStats stats={dashboardStats} loading={loadingStats} chartModes={chartModes} setChartModes={setChartModes} chartTypes={chartTypes} setChartTypes={setChartTypes} />}
-        {isIdaraView && <IdaraDashboardStats idara={hierarchy?.Administration?.find(a => a.id === selectedAdmin)} stats={dashboardStats} loading={loadingStats} />}
-        {isDayraView && <DayraDashboardStats dayra={getDepartments().find(d => d.id === selectedDept)} stats={dashboardStats} loading={loadingStats} />}
-        {isQismView && <QismDashboardStats qism={getSections().find(s => s.id === selectedSection)} stats={dashboardStats} loading={loadingStats} />}
+        {isGlobalView && <GlobalDashboardStats stats={dashboardStats} loading={loadingStats} operationalSummary={operationalSummary} chartModes={chartModes} setChartModes={setChartModes} chartTypes={chartTypes} setChartTypes={setChartTypes} />}
+        {isIdaraView && <IdaraDashboardStats idara={hierarchy?.Administration?.find(a => a.id === selectedAdmin)} stats={dashboardStats} loading={loadingStats} operationalSummary={operationalSummary} />}
+        {isDayraView && <DayraDashboardStats dayra={getDepartments().find(d => d.id === selectedDept)} stats={dashboardStats} loading={loadingStats} operationalSummary={operationalSummary} />}
+        {isQismView && <QismDashboardStats qism={getSections().find(s => s.id === selectedSection)} stats={dashboardStats} loading={loadingStats} operationalSummary={operationalSummary} />}
+
+        {/* Latest Publication Batches */}
+        <Box sx={{ mt: 3 }}>
+          <LatestPublicationBatches />
+        </Box>
 
         {/* Dashboard Actions - Hidden for limited admins (3 monkeys) */}
         {hasFullOperationalAccess(user) && (

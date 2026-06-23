@@ -123,6 +123,20 @@ function adaptKpiSummary(raw) {
  * @param {Array|null|undefined} rawList - Raw backend response array
  * @returns {Array} Array of {label, value} objects for Recharts
  */
+const STATUS_DISPLAY_LABELS = {
+  SUBMITTED_TO_SECTION: 'Submitted to Section',
+  SECTION_ACCEPTED: 'Accepted by Section',
+  SECTION_ACCEPTED_PENDING_DEPT: 'Pending Department',
+  DEPT_ACCEPTED_PENDING_ADMIN: 'Pending Administration',
+  ADMIN_APPROVED: 'Approved',
+  SECTION_DENIED: 'Denied',
+  FORCE_CLOSED: 'Force Closed',
+  FORCE_CLOSED_DRAFT: 'Force Closed (Draft)',
+  FORCE_CLOSED_COMPLETE: 'Force Closed (Complete)',
+  RETURNED_TO_SECTION_FOR_REVISION: 'Returned for Revision',
+  RETURNED_TO_DEPARTMENT_FOR_REVISION: 'Returned to Dept',
+};
+
 function adaptDistribution(rawList) {
   // Defensive fallback to prevent Insight UI crash on bad payload
   if (!Array.isArray(rawList)) {
@@ -133,8 +147,27 @@ function adaptDistribution(rawList) {
   return rawList
     .filter(row => row != null) // Skip null/undefined rows
     .map(row => ({
-      label: String(row.key ?? ''),
+      label: STATUS_DISPLAY_LABELS[row.key] || String(row.key ?? ''),
       value: Number(row.count) || 0,
+    }));
+}
+
+/**
+ * Adapt distribution response to raw {status, count} pairs — no label
+ * translation. Used by callers that group statuses into their own
+ * business categories (e.g. workflow ownership) rather than displaying
+ * one slice per raw status.
+ */
+function adaptStatusCounts(rawList) {
+  if (!Array.isArray(rawList)) {
+    return [];
+  }
+
+  return rawList
+    .filter(row => row != null)
+    .map(row => ({
+      status: String(row.key ?? ''),
+      count: Number(row.count) || 0,
     }));
 }
 
@@ -412,7 +445,8 @@ function adaptGroupedInbox(rawList) {
         ? section.subcases.map(subcase => ({
             subcase_id: subcase.subcase_id,
             case_type: subcase.case_type,
-            incident_id: subcase.incident_request_case_id || subcase.incident_id, // Backend sends incident_request_case_id
+            incident_id: subcase.incident_request_case_id || subcase.incident_id,
+            incident_number: subcase.incident_number || null,
             seasonal_report_id: subcase.seasonal_report_id,
             case_description: String(subcase.case_description ?? ''),
             patient_name: String(subcase.patient_name ?? ''),
@@ -422,8 +456,16 @@ function adaptGroupedInbox(rawList) {
             waiting_days: Number(subcase.waiting_days) || 0,
             created_at: subcase.created_at,
             status: subcase.status,
+            force_close_reason: subcase.force_close_reason || null,
             is_red_flag: Boolean(subcase.is_red_flag),
             is_never_event: Boolean(subcase.is_never_event),
+            is_morbidity: Boolean(subcase.is_morbidity),
+            is_late: Boolean(
+              subcase.is_late ||
+              subcase.section_late_reply ||
+              subcase.department_late_reply ||
+              subcase.administration_late_reply
+            ),
           }))
         : [],
     }));
@@ -459,6 +501,22 @@ export async function getInsightDistribution(params) {
     return adaptDistribution(res.data);
   } catch (err) {
     const message = err.response?.data?.detail || 'Failed to load distribution data';
+    throw new Error(message);
+  }
+}
+
+/**
+ * Get raw subcase status counts, unmapped to any display label.
+ * @param {Object} params - { dimension }
+ * @returns {Promise<Array>} Array of {status, count} objects
+ */
+export async function getInsightStatusCounts(params) {
+  try {
+    const payload = buildDistributionRequest(params);
+    const res = await apiClient.post('/api/v2/insight/distribution', payload);
+    return adaptStatusCounts(res.data);
+  } catch (err) {
+    const message = err.response?.data?.detail || 'Failed to load status counts';
     throw new Error(message);
   }
 }
@@ -541,14 +599,158 @@ export async function getGroupedInbox() {
   }
 }
 
+/**
+ * Get force-closed subcases for the Insight page tabs.
+ * Authorization: COMPLAINT_SUPERVISOR and WORKER only (enforced by backend).
+ *
+ * @param {'FORCE_CLOSED_DRAFT'|'FORCE_CLOSED_COMPLETE'} status
+ * @returns {Promise<Array>} Array of force-closed subcase objects
+ */
+export async function getForceClosedCases(status) {
+  try {
+    const res = await apiClient.get('/api/v2/insight/force-closed', { params: { status } });
+    const raw = Array.isArray(res.data) ? res.data : [];
+    return raw.map(row => ({
+      subcase_id: row.subcase_id,
+      case_type: row.case_type,
+      status: row.status,
+      created_at: row.created_at,
+      force_closed_at: row.force_closed_at,
+      force_close_reason: row.force_close_reason,
+      waiting_days: Number(row.waiting_days) || 0,
+      target_org_unit_id: row.target_org_unit_id,
+      org_unit_name: String(row.org_unit_name ?? ''),
+      incident_request_case_id: row.incident_request_case_id,
+      incident_number: row.incident_number || null,
+      case_description: String(row.case_description ?? ''),
+      patient_name: String(row.patient_name ?? ''),
+      severity: row.severity ?? 'NEUTRAL',
+      severity_id: row.severity_id,
+      category: String(row.category ?? ''),
+      is_red_flag: Boolean(row.is_red_flag),
+      is_never_event: Boolean(row.is_never_event),
+      seasonal_report_id: row.seasonal_report_id,
+    }));
+  } catch (err) {
+    const message = err.response?.data?.detail || 'Failed to load force-closed cases';
+    throw new Error(message);
+  }
+}
+
+/**
+ * Get administrative complaint subcases waiting for the Patient Services
+ * scientific decision (قرار خدمات المرضى بحسب المراجع العلميّة).
+ *
+ * Endpoint: GET /api/v2/insight/patient-services-pending
+ * Scope-filtered by backend (Phase 2.5 allowed_unit_ids).
+ *
+ * @returns {Promise<Array>} Array of subcase objects with fields:
+ *   subcase_id, incident_request_case_id, incident_number,
+ *   target_org_unit_id, org_unit_name, status, created_at, updated_at,
+ *   administration_explanation_text
+ */
+export async function getPatientServicesPendingCases() {
+  try {
+    const res = await apiClient.get('/api/v2/insight/patient-services-pending');
+    const raw = Array.isArray(res.data) ? res.data : [];
+    return raw.map(row => ({
+      subcaseId: row.subcase_id,
+      incidentId: row.incident_request_case_id,
+      incidentNumber: row.incident_number || null,
+      targetOrgUnitId: row.target_org_unit_id,
+      targetOrgUnitName: row.org_unit_name || null,
+      status: row.status,
+      createdAt: row.created_at ? new Date(row.created_at) : null,
+      updatedAt: row.updated_at ? new Date(row.updated_at) : null,
+      administrationExplanationText: row.administration_explanation_text || '',
+    }));
+  } catch (err) {
+    const message = err.response?.data?.detail || 'Failed to load patient services pending cases';
+    throw new Error(message);
+  }
+}
+
+
+/**
+ * Get pipeline-stuck force-closed cases (FORCE_CLOSED_AT_SECTION/DEPARTMENT/ADMINISTRATION).
+ * Authorization: COMPLAINT_SUPERVISOR and SOFTWARE_ADMIN only (enforced by backend).
+ *
+ * @returns {Promise<Array>} Array of force-closed pipeline subcase objects
+ */
+export async function getForceClosedPipelineCases() {
+  try {
+    const res = await apiClient.get('/api/v2/insight/force-closed-pipeline');
+    const raw = Array.isArray(res.data) ? res.data : [];
+    return raw.map(row => ({
+      subcase_id:               row.subcase_id,
+      case_type:                row.case_type,
+      status:                   row.status,
+      created_at:               row.created_at,
+      waiting_days:             Number(row.waiting_days) || 0,
+      target_org_unit_id:       row.target_org_unit_id,
+      org_unit_name:            String(row.org_unit_name ?? ''),
+      incident_request_case_id: row.incident_request_case_id,
+      incident_id:              row.incident_request_case_id,
+      incident_number:          row.incident_number || null,
+      case_description:         String(row.case_description ?? ''),
+      patient_name:             String(row.patient_name ?? ''),
+      severity:                 row.severity ?? 'NEUTRAL',
+      severity_id:              row.severity_id,
+      category:                 String(row.category ?? ''),
+      is_red_flag:              Boolean(row.is_red_flag),
+      is_never_event:           Boolean(row.is_never_event),
+      seasonal_report_id:       row.seasonal_report_id,
+      give_more_time_action:    row.give_more_time_action || null,
+    }));
+  } catch (err) {
+    const message = err.response?.data?.detail || 'Failed to load force-closed pipeline cases';
+    throw new Error(message);
+  }
+}
+
+
+/**
+ * Export current Insight page state as a Word (.docx) document and trigger download.
+ *
+ * @param {Object} options
+ * @param {string} [options.searchTerm] - Current search filter value from the Insight page
+ */
+export async function exportInsightWord({ searchTerm } = {}) {
+  const params = {};
+  if (searchTerm && searchTerm.trim()) {
+    params.search_term = searchTerm.trim();
+  }
+
+  const res = await apiClient.get('/api/v2/insight/export-word', {
+    params,
+    responseType: 'blob',
+  });
+
+  const blob = new Blob(
+    [res.data],
+    { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }
+  );
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0, 10);
+  link.href = url;
+  link.download = `insight_report_${dateStr}.docx`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 // ============================================================================
 // TEST EXPORTS (for unit testing only)
 // ============================================================================
 
-export { 
-  adaptKpiSummary, 
-  adaptDistribution, 
-  adaptTrend, 
+export {
+  adaptKpiSummary,
+  adaptDistribution,
+  adaptStatusCounts,
+  adaptTrend,
   adaptStuckCases,
   adaptGroupedInbox,
   buildDistributionRequest,

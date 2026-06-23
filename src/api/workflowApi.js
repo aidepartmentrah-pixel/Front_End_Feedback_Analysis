@@ -6,6 +6,7 @@
  */
 
 import apiClient from './apiClient';
+import { parseDueDate } from '../utils/dateOnly';
 
 // ============================================================================
 // HELPER FUNCTIONS (Internal)
@@ -48,12 +49,42 @@ const normalizeInboxItem = (item) => ({
   subcaseId: item.subcase_id,
   caseType: item.case_type,
   incidentId: item.incident_id,
+  incidentNumber: item.incident_number || null,
   seasonalReportId: item.seasonal_report_id,
   targetOrgUnitId: item.target_org_unit_id,
   targetOrgUnitName: item.target_org_unit_name || null,
+  targetOrgUnitType: item.target_org_unit_type || null,
   status: item.status,
   createdAt: toDateOrNull(item.created_at),
   allowedActions: item.allowed_actions || [],
+  // HCAT Automatic Force Close Policy (Session 6) - per-level deadline state
+  sectionDeadlineAt: toDateOrNull(item.section_deadline_at),
+  departmentDeadlineAt: toDateOrNull(item.department_deadline_at),
+  administrationDeadlineAt: toDateOrNull(item.administration_deadline_at),
+  sectionForceClosedAt: toDateOrNull(item.section_force_closed_at),
+  sectionLateReply: !!item.section_late_reply,
+  sectionExtraTimeGrantedAt: toDateOrNull(item.section_extra_time_granted_at),
+  departmentForceClosedAt: toDateOrNull(item.department_force_closed_at),
+  departmentLateReply: !!item.department_late_reply,
+  departmentExtraTimeGrantedAt: toDateOrNull(item.department_extra_time_granted_at),
+  administrationForceClosedAt: toDateOrNull(item.administration_force_closed_at),
+  administrationLateReply: !!item.administration_late_reply,
+  administrationExtraTimeGrantedAt: toDateOrNull(item.administration_extra_time_granted_at),
+  // Stage 2 — explicit display metadata
+  messageType:        item.message_type        ?? 'COMPLAINT',
+  messageCategory:    item.message_category    ?? 'WORKFLOW',
+  currentLevel:       item.current_level       ?? null,
+  targetLevel:        item.target_level        ?? null,
+  incidentDate:       item.incident_date  ? new Date(item.incident_date)  : null,
+  displayDate:        item.display_date   ? new Date(item.display_date)   : null,
+  isForceClosed:      item.is_force_closed     ?? false,
+  forceClosedAtLevel: item.force_closed_at_level ?? null,
+  isLate:             item.is_late             ?? false,
+  isRedFlag:          item.is_red_flag         ?? false,
+  isNeverEvent:       item.is_never_event      ?? false,
+  isMorbidity:        item.is_morbidity        ?? false,
+  clinicalIndicators: item.clinical_indicators ?? [],
+  workflowIndicators: item.workflow_indicators ?? [],
 });
 
 /**
@@ -66,13 +97,43 @@ const normalizeArchiveItem = (item) => ({
   subcaseId: item.subcase_id,
   caseType: item.case_type,
   incidentId: item.incident_id,
+  incidentNumber: item.incident_number || null,
   seasonalReportId: item.seasonal_report_id,
   targetOrgUnitId: item.target_org_unit_id,
   targetOrgUnitName: item.target_org_unit_name || null,
+  targetOrgUnitType: item.target_org_unit_type || null,
   status: item.status,
   createdAt: toDateOrNull(item.created_at),
   updatedAt: toDateOrNull(item.updated_at),  // When it was processed
   allowedActions: item.allowed_actions || [],  // Always ["view"] for archive
+  // HCAT Automatic Force Close Policy (Session 6) - per-level deadline state
+  sectionDeadlineAt: toDateOrNull(item.section_deadline_at),
+  departmentDeadlineAt: toDateOrNull(item.department_deadline_at),
+  administrationDeadlineAt: toDateOrNull(item.administration_deadline_at),
+  sectionForceClosedAt: toDateOrNull(item.section_force_closed_at),
+  sectionLateReply: !!item.section_late_reply,
+  sectionExtraTimeGrantedAt: toDateOrNull(item.section_extra_time_granted_at),
+  departmentForceClosedAt: toDateOrNull(item.department_force_closed_at),
+  departmentLateReply: !!item.department_late_reply,
+  departmentExtraTimeGrantedAt: toDateOrNull(item.department_extra_time_granted_at),
+  administrationForceClosedAt: toDateOrNull(item.administration_force_closed_at),
+  administrationLateReply: !!item.administration_late_reply,
+  administrationExtraTimeGrantedAt: toDateOrNull(item.administration_extra_time_granted_at),
+  // Stage 2 — explicit display metadata
+  messageType:        item.message_type        ?? 'COMPLAINT',
+  messageCategory:    item.message_category    ?? 'WORKFLOW',
+  currentLevel:       item.current_level       ?? null,
+  targetLevel:        item.target_level        ?? null,
+  incidentDate:       item.incident_date  ? new Date(item.incident_date)  : null,
+  displayDate:        item.display_date   ? new Date(item.display_date)   : null,
+  isForceClosed:      item.is_force_closed     ?? false,
+  forceClosedAtLevel: item.force_closed_at_level ?? null,
+  isLate:             item.is_late             ?? false,
+  isRedFlag:          item.is_red_flag         ?? false,
+  isNeverEvent:       item.is_never_event      ?? false,
+  isMorbidity:        item.is_morbidity        ?? false,
+  clinicalIndicators: item.clinical_indicators ?? [],
+  workflowIndicators: item.workflow_indicators ?? [],
 });
 
 /**
@@ -86,7 +147,8 @@ const normalizeFollowUpItem = (item) => ({
   status: item.status,
   title: item.title,
   description: item.description,
-  dueDate: toDateOrNull(item.due_date),
+  // Date-only value - parsed to local midnight, NOT toDateOrNull (see utils/dateOnly)
+  dueDate: parseDueDate(item.due_date),
   assignedToUserId: item.assigned_to_user_id,
   startedAt: toDateOrNull(item.started_at),
   completedAt: toDateOrNull(item.completed_at),
@@ -95,6 +157,15 @@ const normalizeFollowUpItem = (item) => ({
   createdByUserId: item.created_by_user_id,
   updatedAt: toDateOrNull(item.updated_at),
   updatedByUserId: item.updated_by_user_id,
+  // Case context fields (from subcase + incident joins)
+  caseType: item.case_type || null,
+  incidentRequestCaseId: item.incident_request_case_id || null,
+  incidentNumber: item.incident_number || null,
+  patientName: item.patient_name || null,
+  caseDescription: item.case_description || null,
+  orgUnitName: item.org_unit_name || null,
+  severityName: item.severity_name || null,
+  categoryName: item.category_name || null,
 });
 
 // ============================================================================
@@ -120,6 +191,36 @@ const normalizeFollowUpItem = (item) => ({
  * 
  * Note: 403 responses are treated as empty inbox (not errors)
  */
+export const getInboxAccountability = async () => {
+  try {
+    const response = await apiClient.get('/api/v2/workflow/inbox/accountability');
+    const toDate = (s) => s ? new Date(s) : null;
+    const normalize = (item) => ({
+      subcaseId:            item.subcase_id,
+      incidentId:           item.incident_id,
+      incidentNumber:       item.incident_number || null,
+      status:               item.status,
+      targetOrgUnitId:      item.target_org_unit_id,
+      targetOrgUnitName:    item.target_org_unit_name || null,
+      createdAt:            toDate(item.created_at),
+      sectionForceClosedAt:          toDate(item.section_force_closed_at),
+      sectionExtraTimeGrantedAt:     toDate(item.section_extra_time_granted_at),
+      departmentForceClosedAt:       toDate(item.department_force_closed_at),
+      departmentExtraTimeGrantedAt:  toDate(item.department_extra_time_granted_at),
+      messageType:          item.message_type ?? 'COMPLAINT',
+    });
+    return {
+      red:  (response.data.red  || []).map(normalize),
+      gray: (response.data.gray || []).map(normalize),
+    };
+  } catch (error) {
+    if (error.response && error.response.status === 403) {
+      return { red: [], gray: [] };
+    }
+    throw mapWorkflowError(error);
+  }
+};
+
 export const getWorkflowInbox = async () => {
   try {
     const response = await apiClient.get('/api/v2/workflow/inbox');
@@ -316,8 +417,24 @@ export const actOnSubcase = async (subcaseId, action, payload = {}) => {
 };
 
 /**
+ * Save (or update) the Patient Services scientific decision on an administrative
+ * complaint subcase.
+ *
+ * Wraps actOnSubcase with action = 'SAVE_PATIENT_SERVICES_DECISION'.
+ * Works on both WAITING_PATIENT_SERVICES_DECISION (first save) and
+ * PATIENT_SERVICES_DECISION_COMPLETED (re-edit — decision_at is preserved).
+ *
+ * @param {number} subcaseId
+ * @param {string} decisionText - The قرار خدمات المرضى بحسب المراجع العلميّة text
+ * @returns {Promise<boolean>}
+ */
+export const savePatientServicesDecision = (subcaseId, decisionText) =>
+  actOnSubcase(subcaseId, 'SAVE_PATIENT_SERVICES_DECISION', { decision_text: decisionText });
+
+
+/**
  * Force close an incident and all its subcases (administrative action)
- * 
+ *
  * Endpoint: POST /api/v2/workflow/case/{incident_id}/force-close
  * 
  * Authorization: SOFTWARE_ADMIN, WORKER, COMPLAINT_SUPERVISOR only
@@ -378,6 +495,7 @@ export const getSubcaseResponse = async (subcaseId) => {
       isRejection: d.is_rejection || false,
       rejectionText: d.rejection_text || '',
       actionItems: (d.action_items || []).map((item) => ({
+        actionItemId: item.action_item_id || null,
         title: item.title,
         description: item.description || '',
         dueDate: item.due_date || null,
@@ -431,6 +549,287 @@ export const getWorkflowIncidentDetail = async (incidentId) => {
   try {
     const response = await apiClient.get(`/api/v2/workflow/incident/${incidentId}`);
     return response.data;
+  } catch (error) {
+    throw mapWorkflowError(error);
+  }
+};
+
+/**
+ * Get all subcases + their responses for an incident (used by Table View "View Responses").
+ *
+ * Endpoint: GET /api/v2/workflow/incident/{incident_id}/responses
+ *
+ * @param {number} incidentId
+ * @returns {Promise<Object>} { incidentId, subcases: [{subcaseId, targetOrgUnitName, status,
+ *   sectionExplanation, departmentExplanation, administrationExplanation, actionItems}] }
+ * @throws {Error} Normalized error (403/404)
+ */
+export const getIncidentResponses = async (incidentId) => {
+  try {
+    const response = await apiClient.get(`/api/v2/workflow/incident/${incidentId}/responses`);
+    const d = response.data;
+    return {
+      incidentId: d.incident_id,
+      subcases: (d.subcases || []).map(sc => ({
+        subcaseId: sc.subcase_id,
+        targetOrgUnitId: sc.target_org_unit_id,
+        targetOrgUnitName: sc.target_org_unit_name,
+        status: sc.status,
+        sectionExplanation: sc.section_explanation || '',
+        departmentExplanation: sc.department_explanation || '',
+        administrationExplanation: sc.administration_explanation || '',
+        actionItems: (sc.action_items || []).map(item => ({
+          title: item.title,
+          description: item.description || '',
+          dueDate: item.due_date || null,
+          status: item.status || null,
+        })),
+      })),
+    };
+  } catch (error) {
+    throw mapWorkflowError(error);
+  }
+};
+
+/**
+ * Get the current manual-fill state for a subcase (all three levels + ownership)
+ *
+ * Endpoint: GET /api/v2/workflow/subcase/{subcase_id}/fill-state
+ *
+ * Authorization: COMPLAINT_SUPERVISOR and WORKER only.
+ *
+ * @param {number} subcaseId
+ * @returns {Promise<Object>} Normalized fill state:
+ *   - subcaseId: number
+ *   - status: string
+ *   - incidentId: number | null
+ *   - forceCloseReason: string | null
+ *   - forceClosedAt: Date | null
+ *   - forceClosedBy: string | null
+ *   - section: { explanationText, enteredBy, enteredForRole, entryMode, entryTimestamp }
+ *   - department: { ... }
+ *   - administration: { ... }
+ * @throws {Error} Normalized error (403/404)
+ */
+export const getSubcaseFillState = async (subcaseId) => {
+  try {
+    const response = await apiClient.get(`/api/v2/workflow/subcase/${subcaseId}/fill-state`);
+    const d = response.data;
+    const normalizeLevel = (level) => ({
+      explanationText: level?.explanation_text || '',
+      enteredBy: level?.entered_by || null,
+      enteredForRole: level?.entered_for_role || null,
+      entryMode: level?.entry_mode || null,
+      entryTimestamp: toDateOrNull(level?.entry_timestamp),
+    });
+    const ps = d.patient_services_decision || {};
+    return {
+      subcaseId: d.subcase_id,
+      status: d.status,
+      incidentId: d.incident_id || null,
+      forceCloseReason: d.force_close_reason || null,
+      forceClosedAt: toDateOrNull(d.force_closed_at),
+      forceClosedBy: d.force_closed_by || null,
+      section: normalizeLevel(d.section),
+      department: normalizeLevel(d.department),
+      administration: normalizeLevel(d.administration),
+      patientServicesDecision: {
+        decisionText: ps.decision_text || '',
+        enteredBy: ps.entered_by || null,
+        decisionAt: toDateOrNull(ps.decision_at),
+        updatedAt: toDateOrNull(ps.updated_at),
+      },
+      caseDescription: d.case_description || null,
+      patientName: d.patient_name || null,
+      incidentNumber: d.incident_number || null,
+      categoryName: d.category_name || null,
+      subCategoryName: d.sub_category_name || null,
+      classificationEN: d.classification_en || null,
+    };
+  } catch (error) {
+    throw mapWorkflowError(error);
+  }
+};
+
+/**
+ * Fill one level (section / department / administration) on behalf of the role
+ * that normally owns that level.
+ *
+ * Endpoints:
+ *   POST /api/v2/workflow/subcase/{subcase_id}/fill/section
+ *   POST /api/v2/workflow/subcase/{subcase_id}/fill/department
+ *   POST /api/v2/workflow/subcase/{subcase_id}/fill/administration
+ *
+ * Authorization: COMPLAINT_SUPERVISOR and WORKER only.
+ *
+ * @param {number} subcaseId
+ * @param {'section'|'department'|'administration'} level
+ * @param {string} explanationText
+ * @returns {Promise<Object>} { success, subcaseId, level, entryMode }
+ * @throws {Error} Normalized error (400/403/404)
+ */
+export const fillLevelOnBehalf = async (subcaseId, level, explanationText, actionItems = []) => {
+  try {
+    const body = { explanation_text: explanationText };
+    if (level === 'section' && actionItems && actionItems.length > 0) {
+      body.action_items = actionItems;
+    }
+    const response = await apiClient.post(
+      `/api/v2/workflow/subcase/${subcaseId}/fill/${level}`,
+      body
+    );
+    return {
+      success: response.data.success || false,
+      subcaseId: response.data.subcase_id,
+      level: response.data.level,
+      entryMode: response.data.entry_mode,
+    };
+  } catch (error) {
+    throw mapWorkflowError(error);
+  }
+};
+
+/**
+ * Transition a FORCE_CLOSED_DRAFT subcase to FORCE_CLOSED_COMPLETE.
+ * All three explanation levels must be filled before calling this.
+ *
+ * Endpoint: POST /api/v2/workflow/subcase/{subcase_id}/complete-force-close
+ *
+ * Authorization: COMPLAINT_SUPERVISOR and WORKER only.
+ *
+ * @param {number} subcaseId
+ * @returns {Promise<Object>} { success, subcaseId, newStatus }
+ * @throws {Error} Normalized error (400/403/404)
+ */
+export const completeForceClosedDraft = async (subcaseId) => {
+  try {
+    const response = await apiClient.post(
+      `/api/v2/workflow/subcase/${subcaseId}/complete-force-close`
+    );
+    return {
+      success: response.data.success || false,
+      subcaseId: response.data.subcase_id,
+      newStatus: response.data.new_status,
+    };
+  } catch (error) {
+    throw mapWorkflowError(error);
+  }
+};
+
+/**
+ * Give the Section level more time after it was force-closed for missing its deadline.
+ * Transitions FORCE_CLOSED_AT_SECTION -> SUBMITTED_TO_SECTION (HCAT Session 6).
+ *
+ * Endpoint: POST /api/v2/workflow/subcase/{subcase_id}/give-section-more-time
+ *
+ * Authorization: DEPARTMENT_ADMIN, COMPLAINT_SUPERVISOR, SOFTWARE_ADMIN.
+ *
+ * @param {number} subcaseId
+ * @returns {Promise<Object>} { success, subcaseId, workflowState }
+ * @throws {Error} Normalized error (400/403/404)
+ */
+export const giveSectionMoreTime = async (subcaseId) => {
+  try {
+    const response = await apiClient.post(
+      `/api/v2/workflow/subcase/${subcaseId}/give-section-more-time`
+    );
+    return {
+      success: response.data.success || false,
+      subcaseId: response.data.subcase_id,
+      workflowState: response.data.workflow_state,
+    };
+  } catch (error) {
+    throw mapWorkflowError(error);
+  }
+};
+
+/**
+ * Give the Department level more time after it was force-closed for missing its deadline.
+ * Transitions FORCE_CLOSED_AT_DEPARTMENT -> SECTION_ACCEPTED_PENDING_DEPT (HCAT Session 6).
+ *
+ * Endpoint: POST /api/v2/workflow/subcase/{subcase_id}/give-department-more-time
+ *
+ * Authorization: ADMINISTRATION_ADMIN, COMPLAINT_SUPERVISOR, SOFTWARE_ADMIN.
+ *
+ * @param {number} subcaseId
+ * @returns {Promise<Object>} { success, subcaseId, workflowState }
+ * @throws {Error} Normalized error (400/403/404)
+ */
+/**
+ * Get investigation history (all response levels + action items) for a subcase
+ *
+ * Endpoint: GET /api/v2/workflow/case/{subcase_id}/history
+ *
+ * @param {number} subcaseId
+ * @returns {Promise<Object>} { section, department, administration, patient_services, action_items }
+ * @throws {Error} Normalized error (403/404)
+ */
+export const getSubcaseHistory = async (subcaseId) => {
+  try {
+    const response = await apiClient.get(`/api/v2/workflow/case/${subcaseId}/history`);
+    const d = response.data;
+    const normalizeLevel = (level) => ({
+      hasContent: !!level?.has_content,
+      text: level?.text || null,
+      enteredBy: level?.entered_by || null,
+      enteredAt: toDateOrNull(level?.entered_at),
+    });
+    return {
+      subcaseId: d.subcase_id,
+      orgUnitName: d.org_unit_name || null,
+      section: normalizeLevel(d.section),
+      department: normalizeLevel(d.department),
+      administration: normalizeLevel(d.administration),
+      patientServices: normalizeLevel(d.patient_services),
+      actionItems: (d.action_items || []).map((i) => ({
+        title: i.title,
+        description: i.description || null,
+        dueDate: i.due_date || null,
+        status: i.status || null,
+      })),
+    };
+  } catch (error) {
+    throw mapWorkflowError(error);
+  }
+};
+
+export const giveDepartmentMoreTime = async (subcaseId) => {
+  try {
+    const response = await apiClient.post(
+      `/api/v2/workflow/subcase/${subcaseId}/give-department-more-time`
+    );
+    return {
+      success: response.data.success || false,
+      subcaseId: response.data.subcase_id,
+      workflowState: response.data.workflow_state,
+    };
+  } catch (error) {
+    throw mapWorkflowError(error);
+  }
+};
+
+/**
+ * Give the Administration level more time after it was force-closed for missing its deadline.
+ * Transitions FORCE_CLOSED_AT_ADMINISTRATION -> DEPT_ACCEPTED_PENDING_ADMIN (HCAT Session 6).
+ *
+ * Endpoint: POST /api/v2/workflow/subcase/{subcase_id}/give-administration-more-time
+ *
+ * Authorization: COMPLAINT_SUPERVISOR, SOFTWARE_ADMIN only.
+ *
+ * @param {number} subcaseId
+ * @returns {Promise<Object>} { success, subcaseId, workflowState }
+ * @throws {Error} Normalized error (400/403/404)
+ */
+export const giveAdministrationMoreTime = async (subcaseId) => {
+  try {
+    const response = await apiClient.post(
+      `/api/v2/workflow/subcase/${subcaseId}/give-administration-more-time`
+    );
+    return {
+      success: response.data.success || false,
+      subcaseId: response.data.subcase_id,
+      workflowState: response.data.workflow_state,
+    };
   } catch (error) {
     throw mapWorkflowError(error);
   }

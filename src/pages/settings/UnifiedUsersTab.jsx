@@ -18,6 +18,7 @@ import UsersTable from "../../components/settings/UsersTable";
 import CreateUserDialog from "../../components/settings/CreateUserDialog";
 import EditUserDialog from "../../components/settings/EditUserDialog";
 import apiClient from "../../api/apiClient";
+import theme from "../../theme";
 
 /**
  * Unified Users Management Tab
@@ -227,8 +228,8 @@ const UnifiedUsersTab = () => {
       {/* Header */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Box>
-          <Typography level="h3" sx={{ fontWeight: 700 }}>
-            👥 User Management
+          <Typography level="h3" sx={{ fontWeight: 700, fontFamily: theme.settings.fontFamily, color: theme.settings.headerColor }}>
+            User Management
           </Typography>
           <Typography level="body-sm" sx={{ color: "neutral.500" }}>
             Manage system users, roles, and testing credentials
@@ -269,14 +270,7 @@ const UnifiedUsersTab = () => {
         </Alert>
       )}
 
-      {/* Production User Management Section */}
       <Card variant="outlined" sx={{ p: 3 }}>
-        <Alert color="primary" variant="soft" sx={{ mb: 3 }}>
-          <Typography level="body-sm">
-            📋 <strong>Production User Management:</strong> Create, edit, and manage system users securely.
-          </Typography>
-        </Alert>
-
         <UsersTable
           users={users}
           onCreateClick={handleCreateUser}

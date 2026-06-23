@@ -28,11 +28,11 @@ describe('InsightPage - Data Loading Integration', () => {
   });
 
   describe('Adapter Integration', () => {
-    test('should use flat array from getInsightDistribution without .data accessor', async () => {
+    test('should use flat array from getInsightStatusCounts without .data accessor', async () => {
       // Mock adapted response (flat array)
-      const mockDistribution = [
-        { label: 'DRAFT', value: 30 },
-        { label: 'IN_REVIEW', value: 20 },
+      const mockStatusCounts = [
+        { status: 'SUBMITTED_TO_SECTION', count: 30 },
+        { status: 'SECTION_ACCEPTED_PENDING_DEPT', count: 20 },
       ];
 
       insightApi.getInsightKpis.mockResolvedValue({
@@ -42,7 +42,7 @@ describe('InsightPage - Data Loading Integration', () => {
         overdue_items: 5,
       });
 
-      insightApi.getInsightDistribution.mockResolvedValue(mockDistribution);
+      insightApi.getInsightStatusCounts.mockResolvedValue(mockStatusCounts);
       insightApi.getInsightTrend.mockResolvedValue([]);
       insightApi.getStuckCases.mockResolvedValue([]);
 
@@ -52,35 +52,8 @@ describe('InsightPage - Data Loading Integration', () => {
         expect(screen.queryByText('Loading insight data...')).not.toBeInTheDocument();
       });
 
-      // Verify distribution data is displayed (not empty)
-      expect(screen.getByText('Workflow Status Distribution')).toBeInTheDocument();
-    });
-
-    test('should use flat array from getInsightTrend without .data accessor', async () => {
-      const mockTrend = [
-        { period: '2024-01', count: 10 },
-        { period: '2024-02', count: 15 },
-      ];
-
-      insightApi.getInsightKpis.mockResolvedValue({
-        open_subcases: 0,
-        pending_approvals: 0,
-        active_action_items: 0,
-        overdue_items: 0,
-      });
-
-      insightApi.getInsightDistribution.mockResolvedValue([]);
-      insightApi.getInsightTrend.mockResolvedValue(mockTrend);
-      insightApi.getStuckCases.mockResolvedValue([]);
-
-      render(<InsightPage />);
-
-      await waitFor(() => {
-        expect(screen.queryByText('Loading insight data...')).not.toBeInTheDocument();
-      });
-
-      // Verify trend data section is displayed
-      expect(screen.getByText('Subcase Trend (Monthly)')).toBeInTheDocument();
+      // Verify workflow ownership chart is displayed (not empty)
+      expect(screen.getByText('Current Workflow Ownership')).toBeInTheDocument();
     });
 
     test('should use flat array from getStuckCases without .items accessor', async () => {
@@ -103,7 +76,7 @@ describe('InsightPage - Data Loading Integration', () => {
         overdue_items: 0,
       });
 
-      insightApi.getInsightDistribution.mockResolvedValue([]);
+      insightApi.getInsightStatusCounts.mockResolvedValue([]);
       insightApi.getInsightTrend.mockResolvedValue([]);
       insightApi.getStuckCases.mockResolvedValue(mockStuckCases);
 
@@ -126,9 +99,9 @@ describe('InsightPage - Data Loading Integration', () => {
         overdue_items: 5,
       });
 
-      insightApi.getInsightDistribution.mockResolvedValue([
-        { label: 'DRAFT', value: 30 },
-        { label: 'IN_REVIEW', value: 20 },
+      insightApi.getInsightStatusCounts.mockResolvedValue([
+        { status: 'SUBMITTED_TO_SECTION', count: 30 },
+        { status: 'SECTION_ACCEPTED_PENDING_DEPT', count: 20 },
       ]);
 
       insightApi.getInsightTrend.mockResolvedValue([
@@ -153,15 +126,9 @@ describe('InsightPage - Data Loading Integration', () => {
         expect(screen.queryByText('Loading insight data...')).not.toBeInTheDocument();
       });
 
-      // Verify all KPI cards display correct values
-      expect(screen.getByText('50')).toBeInTheDocument(); // open_subcases
-      expect(screen.getByText('8')).toBeInTheDocument(); // pending_approvals
-      expect(screen.getByText('15')).toBeInTheDocument(); // active_action_items
-      expect(screen.getAllByText('5')[0]).toBeInTheDocument(); // overdue_items (may appear in stuck table too)
-
       // Verify sections are present
-      expect(screen.getByText('Workflow Status Distribution')).toBeInTheDocument();
-      expect(screen.getByText('Subcase Trend (Monthly)')).toBeInTheDocument();
+      expect(screen.getByText('Current Workflow Ownership')).toBeInTheDocument();
+      expect(screen.getByText('Force Close Distribution')).toBeInTheDocument();
       expect(screen.getByText('Stuck / Escalated Cases (1)')).toBeInTheDocument();
     });
   });
@@ -175,7 +142,7 @@ describe('InsightPage - Data Loading Integration', () => {
         overdue_items: 0,
       });
 
-      insightApi.getInsightDistribution.mockResolvedValue([]);
+      insightApi.getInsightStatusCounts.mockResolvedValue([]);
       insightApi.getInsightTrend.mockResolvedValue([]);
       insightApi.getStuckCases.mockResolvedValue([]);
 
@@ -192,7 +159,7 @@ describe('InsightPage - Data Loading Integration', () => {
 
     test('should handle null responses gracefully', async () => {
       insightApi.getInsightKpis.mockResolvedValue(null);
-      insightApi.getInsightDistribution.mockResolvedValue(null);
+      insightApi.getInsightStatusCounts.mockResolvedValue(null);
       insightApi.getInsightTrend.mockResolvedValue(null);
       insightApi.getStuckCases.mockResolvedValue(null);
 
@@ -203,14 +170,14 @@ describe('InsightPage - Data Loading Integration', () => {
       });
 
       // Should not crash, fallback to empty arrays/objects
-      expect(screen.getByText('Workflow Insight')).toBeInTheDocument();
+      expect(screen.getByText('Workflow Page')).toBeInTheDocument();
     });
   });
 
   describe('Error Handling', () => {
     test('should display error when API calls fail', async () => {
       insightApi.getInsightKpis.mockRejectedValue(new Error('API Error'));
-      insightApi.getInsightDistribution.mockRejectedValue(new Error('API Error'));
+      insightApi.getInsightStatusCounts.mockRejectedValue(new Error('API Error'));
       insightApi.getInsightTrend.mockRejectedValue(new Error('API Error'));
       insightApi.getStuckCases.mockRejectedValue(new Error('API Error'));
 

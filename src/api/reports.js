@@ -269,8 +269,93 @@ export async function exportReport({ report_type, format, filters }) {
 }
 
 /**
+ * Export Section Workflow Activity Report as a Word (.docx) document.
+ *
+ * Calls POST /api/reports/workflow-activity/export with a JSON body.
+ * This is a separate function from exportReport() because the endpoint
+ * signature and routing are completely different.
+ *
+ * @param {Object} filters - Report filters from ReportingPage state
+ * @returns {Promise<{blob: Blob, filename: string}>}
+ */
+export async function exportWorkflowActivityReport(filters) {
+  const body = {
+    start_date: filters.fromDate,
+    end_date: filters.toDate,
+    scope: filters.scope || "hospital",
+    administration_ids: filters.administration_ids || null,
+    department_ids: filters.department_ids || null,
+    section_ids: filters.section_ids || null,
+    hospital_id: filters.hospital_id || 1,
+  };
+
+  console.log("📡 Exporting Workflow Activity Report:", body);
+
+  const response = await apiClient.post(
+    "/api/reports/workflow-activity/export",
+    body,
+    { responseType: "blob" }
+  );
+
+  // Extract filename from Content-Disposition header if present
+  const disposition = response.headers["content-disposition"] || "";
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  const filename = match
+    ? match[1]
+    : `workflow_activity_${filters.fromDate}_to_${filters.toDate}.docx`;
+
+  console.log("✅ Workflow Activity export successful:", filename);
+  return { blob: response.data, filename };
+}
+
+/**
+ * Export the unified Workflow Performance Report (Response Performance +
+ * Current Delay) as a Word (.docx) document, for the Workflow Page launcher.
+ *
+ * Calls POST /api/reports/workflow-performance/export with a JSON body.
+ *
+ * @param {Object} params
+ * @param {string} [params.date_from] - YYYY-MM-DD, inclusive. Default: first day of current month
+ * @param {string} [params.date_to] - YYYY-MM-DD, inclusive. Default: today
+ * @param {string} [params.level] - "All" | "Administration" | "Department" | "Section"
+ * @param {number} [params.target_unit_id] - Restrict to a single org unit
+ *
+ * @returns {Promise<{blob: Blob, filename: string}>}
+ */
+export async function exportWorkflowPerformanceReport({
+  date_from = null,
+  date_to = null,
+  level = "All",
+  target_unit_id = null,
+} = {}) {
+  const body = {
+    date_from: date_from || null,
+    date_to: date_to || null,
+    level,
+    target_unit_id: target_unit_id !== null && target_unit_id !== undefined && target_unit_id !== ""
+      ? Number(target_unit_id)
+      : null,
+  };
+
+  console.log("📡 Exporting Workflow Performance Report:", body);
+
+  const response = await apiClient.post(
+    "/api/reports/workflow-performance/export",
+    body,
+    { responseType: "blob" }
+  );
+
+  const disposition = response.headers["content-disposition"] || "";
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  const filename = match ? match[1] : `workflow_performance_report_${date_from}_to_${date_to}.docx`;
+
+  console.log("✅ Workflow Performance export successful:", filename);
+  return { blob: response.data, filename };
+}
+
+/**
  * Helper function to trigger download of a blob
- * 
+ *
  * @param {Blob} blob - File blob to download
  * @param {string} filename - Filename for the download
  */
@@ -302,6 +387,7 @@ export default {
   fetchMonthlyReport,
   fetchSeasonalReport,
   exportReport,
+  exportWorkflowPerformanceReport,
   downloadBlob,
   exportAndDownloadReport,
 };

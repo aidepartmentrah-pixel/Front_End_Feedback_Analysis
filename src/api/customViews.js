@@ -111,6 +111,7 @@ export const deleteCustomView = async (viewId, hardDelete = false) => {
  * Default view columns for reference
  */
 export const DEFAULT_VIEW_COLUMNS = [
+  { key: "ShowIncidentNumber", label: "Incident Number" },
   { key: "ShowIncidentRequestCaseID", label: "Case ID" },
   { key: "ShowComplaintText", label: "Complaint Text" },
   { key: "ShowImmediateAction", label: "Immediate Action" },
@@ -134,4 +135,16 @@ export const DEFAULT_VIEW_COLUMNS = [
   { key: "ShowCaseStatusID", label: "Case Status" },
   { key: "ShowSourceID", label: "Source" },
   { key: "ShowExplanationStatusID", label: "Explanation Status" },
+  { key: "ShowSectionAnswer", label: "Section Answer / جواب القسم" },
+  { key: "ShowDepartmentAnswer", label: "Department Answer / جواب الدائرة" },
+  { key: "ShowAdministrationAnswer", label: "Administration Answer / جواب الإدارة" },
+  { key: "ShowTargetDepartment", label: "Target Department" },
+  { key: "ShowSatisfactionStatus", label: "Satisfaction Status" },
+  { key: "ShowSatisfactionDate", label: "Satisfaction Date" },
+  { key: "ShowRedFlagIndicator", label: "Red Flag Indicator" },
+  { key: "ShowNeverEventIndicator", label: "Never Event Indicator" },
+  { key: "ShowMorbidityIndicator", label: "Morbidity Indicator" },
+  { key: "ShowLateIndicator", label: "Late Indicator" },
+  { key: "ShowForceClosedIndicator", label: "Force Closed Indicator" },
+  { key: "ShowLastEdited", label: "Last Edited" },
 ];

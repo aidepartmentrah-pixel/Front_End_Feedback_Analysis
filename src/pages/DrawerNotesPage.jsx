@@ -647,11 +647,14 @@ const DrawerNotesPage = () => {
                       </td>
                       <td>
                         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                          {(note.labels || []).map((label) => (
-                            <Chip key={label.id} size="sm" color="primary" variant="soft">
-                              {label.label_name || label.name}
-                            </Chip>
-                          ))}
+                          {(note.label_ids || note.labels?.map(l => l.label_id || l.id) || []).map((labelId) => {
+                            const found = labels.find(l => (l.label_id || l.id) === labelId);
+                            return (
+                              <Chip key={labelId} size="sm" color="primary" variant="soft">
+                                {found ? (found.label_name || found.name) : `#${labelId}`}
+                              </Chip>
+                            );
+                          })}
                         </Box>
                       </td>
                       <td>

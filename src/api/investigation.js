@@ -3,215 +3,74 @@
 import apiClient from "./apiClient";
 
 /**
- * Fetch available seasons from the backend
- * 
- * @returns {Promise<Object>} Object containing seasons array and current_season
+ * Fetch available seasons from the backend.
+ * Used by the seasonal period selector.
+ * Each season includes start_date and end_date so the caller can
+ * pass those directly to fetchInvestigationTree.
+ *
+ * @returns {Promise<{seasons: Array, current_season: string}>}
  */
 export async function fetchSeasons() {
-  console.log("🔍 Fetching available seasons...");
-  const url = `/api/investigation/seasons`;
-  console.log("📡 Seasons API URL:", url);
-
-  try {
-    const response = await apiClient.get(url);
-    
-    console.log("📥 Seasons response status:", response.status);
-
-    const data = response.data;
-    console.log("✅ Seasons loaded successfully:", data);
-    console.log("📅 Available seasons:", data.seasons?.length);
-    console.log("📅 Current season:", data.current_season);
-    
-    return data;
-  } catch (error) {
-    console.error("❌ Error fetching seasons:", error);
-    throw error;
-  }
+  const response = await apiClient.get("/api/investigation/seasons");
+  return response.data;
 }
 
+const VALID_TREE_TYPES = [
+  "incident_count",
+  "domain_distribution_numbers",
+  "domain_distribution_percentage",
+  "severity_distribution_numbers",
+  "severity_distribution_percentage",
+  "red_flag_incidents",
+  "never_event_incidents",
+  "notice_count",
+];
+
 /**
- * Fetch hierarchical investigation tree with aggregated incident data
- * 
- * @param {Object} params - Query parameters
- * @param {string} params.season - Season identifier (e.g., "2024-Q4" or numeric season ID)
- * @param {string} params.tree_type - Type of aggregation/visualization
- *   - "incident_count" - Total incidents per node
- *   - "domain_distribution_numbers" - Domain breakdown (absolute counts)
- *   - "domain_distribution_percentage" - Domain breakdown (percentages)
- *   - "severity_distribution_numbers" - Severity breakdown (absolute counts)
- *   - "severity_distribution_percentage" - Severity breakdown (percentages)
- *   - "red_flag_incidents" - Red flag count per node
- *   - "never_event_incidents" - Never event count per node
- * @param {number|null} params.administration_id - Optional filter to specific administration
- * @param {number|null} params.department_id - Optional filter to specific department
- * @param {number|null} params.section_id - Optional filter to specific section
+ * Fetch hierarchical investigation tree with aggregated incident data.
+ *
+ * @param {Object} params
+ * @param {string} params.start_date   ISO date string "YYYY-MM-DD"
+ * @param {string} params.end_date     ISO date string "YYYY-MM-DD"
+ * @param {string} params.tree_type    One of VALID_TREE_TYPES
+ * @param {number|null} params.administration_id
+ * @param {number|null} params.department_id
+ * @param {number|null} params.section_id
  * @returns {Promise<Object>} Investigation tree data
  */
 export async function fetchInvestigationTree({
-  season,
+  start_date,
+  end_date,
   tree_type,
   administration_id = null,
   department_id = null,
   section_id = null,
 }) {
-  console.log("=== INVESTIGATION API REQUEST ===");
-  console.log("🔍 Raw parameters received:", {
-    season,
-    tree_type,
-    administration_id,
-    department_id,
-    section_id,
-  });
-  console.log("🔍 Parameter types:", {
-    season: typeof season,
-    tree_type: typeof tree_type,
-    administration_id: typeof administration_id,
-    department_id: typeof department_id,
-    section_id: typeof section_id,
-  });
-
-  // ========================================
-  // PARAMETER VALIDATION
-  // ========================================
-  const validTreeTypes = [
-    "incident_count",
-    "domain_distribution_numbers",
-    "domain_distribution_percentage",
-    "severity_distribution_numbers",
-    "severity_distribution_percentage",
-    "red_flag_incidents",
-    "never_event_incidents",
-  ];
-
+  // ── validation ──────────────────────────────────────────────────────────
   const errors = [];
 
-  // Check required parameters
-  if (!season || season === "undefined" || season === "null" || season === "") {
-    errors.push("season is required and must be a valid value");
-  }
-
-  if (!tree_type || tree_type === "undefined" || tree_type === "null" || tree_type === "") {
-    errors.push("tree_type is required and must be a valid value");
-  }
-
-  // Validate tree_type against allowed values
-  if (tree_type && !validTreeTypes.includes(tree_type)) {
-    errors.push(`tree_type must be one of: ${validTreeTypes.join(", ")} (got: "${tree_type}")`);
-  }
+  if (!start_date) errors.push("start_date is required");
+  if (!end_date)   errors.push("end_date is required");
+  if (!tree_type || !VALID_TREE_TYPES.includes(tree_type))
+    errors.push(`tree_type must be one of: ${VALID_TREE_TYPES.join(", ")}`);
 
   if (errors.length > 0) {
-    console.error("❌ Parameter Validation Errors:", errors);
     throw new Error(`Invalid parameters: ${errors.join("; ")}`);
   }
 
-  console.log("✅ Parameters validated successfully");
-
-  // ========================================
-  // BUILD QUERY PARAMETERS
-  // ========================================
+  // ── build query string ───────────────────────────────────────────────────
   const params = new URLSearchParams();
-  params.append("season", String(season));
-  params.append("tree_type", tree_type);
-  
-  // Only add optional IDs if they are valid numbers (not empty strings, null, undefined)
-  if (administration_id && administration_id !== "" && !isNaN(administration_id)) {
+  params.append("start_date", start_date);
+  params.append("end_date",   end_date);
+  params.append("tree_type",  tree_type);
+
+  if (administration_id && !isNaN(administration_id))
     params.append("administration_id", String(administration_id));
-    console.log("📍 Adding administration_id:", administration_id);
-  }
-  if (department_id && department_id !== "" && !isNaN(department_id)) {
+  if (department_id && !isNaN(department_id))
     params.append("department_id", String(department_id));
-    console.log("📍 Adding department_id:", department_id);
-  }
-  if (section_id && section_id !== "" && !isNaN(section_id)) {
+  if (section_id && !isNaN(section_id))
     params.append("section_id", String(section_id));
-    console.log("📍 Adding section_id:", section_id);
-  }
 
-  const url = `/api/investigation/tree?${params.toString()}`;
-  console.log("📡 Full Investigation tree API URL:", url);
-  console.log("📡 Query String Parameters:", params.toString());
-  console.log("=================================");
-
-  try {
-    const response = await apiClient.get(url);
-    
-    console.log("📥 Investigation tree response status:", response.status);
-    console.log("📥 Response OK:", response.ok);
-
-    const data = response.data;
-    console.log("✅ Investigation tree data loaded successfully");
-    console.log("✅ Data summary:", {
-      season: data.season,
-      season_label: data.season_label,
-      tree_type: data.tree_type,
-      scope_level: data.scope?.level,
-      tree_nodes: data.tree?.length,
-      total_incidents: data.summary?.total_incidents,
-    });
-    
-    return data;
-  } catch (error) {
-    console.error("❌ Error fetching investigation tree:", error);
-    console.error("❌ Error name:", error.name);
-    console.error("❌ Error message:", error.message);
-    console.error("❌ Error stack:", error.stack);
-    throw error;
-  }
-}
-
-/**
- * Test function with hardcoded values for debugging
- * Can be called from browser console: window.testInvestigationAPI()
- */
-export async function testInvestigationAPI() {
-  console.log("🧪 === RUNNING INVESTIGATION API TEST ===");
-  
-  const testCases = [
-    {
-      name: "Basic test - Season 1, incident_count",
-      params: {
-        season: "1",
-        tree_type: "incident_count",
-      }
-    },
-    {
-      name: "With administration filter",
-      params: {
-        season: "1",
-        tree_type: "incident_count",
-        administration_id: 1,
-      }
-    },
-    {
-      name: "Domain distribution percentage",
-      params: {
-        season: "1",
-        tree_type: "domain_distribution_percentage",
-      }
-    },
-  ];
-
-  for (const testCase of testCases) {
-    console.log(`\n🧪 Testing: ${testCase.name}`);
-    try {
-      const result = await fetchInvestigationTree(testCase.params);
-      console.log(`✅ ${testCase.name} - SUCCESS`);
-      console.log("Data summary:", {
-        season: result.season,
-        tree_type: result.tree_type,
-        nodes: result.tree?.length,
-        total_incidents: result.summary?.total_incidents,
-      });
-    } catch (error) {
-      console.error(`❌ ${testCase.name} - FAILED:`, error.message);
-    }
-  }
-  
-  console.log("\n🧪 === TEST COMPLETE ===");
-}
-
-// Make test function available globally in development
-if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-  window.testInvestigationAPI = testInvestigationAPI;
-  console.log("🧪 Test function available: window.testInvestigationAPI()");
+  const response = await apiClient.get(`/api/investigation/tree?${params.toString()}`);
+  return response.data;
 }

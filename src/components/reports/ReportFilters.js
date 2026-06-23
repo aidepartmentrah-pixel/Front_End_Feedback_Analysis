@@ -1,6 +1,6 @@
 // src/components/reports/ReportFilters.js
 import React, { useMemo, useEffect } from "react";
-import { Box, Card, Typography, FormControl, FormLabel, Input, Select, Option, Grid, Radio, RadioGroup, Chip, Alert } from "@mui/joy";
+import { Box, Card, Typography, FormControl, FormLabel, Input, Select, Option, Grid, Radio, RadioGroup, Chip, Alert, Autocomplete } from "@mui/joy";
 import WarningIcon from "@mui/icons-material/Warning";
 
 const ReportFilters = ({ 
@@ -28,35 +28,59 @@ const ReportFilters = ({
   // Auto-fix invalid date mode combinations when reportType changes
   useEffect(() => {
     if (reportType === "monthly") {
-      // Force month or range mode for monthly reports
       if (filters.dateMode === "trimester") {
         setFilters(f => ({ ...f, dateMode: "month", trimester: "" }));
       }
     } else if (reportType === "seasonal") {
-      // Force trimester mode for seasonal reports
       if (filters.dateMode !== "trimester") {
-        // Set default trimester to Q1 if not already set
         const currentTrimester = filters.trimester || "Q1";
-        setFilters(f => ({ 
-          ...f, 
-          dateMode: "trimester", 
-          month: "", 
-          fromDate: "", 
+        setFilters(f => ({
+          ...f,
+          dateMode: "trimester",
+          month: "",
+          fromDate: "",
           toDate: "",
           trimester: currentTrimester,
-          // Ensure year is set to current year if empty
           year: f.year || new Date().getFullYear().toString()
         }));
+      }
+    } else if (reportType === "workflow_activity") {
+      if (filters.dateMode !== "range") {
+        setFilters(f => ({ ...f, dateMode: "range", trimester: "", month: "" }));
       }
     }
   }, [reportType, filters.dateMode, filters.trimester, filters.year, setFilters]);
 
+  // When entering comparison mode, sync the year filter to the most recent year
+  // found in availableQuarters so the chip pool and year dropdown are in sync.
+  useEffect(() => {
+    if (
+      reportType === "seasonal" &&
+      comparisonType !== "single" &&
+      availableQuarters &&
+      availableQuarters.length > 0
+    ) {
+      const latestYear = availableQuarters
+        .map(q => {
+          const name = q.name || q.SeasonName || "";
+          const m = name.match(/\d{4}/);
+          return m ? parseInt(m[0]) : 0;
+        })
+        .reduce((a, b) => (b > a ? b : a), 0);
+
+      if (latestYear > 0) {
+        setFilters(f => ({ ...f, year: latestYear.toString() }));
+      }
+    }
+  }, [comparisonType, reportType, availableQuarters, setFilters]);
+
   // Date range validation - check if fromDate > toDate
   const isDateRangeInvalid = useMemo(() => {
-    if (reportType === "monthly" && filters.dateMode === "range" && filters.fromDate && filters.toDate) {
-      const fromDate = new Date(filters.fromDate);
-      const toDate = new Date(filters.toDate);
-      return fromDate > toDate;
+    const usesDateRange =
+      (reportType === "monthly" && filters.dateMode === "range") ||
+      reportType === "workflow_activity";
+    if (usesDateRange && filters.fromDate && filters.toDate) {
+      return new Date(filters.fromDate) > new Date(filters.toDate);
     }
     return false;
   }, [reportType, filters.dateMode, filters.fromDate, filters.toDate]);
@@ -102,45 +126,6 @@ const ReportFilters = ({
       administrationIds: [],
       departmentIds: [],
       sectionIds: []
-    });
-  };
-
-  // Handle administration selection - clears downstream
-  const handleAdministrationChange = (e, newValue) => {
-    // Extract IDs if newValue contains objects (MUI Joy Select with multiple can return objects)
-    const ids = Array.isArray(newValue) 
-      ? newValue.map(val => typeof val === 'object' ? val.value : val)
-      : [];
-    setReportScope({
-      ...reportScope,
-      administrationIds: ids,
-      departmentIds: [],  // Clear downstream
-      sectionIds: []      // Clear downstream
-    });
-  };
-
-  // Handle department selection - clears downstream
-  const handleDepartmentChange = (e, newValue) => {
-    // Extract IDs if newValue contains objects
-    const ids = Array.isArray(newValue)
-      ? newValue.map(val => typeof val === 'object' ? val.value : val)
-      : [];
-    setReportScope({
-      ...reportScope,
-      departmentIds: ids,
-      sectionIds: []  // Clear downstream
-    });
-  };
-
-  // Handle section selection
-  const handleSectionChange = (e, newValue) => {
-    // Extract IDs if newValue contains objects
-    const ids = Array.isArray(newValue)
-      ? newValue.map(val => typeof val === 'object' ? val.value : val)
-      : [];
-    setReportScope({
-      ...reportScope,
-      sectionIds: ids
     });
   };
 
@@ -245,44 +230,39 @@ const ReportFilters = ({
                 🏢 الإدارات (Administrations)
                 {reportScope.administrationIds.length === 0 && " - الكل (All)"}
               </FormLabel>
-              <Select
+              <Autocomplete
                 multiple
-                value={reportScope.administrationIds}
-                onChange={handleAdministrationChange}
-                disabled={loadingHierarchy}
-                placeholder="اختر الإدارات أو اتركه فارغاً للكل"
-                renderValue={(selected) => (
-                  <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
-                    {selected.length === 0 ? (
-                      <Typography level="body-sm" sx={{ color: "#667eea", fontWeight: 600 }}>
-                        الكل (All)
-                      </Typography>
-                    ) : (
-                      selected.map((selectedItem) => {
-                        // Handle both object and primitive values
-                        const selectedId = typeof selectedItem === 'object' ? selectedItem.value : selectedItem;
-                        const item = getAdministrations().find(i => i.id === selectedId);
-                        return (
-                          <Chip key={selectedId} variant="soft" color="primary">
-                            {item?.nameAr || item?.nameEn || selectedId}
-                          </Chip>
-                        );
-                      })
-                    )}
-                  </Box>
-                )}
-                slotProps={{
-                  listbox: {
-                    sx: { maxHeight: 300, overflowY: "auto" }
-                  }
+                options={getAdministrations()}
+                value={getAdministrations().filter(a => reportScope.administrationIds.includes(a.id))}
+                onChange={(e, newValue) => {
+                  setReportScope({
+                    ...reportScope,
+                    administrationIds: newValue.map(v => v.id),
+                    departmentIds: [],
+                    sectionIds: []
+                  });
                 }}
-              >
-                {getAdministrations().map((item) => (
-                  <Option key={item.id} value={item.id}>
-                    {item.nameAr} ({item.nameEn})
-                  </Option>
-                ))}
-              </Select>
+                getOptionLabel={(option) => `${option.nameAr} (${option.nameEn})`}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                placeholder="اكتب للبحث... (Type to search)"
+                disabled={loadingHierarchy}
+                renderTags={(tags, getTagProps) =>
+                  tags.map((option, index) => (
+                    <Chip
+                      {...getTagProps({ index })}
+                      key={option.id}
+                      variant="soft"
+                      color="primary"
+                      size="sm"
+                    >
+                      {option.nameAr}
+                    </Chip>
+                  ))
+                }
+                slotProps={{
+                  listbox: { sx: { maxHeight: 300 } }
+                }}
+              />
             </FormControl>
 
             {/* Department Selector - Shows for department and section levels */}
@@ -292,44 +272,38 @@ const ReportFilters = ({
                   🏬 الدوائر (Departments)
                   {reportScope.departmentIds.length === 0 && " - الكل (All)"}
                 </FormLabel>
-                <Select
+                <Autocomplete
                   multiple
-                  value={reportScope.departmentIds}
-                  onChange={handleDepartmentChange}
-                  disabled={loadingHierarchy}
-                  placeholder="اختر الدوائر أو اتركه فارغاً للكل"
-                  renderValue={(selected) => (
-                    <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
-                      {selected.length === 0 ? (
-                        <Typography level="body-sm" sx={{ color: "#667eea", fontWeight: 600 }}>
-                          الكل (All)
-                        </Typography>
-                      ) : (
-                        selected.map((selectedItem) => {
-                          // Handle both object and primitive values
-                          const selectedId = typeof selectedItem === 'object' ? selectedItem.value : selectedItem;
-                          const item = getDepartments().find(i => i.id === selectedId);
-                          return (
-                            <Chip key={selectedId} variant="soft" color="primary">
-                              {item?.nameAr || item?.nameEn || selectedId}
-                            </Chip>
-                          );
-                        })
-                      )}
-                    </Box>
-                  )}
-                  slotProps={{
-                    listbox: {
-                      sx: { maxHeight: 300, overflowY: "auto" }
-                    }
+                  options={getDepartments()}
+                  value={getDepartments().filter(d => reportScope.departmentIds.includes(d.id))}
+                  onChange={(e, newValue) => {
+                    setReportScope({
+                      ...reportScope,
+                      departmentIds: newValue.map(v => v.id),
+                      sectionIds: []
+                    });
                   }}
-                >
-                  {getDepartments().map((item) => (
-                    <Option key={item.id} value={item.id}>
-                      {item.nameAr} ({item.nameEn})
-                    </Option>
-                  ))}
-                </Select>
+                  getOptionLabel={(option) => `${option.nameAr} (${option.nameEn})`}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  placeholder="اكتب للبحث... (Type to search)"
+                  disabled={loadingHierarchy}
+                  renderTags={(tags, getTagProps) =>
+                    tags.map((option, index) => (
+                      <Chip
+                        {...getTagProps({ index })}
+                        key={option.id}
+                        variant="soft"
+                        color="primary"
+                        size="sm"
+                      >
+                        {option.nameAr}
+                      </Chip>
+                    ))
+                  }
+                  slotProps={{
+                    listbox: { sx: { maxHeight: 300 } }
+                  }}
+                />
               </FormControl>
             )}
 
@@ -340,44 +314,37 @@ const ReportFilters = ({
                   🧩 الأقسام (Sections)
                   {reportScope.sectionIds.length === 0 && " - الكل (All)"}
                 </FormLabel>
-                <Select
+                <Autocomplete
                   multiple
-                  value={reportScope.sectionIds}
-                  onChange={handleSectionChange}
-                  disabled={loadingHierarchy}
-                  placeholder="اختر الأقسام أو اتركه فارغاً للكل"
-                  renderValue={(selected) => (
-                    <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
-                      {selected.length === 0 ? (
-                        <Typography level="body-sm" sx={{ color: "#667eea", fontWeight: 600 }}>
-                          الكل (All)
-                        </Typography>
-                      ) : (
-                        selected.map((selectedItem) => {
-                          // Handle both object and primitive values
-                          const selectedId = typeof selectedItem === 'object' ? selectedItem.value : selectedItem;
-                          const item = getSections().find(i => i.id === selectedId);
-                          return (
-                            <Chip key={selectedId} variant="soft" color="primary">
-                              {item?.nameAr || item?.nameEn || selectedId}
-                            </Chip>
-                          );
-                        })
-                      )}
-                    </Box>
-                  )}
-                  slotProps={{
-                    listbox: {
-                      sx: { maxHeight: 300, overflowY: "auto" }
-                    }
+                  options={getSections()}
+                  value={getSections().filter(s => reportScope.sectionIds.includes(s.id))}
+                  onChange={(e, newValue) => {
+                    setReportScope({
+                      ...reportScope,
+                      sectionIds: newValue.map(v => v.id)
+                    });
                   }}
-                >
-                  {getSections().map((item) => (
-                    <Option key={item.id} value={item.id}>
-                      {item.nameAr} ({item.nameEn})
-                    </Option>
-                  ))}
-                </Select>
+                  getOptionLabel={(option) => `${option.nameAr} (${option.nameEn})`}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  placeholder="اكتب للبحث... (Type to search)"
+                  disabled={loadingHierarchy}
+                  renderTags={(tags, getTagProps) =>
+                    tags.map((option, index) => (
+                      <Chip
+                        {...getTagProps({ index })}
+                        key={option.id}
+                        variant="soft"
+                        color="primary"
+                        size="sm"
+                      >
+                        {option.nameAr}
+                      </Chip>
+                    ))
+                  }
+                  slotProps={{
+                    listbox: { sx: { maxHeight: 300 } }
+                  }}
+                />
               </FormControl>
             )}
 
@@ -385,46 +352,47 @@ const ReportFilters = ({
         )}
       </Box>
 
-      {/* Date Mode Selection */}
-      <Box sx={{ mb: 3, p: 2, background: "rgba(102, 126, 234, 0.05)", borderRadius: "8px" }}>
-        <Typography level="body-sm" sx={{ mb: 2, fontWeight: 700 }}>
-          اختر طريقة التصفية الزمنية (Select Time Filter Mode):
-        </Typography>
-        <RadioGroup
-          value={filters.dateMode}
-          onChange={(e) => handleDateModeChange(e.target.value)}
-          orientation="horizontal"
-          sx={{ gap: 3 }}
-        >
-          {reportType === "monthly" && (
-            <>
-              <Radio value="range" label="نطاق التاريخ (Date Range)" />
-              <Radio value="month" label="شهر/سنة (Month/Year)" />
-            </>
-          )}
-          {reportType === "seasonal" && (
-            <Radio value="trimester" label="فصل/سنة (Trimester/Year)" />
-          )}
-        </RadioGroup>
-        
-        {/* Auto-sync info message */}
-        <Typography 
-          level="body-xs" 
-          sx={{ 
-            mt: 1.5, 
-            color: "#667eea", 
-            fontStyle: "italic",
-            display: "flex",
-            alignItems: "center",
-            gap: 0.5
-          }}
-        >
-          ℹ️ {reportType === "seasonal" 
-            ? "يتم تحديد الفصل تلقائياً للتقارير الفصلية • Trimester mode is auto-selected for seasonal reports"
-            : "الخيارات المتاحة للتقارير الشهرية فقط • Options available for monthly reports only"
-          }
-        </Typography>
-      </Box>
+      {/* Date Mode Selection — hidden for workflow_activity (always date range) */}
+      {reportType !== "workflow_activity" && (
+        <Box sx={{ mb: 3, p: 2, background: "rgba(102, 126, 234, 0.05)", borderRadius: "8px" }}>
+          <Typography level="body-sm" sx={{ mb: 2, fontWeight: 700 }}>
+            اختر طريقة التصفية الزمنية (Select Time Filter Mode):
+          </Typography>
+          <RadioGroup
+            value={filters.dateMode}
+            onChange={(e) => handleDateModeChange(e.target.value)}
+            orientation="horizontal"
+            sx={{ gap: 3 }}
+          >
+            {reportType === "monthly" && (
+              <>
+                <Radio value="range" label="نطاق التاريخ (Date Range)" />
+                <Radio value="month" label="شهر/سنة (Month/Year)" />
+              </>
+            )}
+            {reportType === "seasonal" && (
+              <Radio value="trimester" label="فصل/سنة (Trimester/Year)" />
+            )}
+          </RadioGroup>
+
+          <Typography
+            level="body-xs"
+            sx={{
+              mt: 1.5,
+              color: "#667eea",
+              fontStyle: "italic",
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5
+            }}
+          >
+            ℹ️ {reportType === "seasonal"
+              ? "يتم تحديد الفصل تلقائياً للتقارير الفصلية • Trimester mode is auto-selected for seasonal reports"
+              : "الخيارات المتاحة للتقارير الشهرية فقط • Options available for monthly reports only"
+            }
+          </Typography>
+        </Box>
+      )}
 
       <Grid container spacing={2}>
         {/* Date Range - Show only if dateMode is 'range' */}
@@ -550,94 +518,287 @@ const ReportFilters = ({
               </Grid>
             )}
 
-            <Grid xs={12} sm={6} md={3}>
-              <FormControl required={reportType === "seasonal" && comparisonType === "single"}>
-                <FormLabel sx={{ fontWeight: 600, mb: 1 }}>
-                  الفصل (Trimester) {reportType === "seasonal" && comparisonType === "single" && <span style={{ color: "red" }}>*</span>}
-                </FormLabel>
-                <Select
-                  value={filters.trimester}
-                  onChange={(e, value) => handleChange("trimester", value)}
-                  disabled={reportType === "monthly" || (reportType === "seasonal" && comparisonType !== "single")}
-                  placeholder={reportType === "seasonal" && comparisonType === "single" ? "يجب اختيار فصل (Required)" : "اختر فصل"}
-                  color={reportType === "seasonal" && comparisonType === "single" && !filters.trimester ? "danger" : "neutral"}
-                >
-                  {(reportType !== "seasonal" || comparisonType !== "single") && <Option value="">-- اختر فصل --</Option>}
-                  <Option value="Q1">الفصل الأول - Q1 (Jan-Mar)</Option>
-                  <Option value="Q2">الفصل الثاني - Q2 (Apr-Jun)</Option>
-                  <Option value="Q3">الفصل الثالث - Q3 (Jul-Sep)</Option>
-                  <Option value="Q4">الفصل الرابع - Q4 (Oct-Dec)</Option>
-                </Select>
-              </FormControl>
-            </Grid>
+            {/* Trimester — only for single-season mode */}
+            {!(reportType === "seasonal" && comparisonType !== "single") && (
+              <Grid xs={12} sm={6} md={3}>
+                <FormControl required={reportType === "seasonal" && comparisonType === "single"}>
+                  <FormLabel sx={{ fontWeight: 600, mb: 1 }}>
+                    الفصل (Trimester) {reportType === "seasonal" && comparisonType === "single" && <span style={{ color: "red" }}>*</span>}
+                  </FormLabel>
+                  <Select
+                    value={filters.trimester}
+                    onChange={(e, value) => handleChange("trimester", value)}
+                    disabled={reportType === "monthly"}
+                    placeholder="يجب اختيار فصل (Required)"
+                    color={reportType === "seasonal" && comparisonType === "single" && !filters.trimester ? "danger" : "neutral"}
+                  >
+                    <Option value="Q1">الفصل الأول - Q1 (Jan-Mar)</Option>
+                    <Option value="Q2">الفصل الثاني - Q2 (Apr-Jun)</Option>
+                    <Option value="Q3">الفصل الثالث - Q3 (Jul-Sep)</Option>
+                    <Option value="Q4">الفصل الرابع - Q4 (Oct-Dec)</Option>
+                  </Select>
+                </FormControl>
+              </Grid>
+            )}
 
-            <Grid xs={12} sm={6} md={3}>
-              <FormControl required={reportType === "seasonal" && comparisonType === "single"}>
-                <FormLabel sx={{ fontWeight: 600, mb: 1 }}>
-                  السنة (Year) {reportType === "seasonal" && comparisonType === "single" && <span style={{ color: "red" }}>*</span>}
-                </FormLabel>
-                <Select
-                  value={filters.year}
-                  onChange={(e, value) => handleChange("year", value)}
-                  disabled={reportType === "seasonal" && comparisonType !== "single"}
-                  placeholder={reportType === "seasonal" && comparisonType === "single" ? "يجب اختيار سنة (Required)" : "اختر سنة"}
-                  color={reportType === "seasonal" && comparisonType === "single" && !filters.year ? "danger" : "neutral"}
-                >
-                  {(reportType !== "seasonal" || comparisonType !== "single") && <Option value="">-- اختر سنة --</Option>}
-                  {years.map((year) => (
-                    <Option key={year} value={year.toString()}>
-                      {year}
-                    </Option>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
+            {/* Year — single mode uses hardcoded year list; comparison mode derives years from actual DB quarters */}
+            {reportType !== "seasonal" || comparisonType === "single" ? (
+              <Grid xs={12} sm={6} md={3}>
+                <FormControl required={reportType === "seasonal" && comparisonType === "single"}>
+                  <FormLabel sx={{ fontWeight: 600, mb: 1 }}>
+                    السنة (Year) {reportType === "seasonal" && comparisonType === "single" && <span style={{ color: "red" }}>*</span>}
+                  </FormLabel>
+                  <Select
+                    value={filters.year}
+                    onChange={(e, value) => handleChange("year", value)}
+                    placeholder="يجب اختيار سنة (Required)"
+                    color={reportType === "seasonal" && comparisonType === "single" && !filters.year ? "danger" : "neutral"}
+                  >
+                    {years.map((year) => (
+                      <Option key={year} value={year.toString()}>
+                        {year}
+                      </Option>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            ) : (
+              /* Comparison mode: year list derived from actual available quarters in DB */
+              <Grid xs={12} sm={6} md={3}>
+                <FormControl>
+                  <FormLabel sx={{ fontWeight: 600, mb: 1 }}>السنة (Year)</FormLabel>
+                  <Select
+                    value={filters.year}
+                    onChange={(e, value) => {
+                      handleChange("year", value);
+                      // Clear chip selection when year context changes
+                      if (setSelectedSeasons) setSelectedSeasons([]);
+                    }}
+                  >
+                    {/* Extract unique years from available quarters, sorted most-recent-first */}
+                    {availableQuarters && [...new Set(
+                      availableQuarters
+                        .map(q => {
+                          const name = q.name || q.SeasonName || "";
+                          const m = name.match(/\d{4}/);
+                          return m ? m[0] : null;
+                        })
+                        .filter(Boolean)
+                    )]
+                      .sort((a, b) => b - a)
+                      .map(yr => (
+                        <Option key={yr} value={yr}>{yr}</Option>
+                      ))
+                    }
+                  </Select>
+                </FormControl>
+              </Grid>
+            )}
 
-            {/* Quarter Selection Chips - Show only for seasonal comparison reports */}
+            {/* Quarter Selection — improved slot-based UI for comparison modes */}
             {reportType === "seasonal" && comparisonType !== "single" && comparisonType !== undefined && availableQuarters && availableQuarters.length > 0 && (
               <Grid xs={12}>
-                <Box sx={{ p: 2, background: "rgba(102, 126, 234, 0.05)", borderRadius: "8px" }}>
-                  <Typography level="body-sm" sx={{ mb: 1, fontWeight: 600 }}>
-                    اختر {getRequiredSeasonCount && getRequiredSeasonCount()} فصول (Select {getRequiredSeasonCount && getRequiredSeasonCount()} Quarters):
-                  </Typography>
-                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                    {availableQuarters.slice(0, Math.max(getRequiredSeasonCount ? getRequiredSeasonCount() : 1, 6)).map((quarter) => {
-                      const quarterId = quarter.season_id || quarter.SeasonID;
-                      const quarterName = quarter.name || quarter.SeasonName;
-                      const isSelected = selectedSeasons && selectedSeasons.includes(quarterId);
-                      const canSelect = comparisonType === "single" || (selectedSeasons && selectedSeasons.length < (getRequiredSeasonCount ? getRequiredSeasonCount() : 1)) || isSelected;
-                      
+                <Box
+                  sx={{
+                    p: 2.5,
+                    background: "rgba(102, 126, 234, 0.04)",
+                    borderRadius: "10px",
+                    border: "1px solid rgba(102, 126, 234, 0.18)",
+                  }}
+                >
+                  {/* Header row: label + progress badge */}
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                    <Typography level="body-sm" sx={{ fontWeight: 700, color: "#444" }}>
+                      اختر {getRequiredSeasonCount && getRequiredSeasonCount()} فصول (Select {getRequiredSeasonCount && getRequiredSeasonCount()} Quarters):
+                    </Typography>
+                    <Box
+                      sx={{
+                        px: 1.5,
+                        py: 0.3,
+                        borderRadius: "99px",
+                        background:
+                          selectedSeasons && selectedSeasons.length === (getRequiredSeasonCount ? getRequiredSeasonCount() : 1)
+                            ? "rgba(34, 197, 94, 0.12)"
+                            : "rgba(102, 126, 234, 0.1)",
+                        border:
+                          selectedSeasons && selectedSeasons.length === (getRequiredSeasonCount ? getRequiredSeasonCount() : 1)
+                            ? "1px solid rgba(34, 197, 94, 0.4)"
+                            : "1px solid rgba(102, 126, 234, 0.25)",
+                      }}
+                    >
+                      <Typography
+                        level="body-xs"
+                        sx={{
+                          fontWeight: 700,
+                          color:
+                            selectedSeasons && selectedSeasons.length === (getRequiredSeasonCount ? getRequiredSeasonCount() : 1)
+                              ? "#16a34a"
+                              : "#667eea",
+                        }}
+                      >
+                        {selectedSeasons ? selectedSeasons.length : 0} / {getRequiredSeasonCount ? getRequiredSeasonCount() : 1}
+                        {selectedSeasons && selectedSeasons.length === (getRequiredSeasonCount ? getRequiredSeasonCount() : 1) ? " ✓" : ""}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {/* Numbered slot boxes */}
+                  <Box sx={{ display: "flex", gap: 1, mb: 2, flexWrap: "wrap" }}>
+                    {Array.from({ length: getRequiredSeasonCount ? getRequiredSeasonCount() : 1 }).map((_, slotIndex) => {
+                      const selectedId = selectedSeasons ? selectedSeasons[slotIndex] : undefined;
+                      const quarter = selectedId
+                        ? availableQuarters.find(q => (q.season_id || q.SeasonID) === selectedId)
+                        : null;
+                      const quarterName = quarter ? (quarter.name || quarter.SeasonName) : null;
+
                       return (
-                        <Chip
-                          key={quarterId}
-                          variant={isSelected ? "solid" : "outlined"}
-                          color={isSelected ? "primary" : "neutral"}
-                          onClick={() => {
-                            if (!setSelectedSeasons) return;
-                            
-                            if (comparisonType === "single") {
-                              setSelectedSeasons([quarterId]);
-                            } else {
-                              if (isSelected) {
-                                setSelectedSeasons(selectedSeasons.filter(id => id !== quarterId));
-                              } else if (canSelect) {
-                                setSelectedSeasons([...selectedSeasons, quarterId]);
-                              }
-                            }
+                        <Box
+                          key={slotIndex}
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.75,
+                            px: 1.5,
+                            py: 0.75,
+                            borderRadius: "8px",
+                            minWidth: 120,
+                            border: quarterName
+                              ? "2px solid #667eea"
+                              : "2px dashed rgba(102, 126, 234, 0.3)",
+                            background: quarterName
+                              ? "rgba(102, 126, 234, 0.09)"
+                              : "rgba(0, 0, 0, 0.02)",
+                            transition: "all 0.18s ease",
                           }}
-                          sx={{ cursor: canSelect ? "pointer" : "not-allowed", opacity: canSelect ? 1 : 0.5 }}
                         >
-                          {quarterName}
-                        </Chip>
+                          <Typography
+                            level="body-xs"
+                            sx={{
+                              fontWeight: 800,
+                              color: quarterName ? "#667eea" : "rgba(102,126,234,0.4)",
+                              minWidth: 16,
+                              textAlign: "center",
+                            }}
+                          >
+                            {slotIndex + 1}
+                          </Typography>
+                          <Typography
+                            level="body-sm"
+                            sx={{
+                              fontWeight: 600,
+                              color: quarterName ? "#333" : "#ccc",
+                              flex: 1,
+                              textAlign: "center",
+                            }}
+                          >
+                            {quarterName || "── ──"}
+                          </Typography>
+                          {quarterName && (
+                            <Box
+                              onClick={() =>
+                                setSelectedSeasons &&
+                                setSelectedSeasons(selectedSeasons.filter(id => id !== selectedId))
+                              }
+                              sx={{
+                                cursor: "pointer",
+                                color: "#bbb",
+                                fontSize: "13px",
+                                fontWeight: 700,
+                                lineHeight: 1,
+                                ml: 0.25,
+                                "&:hover": { color: "#e53e3e" },
+                              }}
+                            >
+                              ✕
+                            </Box>
+                          )}
+                        </Box>
                       );
                     })}
                   </Box>
-                  
-                  {selectedSeasons && selectedSeasons.length > 0 && getSelectedQuarterNames && (
-                    <Typography level="body-sm" sx={{ mt: 1, color: "success.500" }}>
-                      ✓ محدد (Selected): {getSelectedQuarterNames()}
+
+                  {/* Divider with label */}
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+                    <Box sx={{ flex: 1, height: "1px", background: "rgba(102, 126, 234, 0.15)" }} />
+                    <Typography
+                      level="body-xs"
+                      sx={{
+                        color: "#aaa",
+                        fontWeight: 600,
+                        fontSize: "10px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.6px",
+                      }}
+                    >
+                      الفصول المتاحة
                     </Typography>
-                  )}
+                    <Box sx={{ flex: 1, height: "1px", background: "rgba(102, 126, 234, 0.15)" }} />
+                  </Box>
+
+                  {/* Available quarter chips — filtered by selected year (year ≤ context year, last 8), selected ones hidden */}
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+                    {availableQuarters
+                      .filter(q => {
+                        if (!filters.year) return true;
+                        const name = q.name || q.SeasonName || "";
+                        const m = name.match(/\d{4}/);
+                        if (!m) return true;
+                        return parseInt(m[0]) <= parseInt(filters.year);
+                      })
+                      .slice(0, 8)
+                      .map((quarter) => {
+                        const quarterId = quarter.season_id || quarter.SeasonID;
+                        const quarterName = quarter.name || quarter.SeasonName;
+                        const isSelected = selectedSeasons && selectedSeasons.includes(quarterId);
+                        const isFull =
+                          selectedSeasons &&
+                          selectedSeasons.length >= (getRequiredSeasonCount ? getRequiredSeasonCount() : 1);
+
+                        if (isSelected) return null;
+
+                        return (
+                          <Chip
+                            key={quarterId}
+                            variant="outlined"
+                            color="neutral"
+                            onClick={() => {
+                              if (!setSelectedSeasons || isFull) return;
+                              setSelectedSeasons([...selectedSeasons, quarterId]);
+                            }}
+                            sx={{
+                              cursor: isFull ? "default" : "pointer",
+                              opacity: isFull ? 0.38 : 1,
+                              fontSize: "13px",
+                              fontWeight: 500,
+                              borderRadius: "6px",
+                              transition: "all 0.15s",
+                              "&:hover": isFull
+                                ? {}
+                                : {
+                                    background: "rgba(102, 126, 234, 0.1)",
+                                    borderColor: "#667eea",
+                                    color: "#667eea",
+                                  },
+                            }}
+                          >
+                            {quarterName}
+                          </Chip>
+                        );
+                      })}
+                  </Box>
+
+                  {/* Completion confirmation */}
+                  {selectedSeasons &&
+                    selectedSeasons.length === (getRequiredSeasonCount ? getRequiredSeasonCount() : 1) && (
+                      <Box sx={{ mt: 1.5, display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <Typography level="body-xs" sx={{ color: "#16a34a", fontWeight: 700 }}>
+                          ✓ محدد (Selected):
+                        </Typography>
+                        <Typography level="body-xs" sx={{ color: "#555" }}>
+                          {getSelectedQuarterNames && getSelectedQuarterNames()}
+                        </Typography>
+                      </Box>
+                    )}
                 </Box>
               </Grid>
             )}
@@ -668,7 +829,7 @@ const ReportFilters = ({
           </>
         )}
 
-        {/* Report Mode - Only for Monthly Reports */}
+        {/* Report Mode - Only for Monthly Reports (not workflow_activity) */}
         {reportType === "monthly" && (
           <Grid xs={12} sm={6} md={3}>
             <FormControl>

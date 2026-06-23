@@ -6,7 +6,6 @@
  * 
  * Tests:
  * - Page renders without throwing errors
- * - KPI card labels are present in DOM
  * - Chart containers exist
  * - Table structure renders
  * 
@@ -48,10 +47,12 @@ describe('InsightPage - Smoke Test', () => {
       overdue_items: 3
     });
 
-    // Mock getInsightDistribution - returns array of {label, value}
-    insightApi.getInsightDistribution.mockResolvedValue([
-      { label: 'Stage A', value: 25 },
-      { label: 'Stage B', value: 17 }
+    // Mock getInsightStatusCounts - returns raw {status, count} pairs
+    insightApi.getInsightStatusCounts.mockResolvedValue([
+      { status: 'SUBMITTED_TO_SECTION', count: 25 },
+      { status: 'SECTION_ACCEPTED_PENDING_DEPT', count: 10 },
+      { status: 'WAITING_PATIENT_SERVICES_DECISION', count: 5 },
+      { status: 'FORCE_CLOSED_AT_SECTION', count: 3 },
     ]);
 
     // Mock getInsightTrend - returns array of {period, count}
@@ -86,67 +87,24 @@ describe('InsightPage - Smoke Test', () => {
 
     // Wait for async data loading to complete
     await waitFor(() => {
-      expect(insightApi.getInsightKpis).toHaveBeenCalled();
+      expect(insightApi.getInsightStatusCounts).toHaveBeenCalled();
     });
-  });
-
-  // ============================================================================
-  // KPI CARDS TEST
-  // ============================================================================
-
-  test('should render KPI card labels', async () => {
-    render(<InsightPage />);
-
-    // Wait for data to load
-    await waitFor(() => {
-      expect(insightApi.getInsightKpis).toHaveBeenCalled();
-    });
-
-    // Check KPI card labels are present
-    expect(screen.getByText('Open Subcases')).toBeInTheDocument();
-    expect(screen.getByText('Pending Approvals')).toBeInTheDocument();
-    expect(screen.getByText('Active Action Items')).toBeInTheDocument();
-    expect(screen.getByText('Overdue Items')).toBeInTheDocument();
-  });
-
-  test('should display KPI values from mocked data', async () => {
-    render(<InsightPage />);
-
-    await waitFor(() => {
-      expect(insightApi.getInsightKpis).toHaveBeenCalled();
-    });
-
-    // Verify KPI values are rendered
-    expect(screen.getByText('42')).toBeInTheDocument();
-    expect(screen.getByText('8')).toBeInTheDocument();
-    expect(screen.getByText('15')).toBeInTheDocument();
-    expect(screen.getByText('3')).toBeInTheDocument();
   });
 
   // ============================================================================
   // CHART CONTAINERS TEST
   // ============================================================================
 
-  test('should render distribution chart section', async () => {
+  test('should render workflow chart sections', async () => {
     render(<InsightPage />);
 
     await waitFor(() => {
-      expect(insightApi.getInsightDistribution).toHaveBeenCalled();
+      expect(insightApi.getInsightStatusCounts).toHaveBeenCalled();
     });
 
-    // Check chart title/label exists
-    expect(screen.getByText(/Workflow Status Distribution/i)).toBeInTheDocument();
-  });
-
-  test('should render trend chart section', async () => {
-    render(<InsightPage />);
-
-    await waitFor(() => {
-      expect(insightApi.getInsightTrend).toHaveBeenCalled();
-    });
-
-    // Check trend section exists
-    expect(screen.getByText(/Subcase Trend/i)).toBeInTheDocument();
+    // Check both operational chart titles exist
+    expect(screen.getByText(/Current Workflow Ownership/i)).toBeInTheDocument();
+    expect(screen.getByText(/Force Close Distribution/i)).toBeInTheDocument();
   });
 
   // ============================================================================
@@ -217,7 +175,7 @@ describe('InsightPage - Smoke Test', () => {
   test('should handle API errors gracefully', async () => {
     // Mock API failures
     insightApi.getInsightKpis.mockRejectedValue(new Error('API Error'));
-    insightApi.getInsightDistribution.mockRejectedValue(new Error('API Error'));
+    insightApi.getInsightStatusCounts.mockRejectedValue(new Error('API Error'));
     insightApi.getInsightTrend.mockRejectedValue(new Error('API Error'));
     insightApi.getStuckCases.mockRejectedValue(new Error('API Error'));
 
@@ -227,7 +185,7 @@ describe('InsightPage - Smoke Test', () => {
     }).not.toThrow();
 
     await waitFor(() => {
-      expect(insightApi.getInsightKpis).toHaveBeenCalled();
+      expect(insightApi.getInsightStatusCounts).toHaveBeenCalled();
     });
   });
 
@@ -238,7 +196,7 @@ describe('InsightPage - Smoke Test', () => {
   test('should show loading state initially', () => {
     // Mock APIs to never resolve (simulate slow network)
     insightApi.getInsightKpis.mockImplementation(() => new Promise(() => {}));
-    insightApi.getInsightDistribution.mockImplementation(() => new Promise(() => {}));
+    insightApi.getInsightStatusCounts.mockImplementation(() => new Promise(() => {}));
     insightApi.getInsightTrend.mockImplementation(() => new Promise(() => {}));
     insightApi.getStuckCases.mockImplementation(() => new Promise(() => {}));
 
@@ -254,7 +212,7 @@ describe('InsightPage - Smoke Test', () => {
 
   test('should handle empty data arrays', async () => {
     // Mock empty responses
-    insightApi.getInsightDistribution.mockResolvedValue([]);
+    insightApi.getInsightStatusCounts.mockResolvedValue([]);
     insightApi.getInsightTrend.mockResolvedValue([]);
     insightApi.getStuckCases.mockResolvedValue([]);
 
@@ -263,7 +221,7 @@ describe('InsightPage - Smoke Test', () => {
     }).not.toThrow();
 
     await waitFor(() => {
-      expect(insightApi.getInsightKpis).toHaveBeenCalled();
+      expect(insightApi.getInsightStatusCounts).toHaveBeenCalled();
     });
   });
 
@@ -275,7 +233,7 @@ describe('InsightPage - Smoke Test', () => {
     render(<InsightPage />);
 
     await waitFor(() => {
-      expect(insightApi.getInsightKpis).toHaveBeenCalled();
+      expect(insightApi.getInsightStatusCounts).toHaveBeenCalled();
     });
 
     // Check filter UI exists by checking for form labels

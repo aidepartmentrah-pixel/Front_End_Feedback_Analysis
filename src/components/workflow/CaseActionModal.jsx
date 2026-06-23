@@ -49,44 +49,8 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { actOnSubcase } from '../../api/workflowApi';
+import { getRcaSuggestionsForSubcase, saveRcaSelections } from '../../api/rcaApi';
 
-// Default RCA state object
-const defaultRcaState = {
-  // Staff causes
-  Cause_Staff_Training: false,
-  Cause_Staff_Incentives: false,
-  Cause_Staff_Competency: false,
-  Cause_Staff_Understaffed: false,
-  Cause_Staff_NonCompliance: false,
-  Cause_Staff_NoCoordination: false,
-  Cause_Staff_Other: false,
-  Cause_Staff_OtherText: '',
-  // Process causes
-  Cause_Process_NotComprehensive: false,
-  Cause_Process_Unclear: false,
-  Cause_Process_MissingProtocol: false,
-  Cause_Process_Other: false,
-  Cause_Process_OtherText: '',
-  // Equipment causes
-  Cause_Equipment_NotAvailable: false,
-  Cause_Equipment_SystemIncomplete: false,
-  Cause_Equipment_HardToApply: false,
-  Cause_Equipment_Other: false,
-  Cause_Equipment_OtherText: '',
-  // Environment causes
-  Cause_Environment_PlaceNature: false,
-  Cause_Environment_Surroundings: false,
-  Cause_Environment_WorkConditions: false,
-  Cause_Environment_Other: false,
-  Cause_Environment_OtherText: '',
-  // Preventive measures
-  Preventive_MonthlyMeetings: false,
-  Preventive_TrainingPrograms: false,
-  Preventive_IncreaseStaff: false,
-  Preventive_MMCommitteeActions: false,
-  Preventive_Other: false,
-  Preventive_OtherText: '',
-};
 
 const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onSuccess }) => {
   // Support both single subcaseId and array of subcaseIds (for bulk operations)
@@ -111,8 +75,10 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
     { title: '', description: '', due_date: '' },
   ]);
   
-  // RCA Feedback state (for SUBMIT_RESPONSE and DIRECT_APPROVE)
-  const [rcaFeedback, setRcaFeedback] = useState({ ...defaultRcaState });
+  // RCA Suggestion state (for SUBMIT_RESPONSE and DIRECT_APPROVE)
+  const [rcaSuggestions, setRcaSuggestions] = useState([]);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [rcaLoading, setRcaLoading] = useState(false);
 
   // ============================
   // RESET STATE ON OPEN/CLOSE
@@ -124,10 +90,30 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
       setRejectionText('');
       setReasonText('');
       setActionItems([{ title: '', description: '', due_date: '' }]);
-      setRcaFeedback({ ...defaultRcaState });
+      setRcaSuggestions([]);
+      setSelectedIds(new Set());
       setErrorMessage(null);
       setLoading(false);
     }
+  }, [open, actionCode]);
+
+  // Load RCA suggestions from backend when modal opens for SUBMIT_RESPONSE / DIRECT_APPROVE
+  useEffect(() => {
+    const subcaseId = targetSubcaseIds[0];
+    if (!open || !subcaseId || (actionCode !== 'SUBMIT_RESPONSE' && actionCode !== 'DIRECT_APPROVE')) return;
+    setRcaLoading(true);
+    getRcaSuggestionsForSubcase(subcaseId)
+      .then(data => {
+        setRcaSuggestions(data.categories || []);
+        const pre = (data.categories || []).flatMap(c => [
+          ...c.causes.filter(s => s.is_selected).map(s => s.suggestion_id),
+          ...c.action_items.filter(s => s.is_selected).map(s => s.suggestion_id),
+        ]);
+        setSelectedIds(new Set(pre));
+      })
+      .catch(() => {})
+      .finally(() => setRcaLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, actionCode]);
 
   // ============================
@@ -145,13 +131,6 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
     const updated = [...actionItems];
     updated[index][field] = value;
     setActionItems(updated);
-  };
-
-  // ============================
-  // RCA FEEDBACK MANAGEMENT
-  // ============================
-  const updateRcaField = (field, value) => {
-    setRcaFeedback(prev => ({ ...prev, [field]: value }));
   };
 
   // ============================
@@ -192,6 +171,7 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
         }
         break;
       case 'APPROVE':
+      case 'ACCEPT_COMPLAINT':
         // No validation needed
         break;
       default:
@@ -211,13 +191,12 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
         return {
           explanation_text: explanationText,
           action_items: actionItems
-            .filter((item) => item.title.trim()) // Only include items with titles
+            .filter((item) => item.title.trim())
             .map((item) => ({
               title: item.title,
               description: item.description,
               due_date: item.due_date || null,
             })),
-          rca_feedback: rcaFeedback,
         };
       case 'OVERRIDE':
         return {
@@ -243,6 +222,7 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
           reason: reasonText,
         };
       case 'APPROVE':
+      case 'ACCEPT_COMPLAINT':
         return {};
       default:
         return {};
@@ -304,6 +284,14 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
       // Single operation (original behavior)
       try {
         await actOnSubcase(targetSubcaseIds[0], actionCode, payload);
+        // Save RCA selections separately after successful submit
+        if (actionCode === 'SUBMIT_RESPONSE' || actionCode === 'DIRECT_APPROVE') {
+          try {
+            await saveRcaSelections(targetSubcaseIds[0], [...selectedIds]);
+          } catch (_) {
+            // RCA save failure is non-blocking
+          }
+        }
         // Success: close modal and trigger refresh
         onClose();
         onSuccess();
@@ -331,165 +319,92 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
   };
 
   // ============================
-  // RENDER RCA FORM SECTION
+  // RENDER RCA FORM SECTION (DB-driven)
   // ============================
-  
-  // Helper component for clickable checkbox rows
-  const RcaCheckboxRow = ({ label, field, disabled }) => (
-    <Box 
-      sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        py: 0.5,
-        '&:hover': { backgroundColor: disabled ? 'transparent' : 'rgba(0,0,0,0.02)' },
-        borderRadius: '4px',
-        px: 0.5,
-      }}
-      onClick={() => !disabled && updateRcaField(field, !rcaFeedback[field])}
-    >
-      <Checkbox
-        checked={rcaFeedback[field]}
-        disabled={disabled}
-        sx={{ pointerEvents: 'none' }}
-      />
-      <Typography level="body-md" sx={{ mr: 1, userSelect: 'none' }}>
-        {label}
-      </Typography>
-    </Box>
-  );
-  
+
+  const toggleId = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
   const renderRcaForm = () => (
     <Box sx={{ mt: 2 }}>
-      <Typography level="title-md" sx={{ mb: 2, color: 'primary.600' }}>
+      <Typography level="title-md" sx={{ mb: 1, color: 'primary.600', fontFamily: 'Traditional Arabic, Calibri' }}>
         📋 تحليل السبب الجذري (RCA)
       </Typography>
-      
-      <AccordionGroup sx={{ maxWidth: '100%' }}>
-        {/* Staff Causes */}
-        <Accordion defaultExpanded>
-          <AccordionSummary>
-            <Typography level="title-sm">👥 أسباب متعلقة بالكادر</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-              <RcaCheckboxRow label="قصور في التدريب" field="Cause_Staff_Training" disabled={loading} />
-              <RcaCheckboxRow label="عدم كفاية الحوافز" field="Cause_Staff_Incentives" disabled={loading} />
-              <RcaCheckboxRow label="مشاكل في الكفاءة" field="Cause_Staff_Competency" disabled={loading} />
-              <RcaCheckboxRow label="نقص في الكادر" field="Cause_Staff_Understaffed" disabled={loading} />
-              <RcaCheckboxRow label="عدم الالتزام" field="Cause_Staff_NonCompliance" disabled={loading} />
-              <RcaCheckboxRow label="ضعف التنسيق" field="Cause_Staff_NoCoordination" disabled={loading} />
-              <RcaCheckboxRow label="أخرى (حدد أدناه)" field="Cause_Staff_Other" disabled={loading} />
-              {rcaFeedback.Cause_Staff_Other && (
-                <Input
-                  placeholder="حدد السبب الآخر..."
-                  value={rcaFeedback.Cause_Staff_OtherText}
-                  onChange={(e) => updateRcaField('Cause_Staff_OtherText', e.target.value)}
-                  disabled={loading}
-                  sx={{ mr: 3 }}
-                />
-              )}
-            </Box>
-          </AccordionDetails>
-        </Accordion>
+      <Typography level="body-xs" sx={{ mb: 2, color: 'text.secondary' }}>
+        الاختيار اختياري — يمكنك تقديم التوضيح بدون اختيار أسباب
+      </Typography>
 
-        {/* Process Causes */}
-        <Accordion>
-          <AccordionSummary>
-            <Typography level="title-sm">⚙️ أسباب متعلقة بالإجراءات</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-              <RcaCheckboxRow label="غير شاملة" field="Cause_Process_NotComprehensive" disabled={loading} />
-              <RcaCheckboxRow label="إجراءات غير واضحة" field="Cause_Process_Unclear" disabled={loading} />
-              <RcaCheckboxRow label="عدم وجود بروتوكول" field="Cause_Process_MissingProtocol" disabled={loading} />
-              <RcaCheckboxRow label="أخرى (حدد أدناه)" field="Cause_Process_Other" disabled={loading} />
-              {rcaFeedback.Cause_Process_Other && (
-                <Input
-                  placeholder="حدد السبب الآخر..."
-                  value={rcaFeedback.Cause_Process_OtherText}
-                  onChange={(e) => updateRcaField('Cause_Process_OtherText', e.target.value)}
-                  disabled={loading}
-                  sx={{ mr: 3 }}
-                />
-              )}
-            </Box>
-          </AccordionDetails>
-        </Accordion>
+      {rcaLoading && <CircularProgress size="sm" />}
 
-        {/* Equipment Causes */}
-        <Accordion>
-          <AccordionSummary>
-            <Typography level="title-sm">🔧 أسباب متعلقة بالمعدات</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-              <RcaCheckboxRow label="المعدات غير متوفرة" field="Cause_Equipment_NotAvailable" disabled={loading} />
-              <RcaCheckboxRow label="النظام غير مكتمل" field="Cause_Equipment_SystemIncomplete" disabled={loading} />
-              <RcaCheckboxRow label="صعوبة في الاستخدام" field="Cause_Equipment_HardToApply" disabled={loading} />
-              <RcaCheckboxRow label="أخرى (حدد أدناه)" field="Cause_Equipment_Other" disabled={loading} />
-              {rcaFeedback.Cause_Equipment_Other && (
-                <Input
-                  placeholder="حدد السبب الآخر..."
-                  value={rcaFeedback.Cause_Equipment_OtherText}
-                  onChange={(e) => updateRcaField('Cause_Equipment_OtherText', e.target.value)}
-                  disabled={loading}
-                  sx={{ mr: 3 }}
-                />
-              )}
-            </Box>
-          </AccordionDetails>
-        </Accordion>
+      {!rcaLoading && rcaSuggestions.length === 0 && (
+        <Typography level="body-sm" sx={{ color: 'text.secondary' }}>
+          لا توجد اقتراحات RCA متاحة حالياً.
+        </Typography>
+      )}
 
-        {/* Environment Causes */}
-        <Accordion>
-          <AccordionSummary>
-            <Typography level="title-sm">🏢 أسباب متعلقة بالبيئة</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-              <RcaCheckboxRow label="طبيعة المكان/الموقع" field="Cause_Environment_PlaceNature" disabled={loading} />
-              <RcaCheckboxRow label="مشاكل في المحيط" field="Cause_Environment_Surroundings" disabled={loading} />
-              <RcaCheckboxRow label="ظروف العمل" field="Cause_Environment_WorkConditions" disabled={loading} />
-              <RcaCheckboxRow label="أخرى (حدد أدناه)" field="Cause_Environment_Other" disabled={loading} />
-              {rcaFeedback.Cause_Environment_Other && (
-                <Input
-                  placeholder="حدد السبب الآخر..."
-                  value={rcaFeedback.Cause_Environment_OtherText}
-                  onChange={(e) => updateRcaField('Cause_Environment_OtherText', e.target.value)}
-                  disabled={loading}
-                  sx={{ mr: 3 }}
-                />
-              )}
-            </Box>
-          </AccordionDetails>
-        </Accordion>
-
-        {/* Preventive Measures */}
-        <Accordion>
-          <AccordionSummary>
-            <Typography level="title-sm">🛡️ التدابير الوقائية المتخذة</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-              <RcaCheckboxRow label="اجتماعات شهرية" field="Preventive_MonthlyMeetings" disabled={loading} />
-              <RcaCheckboxRow label="برامج تدريبية" field="Preventive_TrainingPrograms" disabled={loading} />
-              <RcaCheckboxRow label="زيادة الكادر" field="Preventive_IncreaseStaff" disabled={loading} />
-              <RcaCheckboxRow label="إجراءات لجنة المراجعة" field="Preventive_MMCommitteeActions" disabled={loading} />
-              <RcaCheckboxRow label="أخرى (حدد أدناه)" field="Preventive_Other" disabled={loading} />
-              {rcaFeedback.Preventive_Other && (
-                <Input
-                  placeholder="حدد التدبير الوقائي الآخر..."
-                  value={rcaFeedback.Preventive_OtherText}
-                  onChange={(e) => updateRcaField('Preventive_OtherText', e.target.value)}
-                  disabled={loading}
-                  sx={{ mr: 3 }}
-                />
-              )}
-            </Box>
-          </AccordionDetails>
-        </Accordion>
-      </AccordionGroup>
+      {!rcaLoading && rcaSuggestions.length > 0 && (
+        <AccordionGroup sx={{ maxWidth: '100%' }}>
+          {rcaSuggestions.map(cat => {
+            const hasCauses = cat.causes.length > 0;
+            const hasActions = cat.action_items.length > 0;
+            if (!hasCauses && !hasActions) return null;
+            return (
+              <Accordion key={cat.category_id}>
+                <AccordionSummary>
+                  <Typography level="title-sm">
+                    {cat.category_name_ar || cat.category_name_en}
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  {hasCauses && (
+                    <Box sx={{ mb: hasActions ? 1.5 : 0 }}>
+                      <Typography level="body-xs" sx={{ color: 'warning.600', mb: 0.5, fontWeight: 'bold' }}>
+                        العوامل المسبّبة
+                      </Typography>
+                      {cat.causes.map(s => (
+                        <Box
+                          key={s.suggestion_id}
+                          sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', py: 0.5, px: 0.5, borderRadius: '4px', '&:hover': { bgcolor: 'rgba(0,0,0,0.03)' } }}
+                          onClick={() => !loading && toggleId(s.suggestion_id)}
+                        >
+                          <Checkbox checked={selectedIds.has(s.suggestion_id)} disabled={loading} sx={{ pointerEvents: 'none' }} />
+                          <Typography level="body-sm" sx={{ mr: 1, userSelect: 'none', fontFamily: 'Traditional Arabic, Calibri', direction: 'rtl' }}>
+                            {s.text_ar}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+                  {hasActions && (
+                    <Box>
+                      <Typography level="body-xs" sx={{ color: 'primary.600', mb: 0.5, fontWeight: 'bold' }}>
+                        الإجراءات التصحيحية المقترحة
+                      </Typography>
+                      {cat.action_items.map(s => (
+                        <Box
+                          key={s.suggestion_id}
+                          sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', py: 0.5, px: 0.5, borderRadius: '4px', '&:hover': { bgcolor: 'rgba(0,0,0,0.03)' } }}
+                          onClick={() => !loading && toggleId(s.suggestion_id)}
+                        >
+                          <Checkbox checked={selectedIds.has(s.suggestion_id)} disabled={loading} sx={{ pointerEvents: 'none' }} />
+                          <Typography level="body-sm" sx={{ mr: 1, userSelect: 'none', fontFamily: 'Traditional Arabic, Calibri', direction: 'rtl' }}>
+                            {s.text_ar}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+                </AccordionDetails>
+              </Accordion>
+            );
+          })}
+        </AccordionGroup>
+      )}
     </Box>
   );
 
@@ -641,6 +556,18 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
           </Alert>
         );
 
+      case 'ACCEPT_COMPLAINT':
+        return (
+          <Alert color="success" variant="soft">
+            <Typography level="body-md" sx={{ mb: 1 }}>
+              هل أنت متأكد من قبول هذه الشكوى؟
+            </Typography>
+            <Typography level="body-sm" sx={{ color: 'success.700' }}>
+              سيتم كتابة <strong>"قبول الشكوى"</strong> تلقائياً في حقل التوضيح. لا يلزم إدخال بنود إجراءات أو تحليل السبب الجذري.
+            </Typography>
+          </Alert>
+        );
+
       case 'FORCE_CLOSE':
         return (
           <FormControl required>
@@ -702,6 +629,8 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
         return 'رفض الحالة' + bulkSuffix;
       case 'APPROVE':
         return 'اعتماد الحالة' + bulkSuffix;
+      case 'ACCEPT_COMPLAINT':
+        return 'قبول الشكوى' + bulkSuffix;
       case 'OVERRIDE':
         return 'تجاوز الحالة' + bulkSuffix;
       case 'FORCE_CLOSE':
@@ -779,11 +708,11 @@ const CaseActionModal = ({ open, onClose, subcaseId, subcaseIds, actionCode, onS
           <Button
             variant="solid"
             color={
-              actionCode === 'REJECT' || actionCode === 'FORCE_CLOSE' 
-                ? 'danger' 
-                : actionCode === 'REOPEN' 
-                  ? 'warning' 
-                  : actionCode === 'DIRECT_APPROVE'
+              actionCode === 'REJECT' || actionCode === 'FORCE_CLOSE'
+                ? 'danger'
+                : actionCode === 'REOPEN'
+                  ? 'warning'
+                  : actionCode === 'DIRECT_APPROVE' || actionCode === 'APPROVE' || actionCode === 'ACCEPT_COMPLAINT'
                     ? 'success'
                     : 'primary'
             }

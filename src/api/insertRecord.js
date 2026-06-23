@@ -28,7 +28,7 @@
       
       // Normalize the data structure to ensure arrays
       return {
-        departments: Array.isArray(leaves) ? leaves : [], // Using leaves/sections instead of departments
+        departments: Array.isArray(leaves) ? leaves : [],
         sources: Array.isArray(data.sources) ? data.sources : [],
         domains: Array.isArray(data.domains) ? data.domains : [],
         severity: Array.isArray(data.severity_levels) ? data.severity_levels : (Array.isArray(data.severity) ? data.severity : []),
@@ -37,6 +37,7 @@
         worker_types: Array.isArray(data.worker_types) ? data.worker_types : [],
         feedback_intent_types: Array.isArray(data.feedback_intent_types) ? data.feedback_intent_types : [],
         clinical_risk_types: Array.isArray(data.clinical_risk_types) ? data.clinical_risk_types : [],
+        buildings: Array.isArray(data.buildings) ? data.buildings : [],
       };
     } catch (error) {
       console.error("Error fetching reference data:", error);
@@ -106,6 +107,27 @@
       return response.data;
     } catch (error) {
       console.error("Error submitting record:", error);
+      throw error;
+    }
+  };
+
+  /**
+   * Submit a new Incident with one or more Cases
+   * POST /api/records/add-incident
+   */
+  export const submitIncident = async (payload) => {
+    try {
+      const response = await apiClient.post("/api/records/add-incident", payload);
+      return response.data;
+    } catch (error) {
+      console.error("Error submitting incident:", error);
+      // Re-throw with backend message if available
+      const detail = error?.response?.data?.detail || error?.response?.data;
+      if (detail?.message) {
+        const err = new Error(detail.message);
+        err.response = error.response;
+        throw err;
+      }
       throw error;
     }
   };
@@ -202,6 +224,28 @@
   };
 
   /**
+   * Create a new reserve patient (quick-add from Insert Record)
+   * POST /api/patients/create
+   */
+  export const createPatient = async ({ first_name, middle_name, last_name }) => {
+    try {
+      const body = { first_name };
+      if (middle_name?.trim()) body.middle_name = middle_name.trim();
+      if (last_name?.trim()) body.last_name = last_name.trim();
+      const response = await apiClient.post("/api/patients/create", body);
+      return response.data;
+    } catch (error) {
+      const detail = error?.response?.data?.detail || error?.response?.data;
+      if (detail?.message) {
+        const err = new Error(detail.message);
+        err.response = error.response;
+        throw err;
+      }
+      throw error;
+    }
+  };
+
+  /**
    * Search for employees
    * GET /api/records/search/employees?q={text}&limit=20
    */
@@ -221,5 +265,19 @@
     } catch (error) {
       console.error("Error searching employees:", error);
       throw error;
+    }
+  };
+
+  /**
+   * Fetch estimated next incident + case IDs for the paper-form reference panel.
+   * Pure read — no rows created. Numbers are confirmed when the record is saved.
+   * GET /api/records/next-numbers?cases=N
+   */
+  export const fetchNextNumbers = async (caseCount = 1) => {
+    try {
+      const response = await apiClient.get(`/api/records/next-numbers?cases=${caseCount}`);
+      return response.data;
+    } catch {
+      return null;
     }
   };

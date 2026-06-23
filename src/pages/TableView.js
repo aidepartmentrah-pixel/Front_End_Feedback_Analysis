@@ -1,6 +1,6 @@
 // src/pages/TableView.js
 import React, { useState, useEffect, useCallback } from "react";
-import { Box, Typography, Card, CircularProgress, Button, Chip, Modal, ModalDialog, ModalClose, DialogTitle, DialogContent, DialogActions, Divider } from "@mui/joy";
+import { Box, Typography, Card, CircularProgress, Button, Chip, Modal, ModalDialog, ModalClose, DialogTitle, DialogContent, DialogActions, Divider, Tabs, TabList, Tab, TabPanel } from "@mui/joy";
 import theme from '../theme';
 import { useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -12,10 +12,34 @@ import DataTable from "../components/TableView/DataTable";
 import Pagination from "../components/TableView/Pagination";
 import CustomViewManager from "../components/TableView/CustomViewManager";
 import DeleteConfirmationDialog from "../components/TableView/DeleteConfirmationDialog";
-import { fetchComplaints, fetchFilterOptions, exportComplaints, deleteComplaint } from "../api/complaints";
+import SatisfactionModal from "../components/patientHistory/SatisfactionModal";
+import { getBackendSortField } from "../utils/tableViewSortFields";
+import { fetchComplaints, fetchFilterOptions, exportComplaints, deleteComplaint, publishComplaint, bulkPublishComplaints, markAsReady } from "../api/complaints";
+import { getIncidentResponses } from "../api/workflowApi";
+import { useAuth } from "../context/AuthContext";
+import SendIcon from "@mui/icons-material/Send";
+
+const WORKFLOW_STATUS_LABELS = {
+  SUBMITTED_TO_SECTION: 'Pending Section',
+  RETURNED_TO_SECTION_FOR_REVISION: 'Returned to Section',
+  SECTION_ACCEPTED_PENDING_DEPT: 'Pending Department',
+  RETURNED_TO_DEPT_FOR_REVISION: 'Returned to Department',
+  DEPT_ACCEPTED_PENDING_ADMIN: 'Pending Administration',
+  ADMIN_APPROVED: 'Approved',
+  SECTION_DENIED: 'Denied',
+  FORCE_CLOSED_DRAFT: 'Force Closed (Draft)',
+  FORCE_CLOSED_COMPLETE: 'Force Closed (Complete)',
+};
 
 const TableView = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canEditResponses = (user?.roles || []).some(r => ['COMPLAINT_SUPERVISOR', 'WORKER', 'SOFTWARE_ADMIN'].includes(r));
+  const isReadOnly = (user?.roles || []).some(r => ['SECTION_ADMIN', 'DEPARTMENT_ADMIN', 'ADMINISTRATION_ADMIN'].includes(r));
+  // View governance: only SOFTWARE_ADMIN / COMPLAINT_SUPERVISOR may create/edit/delete Custom Views
+  const isViewAdmin = (user?.roles || []).some(r => ['SOFTWARE_ADMIN', 'COMPLAINT_SUPERVISOR'].includes(r));
+  // Only roles allowed to write satisfaction data (matches /api/v2/cases/{id}/satisfaction backend guard)
+  const canAddSatisfaction = (user?.roles || []).some(r => ['COMPLAINT_SUPERVISOR', 'WORKER', 'SOFTWARE_ADMIN'].includes(r));
   // Data state
   const [complaints, setComplaints] = useState([]);
   const [pagination, setPagination] = useState({
@@ -36,6 +60,9 @@ const TableView = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({
     issuing_org_unit_id: null,
+    target_department_id: null,
+    target_dept_parent_id: null,
+    target_admin_id: null,
     domain_id: null,
     category_id: null,
     severity_id: null,
@@ -67,6 +94,30 @@ const TableView = () => {
   const [exporting, setExporting] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
+  // Publish state
+  const [publishLoading, setPublishLoading] = useState(false);
+  const [bulkPublishConfirmOpen, setBulkPublishConfirmOpen] = useState(false);
+  const [markReadyLoading, setMarkReadyLoading] = useState(false);
+
+  // Response viewer modal state
+  const [responseModalOpen, setResponseModalOpen] = useState(false);
+  const [responseModalLoading, setResponseModalLoading] = useState(false);
+  const [responseModalData, setResponseModalData] = useState(null); // { incidentId, subcases }
+  const [responseModalError, setResponseModalError] = useState(null);
+
+  // Satisfaction modal state (reuses Patient History's SatisfactionModal as-is)
+  const [satisfactionModalOpen, setSatisfactionModalOpen] = useState(false);
+  const [satisfactionCase, setSatisfactionCase] = useState(null); // { id, name }
+
+  // Tab state: 'workflow' (sent) | 'preparation' (not sent)
+  const [activeTab, setActiveTab] = useState('workflow');
+
+  const handleTabChange = (_, newTab) => {
+    setActiveTab(newTab);
+    setPagination(prev => ({ ...prev, page: 1 }));
+    handleClearFilters();
+  };
+
 
 
   // ========================================
@@ -76,14 +127,18 @@ const TableView = () => {
     console.log("🔄 Loading filter options...");
     setFilterError(null);
     fetchFilterOptions()
-      .then((data) => {
+      .then(async (data) => {
         console.log("✅ Filter options loaded:", data);
-        // Log specific fields to debug
-        console.log("🔍 Statuses field:", data.statuses);
-        console.log("🔍 Case_statuses field:", data.case_statuses);
-        console.log("🔍 Status field:", data.status);
-        console.log("🔍 All keys:", Object.keys(data));
-        // Transform reference data to filter options format
+        // Also fetch sections for the target section filter
+        let sections = [];
+        try {
+          const sResp = await fetch("/api/settings/sections", { credentials: "include" });
+          if (sResp.ok) {
+            const sData = await sResp.json();
+            sections = sData.sections || [];
+          }
+        } catch { /* non-critical */ }
+
         const transformedData = {
           issuing_org_units: data.departments || [],
           domains: data.domains || [],
@@ -94,9 +149,10 @@ const TableView = () => {
           classifications_en: data.classifications_en || [],
           statuses: data.statuses || data.case_statuses || data.status || [],
           years: data.years || [],
+          sections,
+          target_departments: data.target_departments || [],
+          target_administrations: data.target_administrations || [],
         };
-        console.log("📊 Transformed filter options:", transformedData);
-        console.log("📊 Transformed statuses:", transformedData.statuses);
         setFilterOptions(transformedData);
       })
       .catch((err) => {
@@ -109,18 +165,19 @@ const TableView = () => {
   // ========================================
   // FETCH COMPLAINTS DATA
   // ========================================
-  const loadComplaints = useCallback(() => {
-    console.log("🔄 Loading complaints...");
+  const loadComplaints = useCallback((page, pageSize) => {
+    console.log("🔄 Loading complaints...", { page, pageSize });
     setLoading(true);
     setError(null);
 
     const params = {
-      page: pagination.page,
-      page_size: pagination.page_size,
+      page,
+      page_size: pageSize,
       search: searchQuery || undefined,
       sort_by: sortBy,
       sort_order: sortOrder,
       view: viewMode,
+      tab: activeTab,
       ...Object.fromEntries(
         Object.entries(filters).filter(([_, value]) => value !== null && value !== undefined && value !== "")
       ),
@@ -129,53 +186,43 @@ const TableView = () => {
     fetchComplaints(params)
       .then((data) => {
         setComplaints(data.complaints || []);
-        // Only update metadata from backend, preserve user-controlled page and page_size
         setPagination((prev) => ({
           ...prev,
           total_records: data.pagination.total_records,
           total_pages: data.pagination.total_pages,
         }));
         console.log("✅ Complaints loaded:", data.complaints.length, "records");
-        if (data.complaints && data.complaints.length > 0) {
-          console.log("🔍 First complaint structure:", data.complaints[0]);
-          console.log("🔍 Has subcategory_name?", data.complaints[0].subcategory_name);
-          console.log("🔍 Has classification_name?", data.complaints[0].classification_name);
-          console.log("🔍 Has building_name?", data.complaints[0].building_name);
-        }
       })
       .catch((err) => {
         console.error("❌ Error loading complaints:", err);
         setError(err.message);
       })
       .finally(() => setLoading(false));
-  }, [pagination.page, pagination.page_size, searchQuery, filters, sortBy, sortOrder, viewMode]);
+  }, [searchQuery, filters, sortBy, sortOrder, viewMode, activeTab]);
 
   useEffect(() => {
-    loadComplaints();
-  }, [loadComplaints]);
+    loadComplaints(pagination.page, pagination.page_size);
+  }, [loadComplaints, pagination.page, pagination.page_size]);
 
   // ========================================
   // HANDLERS
   // ========================================
   const handleSearchChange = useCallback((value) => {
-    console.log("🔍 handleSearchChange fired", { prevPage: pagination.page, nextPage: 1, searchQuery: value });
-    console.log(new Error("stack").stack);
     setSearchQuery(value);
-    setPagination((prev) => ({ ...prev, page: 1 })); // Reset to page 1
-  }, [pagination.page]);
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  }, []);
 
   const handleFilterChange = useCallback((newFilters) => {
-    console.log("🔧 handleFilterChange fired", { prevPage: pagination.page, nextPage: 1, filters: newFilters });
-    console.log(new Error("stack").stack);
     setFilters(newFilters);
-    setPagination((prev) => ({ ...prev, page: 1 })); // Reset to page 1
-  }, [pagination.page]);
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  }, []);
 
   const handleClearFilters = useCallback(() => {
-    console.log("🧹 handleClearFilters fired", { prevPage: pagination.page, nextPage: 1 });
-    console.log(new Error("stack").stack);
     setFilters({
       issuing_org_unit_id: null,
+      target_department_id: null,
+      target_dept_parent_id: null,
+      target_admin_id: null,
       domain_id: null,
       category_id: null,
       severity_id: null,
@@ -189,15 +236,11 @@ const TableView = () => {
     });
     setSearchQuery("");
     setPagination((prev) => ({ ...prev, page: 1 }));
-  }, [pagination.page]);
+  }, []);
 
   const handleSort = (column) => {
     // Map frontend column keys to backend field names
-    let backendSortField = column;
-    if (column === "complaint_number") {
-      // Use numeric ID field for proper numeric sorting
-      backendSortField = "id";
-    }
+    const backendSortField = getBackendSortField(column);
 
     if (sortBy === backendSortField) {
       // Toggle order
@@ -210,19 +253,95 @@ const TableView = () => {
   };
 
   const handlePageChange = (newPage) => {
-    console.log("📄 handlePageChange fired", { prevPage: pagination.page, nextPage: newPage });
-    console.log(new Error("stack").stack);
     setPagination((prev) => ({ ...prev, page: newPage }));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleRowClick = (complaintId) => {
-    navigate(`/complaints/${complaintId}`);
+    const complaint = complaints.find(c => c.id === complaintId);
+    if (complaint?.case_status_name === "Draft" || complaint?.case_status_name === "Ready to Send") {
+      navigate(`/insert-record?draftId=${complaintId}`);
+    } else {
+      navigate(`/complaints/${complaintId}`);
+    }
   };
 
   const handleEditRow = (complaintId) => {
     console.log("✏️ Editing complaint:", complaintId);
     navigate(`/edit-record/${complaintId}`);
+  };
+
+  const handleMarkReady = async (complaintId) => {
+    setMarkReadyLoading(true);
+    try {
+      await markAsReady(complaintId);
+      await loadComplaints(pagination.page, pagination.page_size);
+    } catch (e) {
+      alert(e?.response?.data?.message || e?.message || "Failed to mark as Ready to Send");
+    } finally {
+      setMarkReadyLoading(false);
+    }
+  };
+
+  const handleViewResponses = async (incidentId) => {
+    setResponseModalOpen(true);
+    setResponseModalLoading(true);
+    setResponseModalError(null);
+    setResponseModalData(null);
+    try {
+      const data = await getIncidentResponses(incidentId);
+      setResponseModalData(data);
+    } catch (e) {
+      setResponseModalError(e?.message || 'Failed to load responses');
+    } finally {
+      setResponseModalLoading(false);
+    }
+  };
+
+  const handleOpenSatisfaction = (complaint) => {
+    setSatisfactionCase({
+      id: complaint.id,
+      name: `Case #${complaint.id}${complaint.patient_name ? ` — ${complaint.patient_name}` : ""}`,
+    });
+    setSatisfactionModalOpen(true);
+  };
+
+  const handleSatisfactionClose = () => {
+    setSatisfactionModalOpen(false);
+    setSatisfactionCase(null);
+  };
+
+  const handleSatisfactionSuccess = async () => {
+    setSatisfactionModalOpen(false);
+    setSatisfactionCase(null);
+    await loadComplaints(pagination.page, pagination.page_size);
+  };
+
+  const handlePublishRow = async (complaintId) => {
+    if (!window.confirm("Publish this complaint into the workflow?")) return;
+    setPublishLoading(true);
+    try {
+      await publishComplaint(complaintId);
+      await loadComplaints(pagination.page, pagination.page_size);
+    } catch (e) {
+      alert(e?.response?.data?.message || e?.message || "Publish failed");
+    } finally {
+      setPublishLoading(false);
+    }
+  };
+
+  const handleBulkPublish = async () => {
+    setBulkPublishConfirmOpen(false);
+    setPublishLoading(true);
+    try {
+      const result = await bulkPublishComplaints(null);
+      alert(`Published ${result.published} complaint(s). ${result.failed ? `${result.failed} failed.` : ""}`);
+      await loadComplaints(pagination.page, pagination.page_size);
+    } catch (e) {
+      alert(e?.response?.data?.message || e?.message || "Bulk publish failed");
+    } finally {
+      setPublishLoading(false);
+    }
   };
 
   const handleDeleteRow = (complaintId, complaint) => {
@@ -247,9 +366,8 @@ const TableView = () => {
       setDeleteDialogOpen(false);
       setComplaintToDelete(null);
       
-      // Reload complaints
       console.log("🔄 Reloading complaints after deletion...");
-      await loadComplaints();
+      await loadComplaints(pagination.page, pagination.page_size);
       console.log("✅ Complaints reloaded");
       
       // Show success message
@@ -279,6 +397,7 @@ const TableView = () => {
         sort_by: sortBy,
         sort_order: sortOrder,
         view: viewMode,
+        tab: activeTab,
         ...Object.fromEntries(
           Object.entries(filters).filter(([_, value]) => value !== null && value !== undefined && value !== "")
         ),
@@ -365,9 +484,48 @@ const TableView = () => {
           </Box>
         </Box>
 
+        {/* ── Tab switcher: Sent / Not Sent ── */}
+        <Tabs
+          value={activeTab}
+          onChange={handleTabChange}
+          sx={{ mb: 3, borderRadius: "md", background: "transparent" }}
+        >
+          <TabList
+            sx={{
+              borderBottom: "2px solid",
+              borderColor: "divider",
+              gap: 0,
+            }}
+          >
+            <Tab
+              value="workflow"
+              sx={{
+                fontWeight: 600,
+                px: 3,
+                "&.Mui-selected": { color: "primary.600", borderBottom: "2px solid", borderColor: "primary.500" },
+              }}
+            >
+              Sent to Workflow
+            </Tab>
+            <Tab
+              value="preparation"
+              sx={{
+                fontWeight: 600,
+                px: 3,
+                "&.Mui-selected": { color: "warning.700", borderBottom: "2px solid", borderColor: "warning.400" },
+              }}
+            >
+              Not Sent
+              <Chip size="sm" variant="soft" color="warning" sx={{ ml: 1 }}>
+                Draft / Ready
+              </Chip>
+            </Tab>
+          </TabList>
+        </Tabs>
+
         {/* Custom View Manager */}
         <Box sx={{ mb: 3 }}>
-          <CustomViewManager onViewSelect={setSelectedCustomView} />
+          <CustomViewManager onViewSelect={setSelectedCustomView} isAdmin={isViewAdmin} />
         </Box>
 
         {/* Search Bar */}
@@ -436,17 +594,42 @@ const TableView = () => {
         {/* Data Table */}
         {!loading && !error && (
           <>
+            {/* Bulk Publish bar — shown on preparation tab */}
+            {activeTab === 'preparation' && (
+              <Box sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", mb: 1, gap: 2 }}>
+                <Typography level="body-sm" sx={{ color: "neutral.500" }}>
+                  {complaints.filter(c => c.case_status_name === "Ready to Send").length} ready to send
+                </Typography>
+                <Button
+                  size="sm"
+                  variant="solid"
+                  color="success"
+                  startDecorator={<SendIcon />}
+                  loading={publishLoading}
+                  disabled={!complaints.some(c => c.case_status_name === "Ready to Send")}
+                  onClick={() => setBulkPublishConfirmOpen(true)}
+                >
+                  Publish All Ready to Send
+                </Button>
+              </Box>
+            )}
+
             <DataTable
               complaints={complaints}
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSort={handleSort}
               onRowClick={handleRowClick}
-              onEdit={handleEditRow}
-              onDelete={handleDeleteRow}
+              onEdit={isReadOnly ? undefined : handleEditRow}
+              onDelete={isReadOnly ? undefined : handleDeleteRow}
+              onPublish={isReadOnly ? undefined : handlePublishRow}
+              onMarkReady={isReadOnly ? undefined : handleMarkReady}
+              onViewResponses={handleViewResponses}
+              onAddSatisfaction={canAddSatisfaction ? handleOpenSatisfaction : undefined}
               viewMode={viewMode}
               customView={selectedCustomView}
               filterOptions={filterOptions}
+              isReadOnly={isReadOnly}
             />
 
             {/* Pagination */}
@@ -483,24 +666,22 @@ const TableView = () => {
         )}
 
         {/* Export Confirmation Dialog */}
-        <Modal 
-          open={exportDialogOpen} 
+        <Modal
+          open={exportDialogOpen}
           onClose={handleExportCancel}
-          slotProps={{
-            backdrop: {
-              sx: {
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                zIndex: 9998,
-              }
-            }
+          sx={{
+            zIndex: 10000,
+            backdropFilter: 'blur(4px)',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
           }}
         >
-          <ModalDialog 
-            variant="outlined" 
-            role="alertdialog" 
-            sx={{ 
-              minWidth: 400,
-              zIndex: 9999,
+          <ModalDialog
+            variant="outlined"
+            role="alertdialog"
+            sx={{
+              minWidth: 440,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+              border: '1px solid rgba(255,255,255,0.15)',
             }}
           >
             <ModalClose />
@@ -528,6 +709,14 @@ const TableView = () => {
           </ModalDialog>
         </Modal>
 
+        {/* Satisfaction Modal (reused from Patient History — no duplicate form/logic) */}
+        <SatisfactionModal
+          open={satisfactionModalOpen}
+          onClose={handleSatisfactionClose}
+          caseData={satisfactionCase}
+          onSuccess={handleSatisfactionSuccess}
+        />
+
         {/* Delete Confirmation Dialog */}
         <DeleteConfirmationDialog
           open={deleteDialogOpen}
@@ -539,6 +728,120 @@ const TableView = () => {
           isLoading={deleteLoading}
           complaint={complaintToDelete}
         />
+
+        {/* Bulk Publish Confirmation Modal */}
+        <Modal open={bulkPublishConfirmOpen} onClose={() => setBulkPublishConfirmOpen(false)} sx={{ zIndex: 2000 }}>
+          <ModalDialog>
+            <ModalClose />
+            <DialogTitle>Publish All Ready to Send</DialogTitle>
+            <Divider />
+            <DialogContent>
+              <Typography>
+                This will publish all <b>Ready to Send</b> complaints into the workflow lifecycle.
+                They will become visible in the relevant inboxes and begin the approval process.
+              </Typography>
+              <Typography level="body-sm" sx={{ mt: 1, color: "neutral.500" }}>
+                Draft complaints are not affected.
+              </Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button variant="solid" color="success" startDecorator={<SendIcon />} onClick={handleBulkPublish} loading={publishLoading}>
+                Confirm & Publish All
+              </Button>
+              <Button variant="plain" color="neutral" onClick={() => setBulkPublishConfirmOpen(false)}>
+                Cancel
+              </Button>
+            </DialogActions>
+          </ModalDialog>
+        </Modal>
+
+        {/* Response Viewer Modal */}
+        <Modal open={responseModalOpen} onClose={() => setResponseModalOpen(false)} sx={{ zIndex: 2000 }}>
+          <ModalDialog sx={{ minWidth: { xs: '90vw', md: 640 }, maxWidth: 800, maxHeight: '85vh', overflowY: 'auto' }}>
+            <ModalClose />
+            <DialogTitle>
+              Case Responses
+              {responseModalData && ` — Incident #${responseModalData.incidentId}`}
+            </DialogTitle>
+            <Divider />
+            <DialogContent>
+              {responseModalLoading && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                  <CircularProgress />
+                </Box>
+              )}
+              {responseModalError && (
+                <Typography color="danger">{responseModalError}</Typography>
+              )}
+              {responseModalData && !responseModalLoading && (
+                responseModalData.subcases.length === 0 ? (
+                  <Typography level="body-sm" sx={{ color: 'neutral.500', py: 2 }}>
+                    No responses have been submitted for this case yet.
+                  </Typography>
+                ) : (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {responseModalData.subcases.map(sc => (
+                      <Card key={sc.subcaseId} variant="outlined" sx={{ p: 0, overflow: 'hidden' }}>
+                        <Box sx={{ p: 1.5, bgcolor: 'neutral.100', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                          <Typography level="title-sm" sx={{ fontWeight: 700 }}>
+                            {sc.targetOrgUnitName}
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                            <Chip size="sm" variant="soft" color="neutral">
+                              {WORKFLOW_STATUS_LABELS[sc.status] || sc.status}
+                            </Chip>
+                            {canEditResponses && (
+                              <Button
+                                size="sm"
+                                variant="outlined"
+                                color="primary"
+                                onClick={() => { setResponseModalOpen(false); navigate(`/manual-fill/${sc.subcaseId}`); }}
+                              >
+                                Edit
+                              </Button>
+                            )}
+                          </Box>
+                        </Box>
+                        <Box sx={{ p: 1.5 }}>
+                          {[
+                            { label: 'Section Response', value: sc.sectionExplanation },
+                            { label: 'Department Response', value: sc.departmentExplanation },
+                            { label: 'Administration Response', value: sc.administrationExplanation },
+                          ].map(({ label, value }) => value ? (
+                            <Box key={label} sx={{ mb: 1 }}>
+                              <Typography level="body-xs" sx={{ fontWeight: 600, color: 'neutral.600', mb: 0.25 }}>{label}</Typography>
+                              <Typography level="body-sm">{value}</Typography>
+                            </Box>
+                          ) : null)}
+                          {sc.actionItems.length > 0 && (
+                            <Box sx={{ mt: 1 }}>
+                              <Typography level="body-xs" sx={{ fontWeight: 600, color: 'neutral.600', mb: 0.5 }}>Action Items ({sc.actionItems.length})</Typography>
+                              {sc.actionItems.map((item, i) => (
+                                <Box key={i} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', mb: 0.5 }}>
+                                  <Chip size="sm" variant="soft" color="neutral" sx={{ minWidth: 'unset' }}>{item.status}</Chip>
+                                  <Box>
+                                    <Typography level="body-xs" sx={{ fontWeight: 600 }}>{item.title}</Typography>
+                                    {item.dueDate && <Typography level="body-xs" sx={{ color: 'neutral.500' }}>Due: {item.dueDate}</Typography>}
+                                  </Box>
+                                </Box>
+                              ))}
+                            </Box>
+                          )}
+                          {!sc.sectionExplanation && !sc.departmentExplanation && !sc.administrationExplanation && (
+                            <Typography level="body-sm" sx={{ color: 'neutral.400', fontStyle: 'italic' }}>No response submitted yet.</Typography>
+                          )}
+                        </Box>
+                      </Card>
+                    ))}
+                  </Box>
+                )
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button variant="plain" color="neutral" onClick={() => setResponseModalOpen(false)}>Close</Button>
+            </DialogActions>
+          </ModalDialog>
+        </Modal>
 
       </Box>
     </MainLayout>

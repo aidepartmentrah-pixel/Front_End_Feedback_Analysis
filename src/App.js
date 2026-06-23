@@ -17,7 +17,8 @@ import {
   canViewTableView,
   canViewInsertRecord,
   canViewSettings,
-  canViewInbox
+  canViewInbox,
+  canManualFill
 } from "./utils/roleGuards";
 
 // Dev Helpers (DEV-ONLY)
@@ -48,6 +49,7 @@ import MigrationViewPage from "./pages/MigrationViewPage";
 import MigrationFormPage from "./pages/MigrationFormPage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 import ConfigPage from "./pages/ConfigPage";
+import ManualFillPage from "./pages/ManualFillPage";
 
 function App() {
   const [systemStatus, setSystemStatus] = useState(null);
@@ -95,15 +97,17 @@ function App() {
     );
   }
 
-  // Bootstrap mode: DB not configured - show only config/login routes
+  // Bootstrap mode: DB not configured - show only config route
+  // AuthProvider must wrap Login since Login.js calls useAuth()
   if (systemStatus.bootstrap_mode) {
     return (
       <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/config" element={<ConfigPage />} />
-          <Route path="*" element={<Navigate to="/config" replace />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/config" element={<ConfigPage />} />
+            <Route path="*" element={<Navigate to="/config" replace />} />
+          </Routes>
+        </AuthProvider>
       </Router>
     );
   }
@@ -288,6 +292,16 @@ function App() {
               </RoleProtectedRoute>
             }
           />
+          {/* Manual Fill — FC-S5 */}
+          <Route
+            path="/manual-fill/:subcaseId"
+            element={
+              <RoleProtectedRoute canAccess={canManualFill} routeName="Manual Fill">
+                <ManualFillPage />
+              </RoleProtectedRoute>
+            }
+          />
+
           {/* HIDDEN: Seasonal Reports pages - reports generated through /reporting page */}
           {/* <Route
             path="/seasonal-reports"

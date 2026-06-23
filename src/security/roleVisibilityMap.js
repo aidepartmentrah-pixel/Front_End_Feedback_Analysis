@@ -17,7 +17,6 @@ export const ROLES = {
   DEPARTMENT_ADMIN: 'DEPARTMENT_ADMIN',
   SECTION_ADMIN: 'SECTION_ADMIN',
   WORKER: 'WORKER',
-  UNIVERSAL_SECTION: 'UNIVERSAL_SECTION',  // Operational bridge role
 };
 
 // ============================================================================
@@ -53,6 +52,13 @@ export const SETTINGS_TAB_KEYS = {
   POLICY: 'policy',
   TRAINING: 'training',
   USERS: 'users',
+  HARDWARE_CONFIG: 'hardware_config',
+  SECTION_MANAGEMENT: 'section_management',
+  CLASSIFICATION_MANAGEMENT: 'classification_management',
+  DATA_IMPORT: 'data_import',
+  REPORT_CONFIG: 'report_config',
+  RCA_SUGGESTIONS: 'rca_suggestions',
+  FORCE_CLOSE_POLICY: 'force_close_policy',
 };
 
 // ============================================================================
@@ -116,38 +122,34 @@ export const rolePageVisibilityMap = {
     PAGE_KEYS.CRITICAL_ISSUES,
   ],
   
-  // LIMITED_ADMIN_ROLES - Restricted to basic monitoring only
+  // LIMITED_ADMIN_ROLES - Read-only Table View + basic monitoring + Insight (view-only)
   [ROLES.ADMINISTRATION_ADMIN]: [
     PAGE_KEYS.DASHBOARD,
     PAGE_KEYS.INBOX,
     PAGE_KEYS.FOLLOW_UP,
+    PAGE_KEYS.INSIGHT,
     PAGE_KEYS.TREND_MONITORING,
+    PAGE_KEYS.TABLE_VIEW,
     PAGE_KEYS.CRITICAL_ISSUES,
   ],
-  
+
   [ROLES.DEPARTMENT_ADMIN]: [
     PAGE_KEYS.DASHBOARD,
     PAGE_KEYS.INBOX,
     PAGE_KEYS.FOLLOW_UP,
+    PAGE_KEYS.INSIGHT,
     PAGE_KEYS.TREND_MONITORING,
+    PAGE_KEYS.TABLE_VIEW,
     PAGE_KEYS.CRITICAL_ISSUES,
   ],
-  
+
   [ROLES.SECTION_ADMIN]: [
     PAGE_KEYS.DASHBOARD,
     PAGE_KEYS.INBOX,
     PAGE_KEYS.FOLLOW_UP,
+    PAGE_KEYS.INSIGHT,
     PAGE_KEYS.TREND_MONITORING,
-    PAGE_KEYS.CRITICAL_ISSUES,
-  ],
-  
-  // UNIVERSAL_SECTION - Operational bridge role (same as SECTION_ADMIN)
-  // Can see all section-level subcases without scope filter + direct approve capability
-  [ROLES.UNIVERSAL_SECTION]: [
-    PAGE_KEYS.DASHBOARD,
-    PAGE_KEYS.INBOX,
-    PAGE_KEYS.FOLLOW_UP,
-    PAGE_KEYS.TREND_MONITORING,
+    PAGE_KEYS.TABLE_VIEW,
     PAGE_KEYS.CRITICAL_ISSUES,
   ],
 };
@@ -170,8 +172,15 @@ export const roleSettingsTabVisibilityMap = {
     SETTINGS_TAB_KEYS.POLICY,
     SETTINGS_TAB_KEYS.TRAINING,
     SETTINGS_TAB_KEYS.USERS,
+    SETTINGS_TAB_KEYS.HARDWARE_CONFIG,
+    SETTINGS_TAB_KEYS.SECTION_MANAGEMENT,
+    SETTINGS_TAB_KEYS.CLASSIFICATION_MANAGEMENT,
+    SETTINGS_TAB_KEYS.DATA_IMPORT,
+    SETTINGS_TAB_KEYS.REPORT_CONFIG,
+    SETTINGS_TAB_KEYS.RCA_SUGGESTIONS,
+    SETTINGS_TAB_KEYS.FORCE_CLOSE_POLICY,
   ],
-  
+
   [ROLES.COMPLAINT_SUPERVISOR]: [
     SETTINGS_TAB_KEYS.DEPARTMENTS,
     SETTINGS_TAB_KEYS.DOCTORS,
@@ -180,6 +189,13 @@ export const roleSettingsTabVisibilityMap = {
     SETTINGS_TAB_KEYS.POLICY,
     SETTINGS_TAB_KEYS.TRAINING,
     SETTINGS_TAB_KEYS.USERS,
+    SETTINGS_TAB_KEYS.HARDWARE_CONFIG,
+    SETTINGS_TAB_KEYS.SECTION_MANAGEMENT,
+    SETTINGS_TAB_KEYS.CLASSIFICATION_MANAGEMENT,
+    SETTINGS_TAB_KEYS.DATA_IMPORT,
+    SETTINGS_TAB_KEYS.REPORT_CONFIG,
+    SETTINGS_TAB_KEYS.RCA_SUGGESTIONS,
+    SETTINGS_TAB_KEYS.FORCE_CLOSE_POLICY,
   ],
   
   // WORKER - Only Doctors and Patients tabs
@@ -192,7 +208,6 @@ export const roleSettingsTabVisibilityMap = {
   [ROLES.ADMINISTRATION_ADMIN]: [],
   [ROLES.DEPARTMENT_ADMIN]: [],
   [ROLES.SECTION_ADMIN]: [],
-  [ROLES.UNIVERSAL_SECTION]: [],
 };
 
 // ============================================================================

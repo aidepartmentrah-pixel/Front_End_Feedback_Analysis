@@ -1,733 +1,273 @@
 // src/pages/EditRecord.js
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Box, Container, Typography, Divider, CircularProgress, Card, Alert, Input, Chip, IconButton, Sheet, FormControl, FormLabel } from "@mui/joy";
-import theme from '../theme';
-import { useNavigate, useParams } from "react-router-dom";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import {
+  Box, Container, Typography, Divider, CircularProgress, Card, Alert, Button,
+} from "@mui/joy";
 import { Warning } from "@mui/icons-material";
-import SearchIcon from "@mui/icons-material/Search";
-import CloseIcon from "@mui/icons-material/Close";
-import PersonIcon from "@mui/icons-material/Person";
+import SendIcon from "@mui/icons-material/Send";
+import { useNavigate, useParams } from "react-router-dom";
+import theme from "../theme";
 
-// Utils
-import { validateIncidentCase } from "../utils/incidentCaseValidation";
-
-// Components
 import MainLayout from "../components/common/MainLayout";
-import TextBlocksWithButtons from "../components/insert/TextBlocksWithButtons";
-import RecordMetadata from "../components/insert/RecordMetadata";
-import ClassificationFields from "../components/insert/ClassificationFields";
 import EditActionButtons from "../components/edit/EditActionButtons";
+import IncidentMetadataSection from "../components/incident/IncidentMetadataSection";
+import CaseTabContent from "../components/incident/CaseTabContent";
 
-// API
-import { getRecordById, updateRecord } from "../api/complaints";
-import { 
-  fetchReferenceData,
-  fetchCategories,
-  fetchSubcategories,
-  fetchClassifications,
-  searchEmployees,
-  searchDoctors
-} from "../api/insertRecord";
+import { getRecordById, updateRecord, publishComplaint } from "../api/complaints";
+import { fetchReferenceData, fetchCategories, fetchSubcategories, fetchClassifications } from "../api/insertRecord";
+import { fetchAllTargetUnits } from "../api/orgUnits";
+
+import { emptyIncident, emptyCase } from "../utils/incidentModel";
+import { computeIncidentValidation } from "../utils/incidentValidation";
+import { recordToIncidentAndCase, buildUpdatePayload } from "../utils/editRecordMapping";
+
+const PATIENT_SEARCH_STUB = {
+  query: "", results: [], loading: false,
+  search: () => {}, setQuery: () => {}, setResults: () => {},
+};
 
 const EditRecord = () => {
   const navigate = useNavigate();
-  const { id } = useParams(); // Get record ID from URL params (/edit/:id)
+  const { id } = useParams();
 
-  // State for selected record
+  // ── Raw API response (for header badge / Publish button) ──
   const [selectedRecord, setSelectedRecord] = useState(null);
-  const [originalRecord, setOriginalRecord] = useState(null);
 
-  // State for all form fields (matching insert endpoint structure)
-  const [formData, setFormData] = useState({
-    complaint_text: "",
-    feedback_received_date: new Date().toISOString().split("T")[0],
-    issuing_department_id: null,
-    domain_id: null,
-    category_id: null,
-    subcategory_id: null,
-    classification_id: null,
-    severity_id: null,
-    stage_id: null,
-    harm_id: null,
-    clinical_risk_type_id: null,
-    feedback_intent_type_id: null,
-    immediate_action: "",
-    taken_action: "",
-    patient_name: "",
-    target_department_ids: [],
-    source_id: null,
-    building: null,
-    in_out: null,
-    doctors: [],
-    employees: [],
-    requires_explanation: false,
+  // ── Shared incident + case state ──
+  const [incident, setIncident] = useState(emptyIncident());
+  const [cases, setCases] = useState([emptyCase()]);
+
+  // ── Snapshots for Reset ──
+  const [originalIncident, setOriginalIncident] = useState(null);
+  const [originalCase, setOriginalCase] = useState(null);
+
+  // ── Reference data ──
+  const [refData, setRefData] = useState({
+    domains: [], sources: [], severity: [], stages: [], harm: [],
+    feedback_intent_types: [], clinical_risk_types: [], buildings: [],
   });
+  const [sections, setSections] = useState([]);
+  const [orgUnits, setOrgUnits] = useState([]);
 
-  // State for UI
+  // ── UI state ──
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
-  const [recordValidation, setRecordValidation] = useState(null); // Initial validation result
-  const [referenceData, setReferenceData] = useState({
-    domains: [],
-    categories: [],
-    severities: [],
-    stages: [],
-    harm_levels: [],
-    building: [],
-    clinical_risk_types: [],
-    feedback_intent_types: [],
-    sources: [],
-    departments: [],
-  });
+  const [caseValidationErrors, setCaseValidationErrors] = useState([]);
+  const isSubmittingRef = useRef(false);
 
-  // State for sequential loading of categories, subcategories, classifications
-  const [categories, setCategories] = useState([]);
-  const [subcategories, setSubcategories] = useState([]);
-  const [classifications, setClassifications] = useState([]);
-  const isLoadingRecordRef = useRef(false);
-  const isSubmittingRef = useRef(false); // Prevent double submit
-
-  // Employee search state
-  const [employeeSearchQuery, setEmployeeSearchQuery] = useState("");
-  const [employeeSearchResults, setEmployeeSearchResults] = useState([]);
-  const [employeeSearchLoading, setEmployeeSearchLoading] = useState(false);
-  const employeeSearchTimeoutRef = useRef(null);
-
-  // Debounced employee search
-  const handleEmployeeSearch = useCallback(async (query) => {
-    if (!query || query.length < 2) {
-      setEmployeeSearchResults([]);
-      return;
-    }
-    setEmployeeSearchLoading(true);
-    try {
-      const results = await searchEmployees(query);
-      setEmployeeSearchResults(results || []);
-    } catch (err) {
-      console.error("Employee search error:", err);
-      setEmployeeSearchResults([]);
-    } finally {
-      setEmployeeSearchLoading(false);
-    }
-  }, []);
-
+  // ── Reference data + sections + orgUnits (parallel on mount) ──
   useEffect(() => {
-    if (employeeSearchTimeoutRef.current) clearTimeout(employeeSearchTimeoutRef.current);
-    employeeSearchTimeoutRef.current = setTimeout(() => {
-      handleEmployeeSearch(employeeSearchQuery);
-    }, 300);
-    return () => clearTimeout(employeeSearchTimeoutRef.current);
-  }, [employeeSearchQuery, handleEmployeeSearch]);
-
-  const handleAddEmployee = (emp) => {
-    const existing = (formData.employees || []).find(e => e.employee_id === emp.employee_id);
-    if (existing) return; // Already added
-    setFormData(prev => ({
-      ...prev,
-      employees: [...(prev.employees || []), {
-        employee_id: emp.employee_id,
-        full_name: emp.full_name || emp.name || '',
-        job_title: emp.job_title || ''
-      }]
-    }));
-    setEmployeeSearchQuery("");
-    setEmployeeSearchResults([]);
-    setHasChanges(true);
-  };
-
-  const handleRemoveEmployee = (empId) => {
-    setFormData(prev => ({
-      ...prev,
-      employees: (prev.employees || []).filter(e => e.employee_id !== empId)
-    }));
-    setHasChanges(true);
-  };
-
-  // Doctor search state
-  const [doctorSearchQuery, setDoctorSearchQuery] = useState("");
-  const [doctorSearchResults, setDoctorSearchResults] = useState([]);
-  const [doctorSearchLoading, setDoctorSearchLoading] = useState(false);
-  const doctorSearchTimeoutRef = useRef(null);
-
-  // Debounced doctor search
-  const handleDoctorSearch = useCallback(async (query) => {
-    if (!query || query.length < 2) {
-      setDoctorSearchResults([]);
-      return;
-    }
-    setDoctorSearchLoading(true);
-    try {
-      const results = await searchDoctors(query);
-      setDoctorSearchResults(results || []);
-    } catch (err) {
-      console.error("Doctor search error:", err);
-      setDoctorSearchResults([]);
-    } finally {
-      setDoctorSearchLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (doctorSearchTimeoutRef.current) clearTimeout(doctorSearchTimeoutRef.current);
-    doctorSearchTimeoutRef.current = setTimeout(() => {
-      handleDoctorSearch(doctorSearchQuery);
-    }, 300);
-    return () => clearTimeout(doctorSearchTimeoutRef.current);
-  }, [doctorSearchQuery, handleDoctorSearch]);
-
-  const handleAddDoctor = (doc) => {
-    const docId = doc.doctor_id || doc.id || doc.employee_id;
-    const existing = (formData.doctors || []).find(d => (d.doctor_id || d.id) === docId);
-    if (existing) return; // Already added
-    setFormData(prev => ({
-      ...prev,
-      doctors: [...(prev.doctors || []), {
-        doctor_id: docId,
-        doctor_name: doc.doctor_name || doc.full_name || doc.name || ''
-      }]
-    }));
-    setDoctorSearchQuery("");
-    setDoctorSearchResults([]);
-    setHasChanges(true);
-  };
-
-  const handleRemoveDoctor = (docId) => {
-    setFormData(prev => ({
-      ...prev,
-      doctors: (prev.doctors || []).filter(d => (d.doctor_id || d.id) !== docId)
-    }));
-    setHasChanges(true);
-  };
-
-  // Compute form validity
-  const isFormValid = useMemo(() => {
-    const validation = validateIncidentCase(formData);
-    return validation.isValid;
-  }, [formData]);
-
-  // Load reference data on mount
-  useEffect(() => {
-    const loadReferenceData = async () => {
+    (async () => {
       try {
-        const data = await fetchReferenceData();
-        console.log("📚 Reference data loaded:", data);
-        console.log("📚 Departments count:", data.departments?.length);
-        console.log("📚 Sample department:", data.departments?.[0]);
-        
-        // Normalize field names for compatibility
-        const normalized = {
-          ...data,
-          severities: data.severity || data.severities || [],
-          harm_levels: data.harm || data.harm_levels || [],
-        };
-        
-        setReferenceData(normalized);
-      } catch (err) {
-        console.error("❌ Error loading reference data:", err);
+        const [data, secResp, units] = await Promise.all([
+          fetchReferenceData(),
+          fetch("/api/settings/sections", { credentials: "include" }),
+          fetchAllTargetUnits(),
+        ]);
+        setRefData(data);
+        if (secResp.ok) { const j = await secResp.json(); setSections(j.sections || []); }
+        setOrgUnits(units);
+      } catch (e) {
+        console.error("Failed to load reference data:", e);
       }
-    };
-    loadReferenceData();
+    })();
   }, []);
 
-  // Auto-load record from URL parameter
+  // ── Load record by case_id (response already includes incident_id) ──
   useEffect(() => {
-    if (id) {
-      setLoading(true);
-      setError(null);
-      console.log("🔄 Loading record:", id);
-      getRecordById(id)
-        .then(async (res) => {
-          const record = res.record;
+    if (!id) return;
+    setLoading(true);
+    setError(null);
 
-          console.log("📖 Record loaded:", record);
-          console.log("📖 Target departments in record:", record.target_departments);
-          console.log("📖 Building ID:", record.building_id, "Building name:", record.building_name);
-          console.log("📖 Domain ID:", record.domain_id);
-          console.log("📖 Category ID:", record.category_id);
-          console.log("📖 Subcategory ID:", record.subcategory_id);
-          console.log("📖 Classification ID:", record.classification_id);
-          
-          setSelectedRecord(record);
-          setOriginalRecord(JSON.parse(JSON.stringify(record)));
-          isLoadingRecordRef.current = true;
+    (async () => {
+      try {
+        const res = await getRecordById(id);
+        const record = res.record;
+        record.case_status_name = record.case_status_name || record.status_name || null;
+        setSelectedRecord(record);
 
-          // Load categories/subcategories/classifications for this record
+        const { incident: inc, caseObj } = recordToIncidentAndCase(record);
+
+        // Pre-load cascade options so ClassificationCascade renders with correct child lists.
+        if (caseObj.domain_id) {
           try {
-            if (record.domain_id) {
-              console.log("🔄 Loading categories for domain:", record.domain_id);
-              const cats = await fetchCategories(record.domain_id);
-              console.log("✅ Categories loaded:", cats.length);
-              setCategories(cats);
-              
-              if (record.category_id) {
-                console.log("🔄 Loading subcategories for category:", record.category_id);
-                const subs = await fetchSubcategories(record.category_id);
-                console.log("✅ Subcategories loaded:", subs.length);
-                setSubcategories(subs);
-                
-                if (record.subcategory_id) {
-                  console.log("🔄 Loading classifications for subcategory:", record.subcategory_id);
-                  const classifs = await fetchClassifications(record.subcategory_id);
-                  console.log("✅ Classifications loaded:", classifs.length);
-                  setClassifications(classifs);
-                }
+            const cats = await fetchCategories(caseObj.domain_id);
+            caseObj._categories = Array.isArray(cats) ? cats : [];
+            if (caseObj.category_id) {
+              const subs = await fetchSubcategories(caseObj.category_id);
+              caseObj._subcategories = Array.isArray(subs) ? subs : [];
+              if (caseObj.subcategory_id) {
+                const cls = await fetchClassifications(caseObj.subcategory_id);
+                caseObj._classifications = Array.isArray(cls) ? cls : [];
               }
             }
-          } catch (err) {
-            console.error("❌ Error loading classification hierarchy:", err);
-          }
+          } catch { /* cascade load failure is non-fatal; user can re-select */ }
+        }
 
-          // Map target_departments array to IDs using section_id (stored DepartmentID = leaf/section ID)
-          // NOTE: section_id is the actual value stored in APP_IncidentCaseTargetDepartment.DepartmentID
-          // department_id is the PARENT org unit, not what the dropdown uses
-          const targetDeptIds = Array.isArray(record.target_departments)
-            ? record.target_departments.map(dept => dept.section_id || dept.department_id).filter(Boolean)
-            : [];
-          
-          console.log("📋 Mapped target department IDs:", targetDeptIds);
-
-          // Map doctors array
-          const doctorsList = Array.isArray(record.doctors)
-            ? record.doctors.map(doc => {
-                const docId = doc.id || doc.doctor_id || doc.employee_id;
-                const docName = doc.name || doc.doctor_name || doc.full_name || `Doctor #${docId}`;
-                return {
-                  doctor_id: docId,
-                  doctor_name: docName
-                };
-              })
-            : [];
-
-          // Map employees array (supervisors/workers)
-          const employeesList = Array.isArray(record.employees)
-            ? record.employees.map(emp => {
-                const empId = emp.employee_id || emp.id;
-                const empName = emp.full_name || emp.employee_name || emp.name || `Employee #${empId}`;
-                return {
-                  employee_id: empId,
-                  full_name: empName,
-                  job_title: emp.job_title || ''
-                };
-              })
-            : [];
-
-          // Map building_id to building name (RAH/BIC)
-          let buildingName = null;
-          if (record.building_id === 1) buildingName = "RAH";
-          else if (record.building_id === 2) buildingName = "BIC";
-          else if (record.building_name) buildingName = record.building_name;
-
-          // Map in_out from is_inpatient or in_out field
-          let inOutValue = null;
-          if (record.in_out) inOutValue = record.in_out; // Direct field
-          else if (record.is_inpatient === true || record.is_inpatient === 1) inOutValue = "IN";
-          else if (record.is_inpatient === false || record.is_inpatient === 0) inOutValue = "OUT";
-
-          const initialFormData = {
-            complaint_text: record.complaint_text || "",
-            feedback_received_date: record.received_date || new Date().toISOString().split("T")[0],
-            issuing_department_id: record.issuing_org_unit_id || null,
-            domain_id: record.domain_id || null,
-            category_id: record.category_id || null,
-            subcategory_id: record.subcategory_id || null,
-            classification_id: record.classification_id || null,
-            severity_id: record.severity_id || null,
-            stage_id: record.stage_id || null,
-            harm_id: record.harm_level_id || null,
-            clinical_risk_type_id: record.clinical_risk_type_id || null,
-            feedback_intent_type_id: record.feedback_intent_type_id || null,
-            immediate_action: record.immediate_action || "",
-            taken_action: record.taken_action || "",
-            patient_name: record.patient_name || "",
-            target_department_ids: targetDeptIds,
-            source_id: record.source_id || null,
-            building: buildingName,
-            in_out: inOutValue,
-            doctors: doctorsList,
-            employees: employeesList,
-            is_inpatient: record.is_inpatient,
-            explanation_status_id: record.explanation_status_id || null,
-            case_status_id: record.case_status_id || 1,
-            requires_explanation: record.requires_explanation !== undefined ? record.requires_explanation : false,
-          };
-          
-          setFormData(initialFormData);
-          setHasChanges(false);
-          
-          // ✅ Validate loaded record
-          const initialValidation = validateIncidentCase(initialFormData);
-          setRecordValidation(initialValidation);
-          
-          if (!initialValidation.isValid) {
-            console.warn("⚠️ Loaded record is incomplete:", initialValidation.errors);
-            console.warn("📋 Missing fields:", Object.keys(initialValidation.errors));
-            console.warn("📊 FormData snapshot:", {
-              requires_explanation: initialFormData.requires_explanation,
-              is_inpatient: initialFormData.is_inpatient,
-              building: initialFormData.building,
-            });
-          } else {
-            console.log("✅ Loaded record is valid!");
-          }
-          
-          // Small delay to ensure state is set before enabling useEffects
-          setTimeout(() => {
-            isLoadingRecordRef.current = false;
-            console.log("✅ Record loading complete, useEffects enabled");
-          }, 100);
-        })
-        .catch((err) => {
-          console.error("❌ Error loading record:", err);
-          setError(`Failed to load record: ${err.message}`);
-        })
-        .finally(() => setLoading(false));
-    }
+        setIncident(inc);
+        setCases([caseObj]);
+        setOriginalIncident(structuredClone(inc));
+        setOriginalCase(structuredClone(caseObj));
+        setHasChanges(false);
+      } catch (e) {
+        setError(`Failed to load record: ${e.message}`);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [id]);
 
-  // Watch for domain_id changes - load categories
-  useEffect(() => {
-    if (isLoadingRecordRef.current) return; // Skip during initial record load
-    
-    if (formData.domain_id) {
-      const loadCats = async () => {
-        try {
-          const data = await fetchCategories(formData.domain_id);
-          setCategories(data);
-        } catch (err) {
-          console.error("Error loading categories:", err);
-        }
-      };
-      loadCats();
-      
-      // Clear dependent fields when domain changes
-      setFormData(prev => ({
-        ...prev,
-        category_id: null,
-        subcategory_id: null,
-        classification_id: null,
-      }));
-      setSubcategories([]);
-      setClassifications([]);
-    } else {
-      setCategories([]);
-      setSubcategories([]);
-      setClassifications([]);
-    }
-  }, [formData.domain_id]);
-
-  // Watch for category_id changes - load subcategories
-  useEffect(() => {
-    if (isLoadingRecordRef.current) return; // Skip during initial record load
-    
-    if (formData.category_id) {
-      const loadSubs = async () => {
-        try {
-          const data = await fetchSubcategories(formData.category_id);
-          setSubcategories(data);
-        } catch (err) {
-          console.error("Error loading subcategories:", err);
-        }
-      };
-      loadSubs();
-      
-      // Clear dependent fields when category changes
-      setFormData(prev => ({
-        ...prev,
-        subcategory_id: null,
-        classification_id: null,
-      }));
-      setClassifications([]);
-    } else {
-      setSubcategories([]);
-      setClassifications([]);
-    }
-  }, [formData.category_id]);
-
-  // Watch for subcategory_id changes - load classifications
-  useEffect(() => {
-    if (isLoadingRecordRef.current) return; // Skip during initial record load
-    
-    if (formData.subcategory_id) {
-      const loadClassifs = async () => {
-        try {
-          const data = await fetchClassifications(formData.subcategory_id);
-          setClassifications(data);
-        } catch (err) {
-          console.error("Error loading classifications:", err);
-        }
-      };
-      loadClassifs();
-      
-      // Clear dependent field when subcategory changes
-      setFormData(prev => ({
-        ...prev,
-        classification_id: null,
-      }));
-    } else {
-      setClassifications([]);
-    }
-  }, [formData.subcategory_id]);
-
-  // Update form data
-  const handleInputChange = (field, value) => {
-    console.log(`🔄 Field change: ${field} = ${value}`);
-    setFormData((prev) => {
-      const updated = {
-        ...prev,
-        [field]: value,
-      };
-      console.log(`📝 Updated formData.${field}:`, updated[field]);
-      return updated;
-    });
+  // ── Field helpers ──
+  const setIncidentField = (key, value) => {
+    setIncident((prev) => ({ ...prev, [key]: value }));
     setHasChanges(true);
   };
 
-  // Handle text block changes
-  const handleTextBlockChange = (field, value) => {
-    // Convert field names from camelCase to snake_case
-    const fieldMap = {
-      "complaintText": "complaint_text",
-      "additionalNotes": "immediate_action",
-      "optionalThirdText": "taken_action",
-    };
-    const snakeField = fieldMap[field] || field;
-    
-    setFormData((prev) => ({
-      ...prev,
-      [snakeField]: value,
-    }));
+  const updateCase = (idx, patch) => {
+    setCases((prev) => prev.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
     setHasChanges(true);
   };
 
-  // Handle Update Record
+  // ── Derived: current validation (live, uses latest refData) ──
+  const currentValidation = useMemo(
+    () => computeIncidentValidation(incident, cases, refData),
+    [incident, cases, refData]
+  );
+  const isFormValid = Object.keys(currentValidation.errs).length === 0 &&
+                      currentValidation.caseErrs.every((ce) => Object.keys(ce).length === 0);
+
+  // ── Initial validation warning (shown on load — uses the same live result) ──
+  const incompleteOnLoad = selectedRecord && !loading &&
+    (Object.keys(currentValidation.errs).length > 0 ||
+     currentValidation.caseErrs.some((ce) => Object.keys(ce).length > 0));
+  const missingCount = Object.keys(currentValidation.errs).length +
+    currentValidation.caseErrs.reduce((sum, ce) => sum + Object.keys(ce).length, 0);
+
+  // ── Update ──
   const handleUpdateRecord = async () => {
-    // Prevent double submit
-    if (isSubmittingRef.current) {
-      console.log("⚠️ Submit already in progress, ignoring duplicate click");
-      return;
-    }
-    
+    if (isSubmittingRef.current) return;
     try {
       isSubmittingRef.current = true;
       setLoading(true);
       setError(null);
-      setValidationErrors({});
 
-      // ✅ Run centralized validation
-      const validation = validateIncidentCase(formData);
-      
-      if (!validation.isValid) {
-        // Show validation errors
-        setValidationErrors(validation.errors);
-        const errorCount = Object.keys(validation.errors).length;
-        setError(`❌ Please fix ${errorCount} highlighted field${errorCount > 1 ? 's' : ''} before saving.`);
-        setLoading(false);
-        isSubmittingRef.current = false;
-        
-        // Scroll to top to show error message
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+      const { errs, caseErrs } = computeIncidentValidation(incident, cases, refData);
+      const hasErrors = Object.keys(errs).length > 0 || caseErrs.some((ce) => Object.keys(ce).length > 0);
+      if (hasErrors) {
+        setValidationErrors(errs);
+        setCaseValidationErrors(caseErrs);
+        setError(`Please fix ${Object.keys(errs).length + caseErrs.reduce((s, ce) => s + Object.keys(ce).length, 0)} highlighted field(s) before saving.`);
+        window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
 
-      // Call API to update record
-      console.log("📤 Submitting update with formData:", formData);
-      const result = await updateRecord(id, formData);
-      console.log("✅ Record updated:", result);
-
-      setSuccess("Record updated successfully! Redirecting...");
+      await updateRecord(id, buildUpdatePayload("workflow", incident, cases[0]));
+      setSuccess("Record updated successfully! Redirecting…");
       setHasChanges(false);
-
-      // Redirect back to table view after 2 seconds
-      setTimeout(() => {
-        navigate("/table-view");
-      }, 2000);
-    } catch (err) {
-      console.error("❌ Error updating record:", err);
-      setError(`Error updating record: ${err.message}`);
-      isSubmittingRef.current = false;
+      setTimeout(() => navigate("/table-view"), 2000);
+    } catch (e) {
+      setError(`Error updating record: ${e.message}`);
     } finally {
       setLoading(false);
       isSubmittingRef.current = false;
     }
   };
 
-  // Handle Cancel
   const handleCancel = () => {
-    if (hasChanges && !window.confirm("You have unsaved changes. Are you sure you want to cancel?")) {
-      return;
-    }
+    if (hasChanges && !window.confirm("You have unsaved changes. Are you sure you want to cancel?")) return;
     navigate("/table-view");
   };
 
-  // Handle Reset to Original
   const handleReset = () => {
-    if (originalRecord) {
-      // Re-map all fields from originalRecord
-      const targetDeptIds = Array.isArray(originalRecord.target_departments)
-        ? originalRecord.target_departments.map(dept => dept.department_id).filter(Boolean)
-        : [];
-
-      const doctorsList = Array.isArray(originalRecord.doctors)
-        ? originalRecord.doctors.map(doc => {
-            const docId = doc.id || doc.doctor_id || doc.employee_id;
-            const docName = doc.name || doc.doctor_name || doc.full_name || `Doctor #${docId}`;
-            return {
-              doctor_id: docId,
-              doctor_name: docName
-            };
-          })
-        : [];
-
-      const employeesList = Array.isArray(originalRecord.employees)
-        ? originalRecord.employees.map(emp => {
-            const empId = emp.employee_id || emp.id;
-            const empName = emp.full_name || emp.employee_name || emp.name || `Employee #${empId}`;
-            return {
-              employee_id: empId,
-              full_name: empName,
-              job_title: emp.job_title || ''
-            };
-          })
-        : [];
-
-      let buildingName = null;
-      if (originalRecord.building_id === 1) buildingName = "RAH";
-      else if (originalRecord.building_id === 2) buildingName = "BIC";
-      else if (originalRecord.building_name) buildingName = originalRecord.building_name;
-
-      let inOutValue = null;
-      if (originalRecord.in_out) inOutValue = originalRecord.in_out;
-      else if (originalRecord.is_inpatient === true || originalRecord.is_inpatient === 1) inOutValue = "IN";
-      else if (originalRecord.is_inpatient === false || originalRecord.is_inpatient === 0) inOutValue = "OUT";
-
-      const resetFormData = {
-        complaint_text: originalRecord.complaint_text || "",
-        feedback_received_date: originalRecord.received_date || new Date().toISOString().split("T")[0],
-        issuing_department_id: originalRecord.issuing_org_unit_id || null,
-        domain_id: originalRecord.domain_id || null,
-        category_id: originalRecord.category_id || null,
-        subcategory_id: originalRecord.subcategory_id || null,
-        classification_id: originalRecord.classification_id || null,
-        severity_id: originalRecord.severity_id || null,
-        stage_id: originalRecord.stage_id || null,
-        harm_id: originalRecord.harm_level_id || null,
-        clinical_risk_type_id: originalRecord.clinical_risk_type_id || null,
-        feedback_intent_type_id: originalRecord.feedback_intent_type_id || null,
-        immediate_action: originalRecord.immediate_action || "",
-        taken_action: originalRecord.taken_action || "",
-        patient_name: originalRecord.patient_name || "",
-        target_department_ids: targetDeptIds,
-        source_id: originalRecord.source_id || null,
-        building: buildingName,
-        in_out: inOutValue,
-        doctors: doctorsList,
-        employees: employeesList,
-        is_inpatient: originalRecord.is_inpatient,
-        explanation_status_id: originalRecord.explanation_status_id || null,
-        case_status_id: originalRecord.case_status_id || 1,
-        requires_explanation: originalRecord.requires_explanation !== undefined ? originalRecord.requires_explanation : false,
-      };
-      
-      setFormData(resetFormData);
-      setHasChanges(false);
-      setSuccess(null);
-      setValidationErrors({});
-      
-      // Re-validate after reset
-      const validation = validateIncidentCase(resetFormData);
-      setRecordValidation(validation);
-    }
+    if (!originalIncident || !originalCase) return;
+    setIncident(structuredClone(originalIncident));
+    setCases([structuredClone(originalCase)]);
+    setHasChanges(false);
+    setSuccess(null);
+    setValidationErrors({});
+    setCaseValidationErrors([]);
   };
 
   return (
     <MainLayout>
       <Container maxWidth="lg" sx={{ py: 3 }}>
-        <Box sx={{ mb: 3 }}>
-          <h1 style={{ color: "#1a1e3f", marginBottom: "8px" }}>📝 Edit Record</h1>
-          <p style={{ color: "#667eea", margin: 0 }}>
-            Update feedback/incident record #{id}
-          </p>
+
+        {/* ── Header ── */}
+        <Box sx={{ mb: 3, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 2 }}>
+          <Box>
+            <Typography level="h2" sx={{ fontWeight: 800, background: theme.gradients.primary, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              ✏️ Edit Record
+            </Typography>
+            <Typography level="body-sm" sx={{ color: "#666", mt: 0.5 }}>
+              Record #{id}
+              {selectedRecord?.incident_number && (
+                <span style={{ marginLeft: 12, color: "#1F6F73", fontWeight: 700 }}>
+                  — Incident: {selectedRecord.incident_number}
+                </span>
+              )}
+              {selectedRecord?.case_status_name && (
+                <span style={{
+                  marginLeft: 12, padding: "2px 10px", borderRadius: 12,
+                  fontSize: "0.8rem", fontWeight: 700,
+                  background: selectedRecord.case_status_name === "Draft" ? "#f1f5f9"
+                    : selectedRecord.case_status_name === "Ready to Send" ? "#dcfce7" : "#eff6ff",
+                  color: selectedRecord.case_status_name === "Draft" ? "#64748b"
+                    : selectedRecord.case_status_name === "Ready to Send" ? "#166534" : "#1e40af",
+                  border: `1px solid ${selectedRecord.case_status_name === "Draft" ? "#cbd5e1"
+                    : selectedRecord.case_status_name === "Ready to Send" ? "#86efac" : "#bfdbfe"}`,
+                }}>
+                  {selectedRecord.case_status_name}
+                </span>
+              )}
+            </Typography>
+          </Box>
+          {selectedRecord?.case_status_name === "Ready to Send" && (
+            <Button variant="solid" color="success" size="sm" startDecorator={<SendIcon />}
+              onClick={async () => {
+                if (!window.confirm("Publish this complaint into the workflow?")) return;
+                try { await publishComplaint(id); window.location.reload(); }
+                catch (e) { alert(e?.response?.data?.message || "Publish failed"); }
+              }}>
+              Publish
+            </Button>
+          )}
         </Box>
 
-        {/* Loading State */}
+        {/* ── Loading ── */}
         {loading && !selectedRecord && (
-          <Card sx={{ 
-            p: 4, 
-            textAlign: "center",
-            background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
-            border: "1px solid rgba(102, 126, 234, 0.1)",
-          }}>
+          <Card sx={{ p: 4, textAlign: "center", background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)" }}>
             <CircularProgress size="lg" sx={{ "--CircularProgress-color": theme.colors.primary }} />
-            <Typography level="body-md" sx={{ mt: 2, color: theme.colors.primary, fontWeight: 600 }}>
-              Loading record...
-            </Typography>
+            <Typography level="body-md" sx={{ mt: 2, color: theme.colors.primary, fontWeight: 600 }}>Loading record…</Typography>
           </Card>
         )}
 
-        {/* Error Messages */}
+        {/* ── Error ── */}
         {error && (
-          <Card sx={{ 
-            mb: 2, 
-            p: 3, 
-            bgcolor: "danger.softBg",
-            border: "2px solid",
-            borderColor: "danger.solidBg",
-            boxShadow: "0 4px 12px rgba(220, 38, 38, 0.15)"
-          }}>
-            <Typography 
-              color="danger" 
-              level="title-md"
-              sx={{ 
-                fontWeight: 700, 
-                mb: 1,
-                display: "flex",
-                alignItems: "center",
-                gap: 1
-              }}
-            >
-              ❌ Validation Error
-            </Typography>
-            <Typography 
-              color="danger" 
-              level="body-sm"
-              sx={{ whiteSpace: "pre-line" }}
-            >
-              {error}
-            </Typography>
+          <Card sx={{ mb: 2, p: 3, bgcolor: "danger.softBg", border: "2px solid", borderColor: "danger.solidBg" }}>
+            <Typography color="danger" level="title-md" sx={{ fontWeight: 700, mb: 1 }}>❌ Validation Error</Typography>
+            <Typography color="danger" level="body-sm" sx={{ whiteSpace: "pre-line" }}>{error}</Typography>
           </Card>
         )}
 
-        {/* Success Messages */}
+        {/* ── Success ── */}
         {success && (
           <Card sx={{ mb: 2, p: 2, bgcolor: "success.softBg" }}>
             <Typography color="success">✅ {success}</Typography>
           </Card>
         )}
-        
-        {/* Warning Banner for Incomplete Records */}
-        {recordValidation && !recordValidation.isValid && !loading && (
-          <Alert 
-            color="warning" 
-            variant="soft"
-            startDecorator={<Warning />}
-            sx={{ 
-              mb: 2, 
-              p: 3,
-              border: "2px solid",
-              borderColor: "warning.solidBg",
-              boxShadow: "0 4px 12px rgba(237, 108, 2, 0.15)"
-            }}
-          >
+
+        {/* ── Incomplete-record warning banner ── */}
+        {incompleteOnLoad && !error && (
+          <Alert color="warning" variant="soft" startDecorator={<Warning />}
+            sx={{ mb: 2, p: 3, border: "2px solid", borderColor: "warning.solidBg" }}>
             <Box>
               <Typography level="title-md" sx={{ fontWeight: 700, mb: 1 }}>
                 ⚠️ This record is incomplete and must be fixed before saving.
               </Typography>
-              <Typography level="body-sm">
-                Missing required fields: {Object.keys(recordValidation.errors).length}
-              </Typography>
+              <Typography level="body-sm">Missing required fields: {missingCount}</Typography>
               <Typography level="body-xs" sx={{ mt: 1, fontStyle: "italic" }}>
                 Please fill all fields marked with * before updating.
               </Typography>
@@ -735,283 +275,43 @@ const EditRecord = () => {
           </Alert>
         )}
 
-        {/* Form (show only when record is loaded) */}
+        {/* ── Form (visible once record is loaded) ── */}
         {selectedRecord && !loading && (
           <>
             <Divider sx={{ my: 3 }} />
 
-            {/* Row 1: Text Inputs + Buttons */}
-            <TextBlocksWithButtons
-              complaintText={formData.complaint_text}
-              additionalNotes={formData.immediate_action}
-              optionalThirdText={formData.taken_action}
-              onTextChange={handleTextBlockChange}
+            <IncidentMetadataSection
+              incident={incident}
+              onFieldChange={setIncidentField}
+              refData={refData}
+              sections={sections}
               validationErrors={validationErrors}
+              patientSearch={PATIENT_SEARCH_STUB}
+              patientConfirmed={true}
+              onPatientConfirmedChange={() => {}}
+              onAddNewPatient={() => {}}
+              onRunNER={() => {}}
+              nerLoading={false}
+              readOnlyPatient={true}
             />
 
-            {/* Row 2: Metadata Inputs */}
-            <RecordMetadata 
-              formData={formData} 
-              onInputChange={handleInputChange} 
-              referenceData={referenceData}
-              validationErrors={validationErrors}
-            />
-
-            {/* Row 3: Classification Fields */}
-            <ClassificationFields 
-              formData={formData} 
-              onInputChange={handleInputChange}
-              referenceData={referenceData}
-              categories={categories}
-              subcategories={subcategories}
-              classifications={classifications}
-              validationErrors={validationErrors}
-            />
-
-            {/* Row 4: Employees (Supervisor / Worker) */}
-            <Card sx={{ 
-              p: 3, 
-              mt: 3, 
-              mb: 3,
-              background: "#c8e4e6",
-              border: "1px solid rgba(31, 111, 115, 0.3)",
-              borderRadius: "12px"
-            }}>
-              <Typography level="title-md" sx={{ fontWeight: 700, mb: 2, color: "#1F6F73" }}>
-                <PersonIcon sx={{ mr: 1, verticalAlign: "middle" }} />
-                Employees (Supervisor / Worker)
+            <Card sx={{ mb: 3, background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)", border: `1px solid ${theme.colors.primary}1A` }}>
+              <Typography level="title-lg" sx={{ fontWeight: 700, p: 2, pb: 0, color: theme.colors.primary }}>
+                Case Details
               </Typography>
-
-              {/* Current linked employees */}
-              {formData.employees && formData.employees.length > 0 && (
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
-                  {formData.employees.map((emp) => {
-                    const empName = emp.full_name || emp.employee_name || emp.name || `Employee #${emp.employee_id}`;
-                    return (
-                      <Chip
-                        key={emp.employee_id}
-                        variant="soft"
-                        color="primary"
-                        endDecorator={
-                          <IconButton
-                            size="sm"
-                            variant="plain"
-                            color="neutral"
-                            onClick={() => handleRemoveEmployee(emp.employee_id)}
-                          >
-                            <CloseIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        }
-                        sx={{ py: 0.5, px: 1 }}
-                      >
-                        <PersonIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                        {empName}
-                        {emp.job_title ? ` (${emp.job_title})` : ""}
-                      </Chip>
-                    );
-                  })}
-                </Box>
-              )}
-
-              {/* Employee search */}
-              <FormControl>
-                <FormLabel>Search & Add Employee</FormLabel>
-                <Input
-                  placeholder="Type employee name to search..."
-                  value={employeeSearchQuery}
-                  onChange={(e) => setEmployeeSearchQuery(e.target.value)}
-                  startDecorator={<SearchIcon sx={{ color: "neutral.400" }} />}
-                  endDecorator={employeeSearchLoading ? <CircularProgress size="sm" /> : null}
-                  sx={{ mb: 1 }}
+              <Box sx={{ p: 2 }}>
+                <CaseTabContent
+                  caseData={cases[0]}
+                  caseIndex={0}
+                  onChange={(patch) => updateCase(0, patch)}
+                  refData={refData}
+                  sections={sections}
+                  orgUnits={orgUnits}
+                  validationErrors={caseValidationErrors[0] || {}}
                 />
-              </FormControl>
-
-              {/* Search results dropdown */}
-              {employeeSearchResults.length > 0 && (
-                <Sheet
-                  variant="outlined"
-                  sx={{
-                    borderRadius: "8px",
-                    maxHeight: 200,
-                    overflowY: "auto",
-                    p: 0
-                  }}
-                >
-                  {employeeSearchResults.map((emp) => {
-                    const empId = emp.employee_id || emp.id;
-                    const empName = emp.full_name || emp.name || `Employee #${empId}`;
-                    const empTitle = emp.job_title || "";
-                    const isAlreadyAdded = (formData.employees || []).some(e => e.employee_id === empId);
-                    return (
-                      <Box
-                        key={empId}
-                        onClick={() => !isAlreadyAdded && handleAddEmployee({
-                          employee_id: empId,
-                          full_name: empName,
-                          job_title: empTitle
-                        })}
-                        sx={{
-                          p: 1.5,
-                          cursor: isAlreadyAdded ? "default" : "pointer",
-                          opacity: isAlreadyAdded ? 0.5 : 1,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 1,
-                          borderBottom: "1px solid",
-                          borderColor: "divider",
-                          "&:hover": !isAlreadyAdded ? {
-                            bgcolor: "primary.softBg"
-                          } : {},
-                          "&:last-child": { borderBottom: "none" }
-                        }}
-                      >
-                        <PersonIcon sx={{ color: "primary.500", fontSize: 20 }} />
-                        <Box>
-                          <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-                            {empName}
-                          </Typography>
-                          {empTitle && (
-                            <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                              {empTitle}
-                            </Typography>
-                          )}
-                        </Box>
-                        {isAlreadyAdded && (
-                          <Chip size="sm" variant="soft" color="success" sx={{ ml: "auto" }}>
-                            Added
-                          </Chip>
-                        )}
-                      </Box>
-                    );
-                  })}
-                </Sheet>
-              )}
-
-              {employeeSearchQuery.length >= 2 && employeeSearchResults.length === 0 && !employeeSearchLoading && (
-                <Typography level="body-xs" sx={{ color: "neutral.500", mt: 1 }}>
-                  No employees found for "{employeeSearchQuery}"
-                </Typography>
-              )}
+              </Box>
             </Card>
 
-            {/* Row 5: Doctors */}
-            <Card sx={{ 
-              p: 3, 
-              mt: 3, 
-              mb: 3,
-              background: "#c8e4e6",
-              border: "1px solid rgba(31, 111, 115, 0.3)",
-              borderRadius: "12px"
-            }}>
-              <Typography level="title-md" sx={{ fontWeight: 700, mb: 2, color: "#1F6F73" }}>
-                🩺 Doctors
-              </Typography>
-
-              {/* Current linked doctors */}
-              {formData.doctors && formData.doctors.length > 0 && (
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
-                  {formData.doctors.map((doc) => {
-                    const docId = doc.doctor_id || doc.id;
-                    const docName = doc.doctor_name || doc.name || `Doctor #${docId}`;
-                    return (
-                      <Chip
-                        key={docId}
-                        variant="soft"
-                        color="success"
-                        endDecorator={
-                          <IconButton
-                            size="sm"
-                            variant="plain"
-                            color="neutral"
-                            onClick={() => handleRemoveDoctor(docId)}
-                          >
-                            <CloseIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        }
-                        sx={{ py: 0.5, px: 1 }}
-                      >
-                        🩺 {docName}
-                      </Chip>
-                    );
-                  })}
-                </Box>
-              )}
-
-              {/* Doctor search */}
-              <FormControl>
-                <FormLabel>Search & Add Doctor</FormLabel>
-                <Input
-                  placeholder="Type doctor name to search..."
-                  value={doctorSearchQuery}
-                  onChange={(e) => setDoctorSearchQuery(e.target.value)}
-                  startDecorator={<SearchIcon sx={{ color: "neutral.400" }} />}
-                  endDecorator={doctorSearchLoading ? <CircularProgress size="sm" /> : null}
-                  sx={{ mb: 1 }}
-                />
-              </FormControl>
-
-              {/* Search results dropdown */}
-              {doctorSearchResults.length > 0 && (
-                <Sheet
-                  variant="outlined"
-                  sx={{
-                    borderRadius: "8px",
-                    maxHeight: 200,
-                    overflowY: "auto",
-                    p: 0
-                  }}
-                >
-                  {doctorSearchResults.map((doc) => {
-                    const docId = doc.doctor_id || doc.id || doc.employee_id;
-                    const docName = doc.doctor_name || doc.full_name || doc.name || `Doctor #${docId}`;
-                    const isAlreadyAdded = (formData.doctors || []).some(d => (d.doctor_id || d.id) === docId);
-                    return (
-                      <Box
-                        key={docId}
-                        onClick={() => !isAlreadyAdded && handleAddDoctor({
-                          doctor_id: docId,
-                          doctor_name: docName
-                        })}
-                        sx={{
-                          p: 1.5,
-                          cursor: isAlreadyAdded ? "default" : "pointer",
-                          opacity: isAlreadyAdded ? 0.5 : 1,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 1,
-                          borderBottom: "1px solid",
-                          borderColor: "divider",
-                          "&:hover": !isAlreadyAdded ? {
-                            bgcolor: "success.softBg"
-                          } : {},
-                          "&:last-child": { borderBottom: "none" }
-                        }}
-                      >
-                        <Box sx={{ fontSize: 20 }}>🩺</Box>
-                        <Box>
-                          <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-                            {docName}
-                          </Typography>
-                        </Box>
-                        {isAlreadyAdded && (
-                          <Chip size="sm" variant="soft" color="success" sx={{ ml: "auto" }}>
-                            Added
-                          </Chip>
-                        )}
-                      </Box>
-                    );
-                  })}
-                </Sheet>
-              )}
-
-              {doctorSearchQuery.length >= 2 && doctorSearchResults.length === 0 && !doctorSearchLoading && (
-                <Typography level="body-xs" sx={{ color: "neutral.500", mt: 1 }}>
-                  No doctors found for "{doctorSearchQuery}"
-                </Typography>
-              )}
-            </Card>
-
-            {/* Row 6: Action Buttons */}
             <EditActionButtons
               onUpdate={handleUpdateRecord}
               onCancel={handleCancel}
@@ -1023,20 +323,12 @@ const EditRecord = () => {
           </>
         )}
 
-        {/* Empty/Loading State */}
+        {/* ── Empty/no data state ── */}
         {!loading && !selectedRecord && (
-          <Box
-            sx={{
-              p: 4,
-              textAlign: "center",
-              borderRadius: "8px",
-              background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
-              border: "2px dashed rgba(102, 126, 234, 0.2)",
-            }}
-          >
-            <Typography level="h3" sx={{ color: "#667eea", mb: 1 }}>
-              🔍 No Data
-            </Typography>
+          <Box sx={{ p: 4, textAlign: "center", borderRadius: "8px",
+            background: "linear-gradient(135deg, #f5f7fa 0%, #fff 100%)",
+            border: "2px dashed rgba(102, 126, 234, 0.2)" }}>
+            <Typography level="h3" sx={{ color: "#667eea", mb: 1 }}>🔍 No Data</Typography>
             <Typography level="body-sm" sx={{ color: "#999" }}>
               {error ? "Failed to load record details" : "No record data available"}
             </Typography>
@@ -1047,4 +339,5 @@ const EditRecord = () => {
     </MainLayout>
   );
 };
+
 export default EditRecord;

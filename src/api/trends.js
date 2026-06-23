@@ -100,3 +100,25 @@ export async function fetchDomainTrends({
     throw new Error(`Failed to load domain trends: ${error.message}`);
   }
 }
+
+/**
+ * Fetch hospital-wide safety metrics (Target Analysis widget).
+ * Two constant thresholds, not stored in policy tables, not configurable
+ * via Settings: High severity ≤ 5% of total, High+Clinical ≤ 3% of total.
+ * Hospital scope only.
+ *
+ * @param {Object} params
+ * @param {string} params.start_date - YYYY-MM-DD
+ * @param {string} params.end_date   - YYYY-MM-DD
+ */
+export async function fetchHospitalSafetyMetrics({ start_date, end_date } = {}) {
+  const queryParams = new URLSearchParams({ start_date, end_date });
+  const url = `/api/trends/hospital-safety-metrics?${queryParams.toString()}`;
+
+  try {
+    const response = await apiClient.get(url);
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to load hospital safety metrics: ${error.message}`);
+  }
+}

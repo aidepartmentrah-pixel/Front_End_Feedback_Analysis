@@ -77,8 +77,8 @@ const AddDoctorForm = ({ onAdd }) => {
         background: "linear-gradient(135deg, #f5f7ff 0%, #fff 100%)",
       }}
     >
-      <Typography level="h4" sx={{ mb: 2, color: theme.colors.primary, fontWeight: 700 }}>
-        ➕ Add New Doctor
+      <Typography level="h4" sx={{ mb: 2, color: theme.colors.primary, fontWeight: 700, fontFamily: theme.settings.fontFamily }}>
+        Add New Doctor
       </Typography>
 
       <form onSubmit={handleSubmit}>
