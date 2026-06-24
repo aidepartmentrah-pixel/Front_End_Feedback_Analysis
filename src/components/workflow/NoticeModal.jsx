@@ -6,23 +6,20 @@
  *
  * This is an informational form — footer is Close + OK only.
  * No complaint workflow controls appear here.
+ *
+ * Stage S6: migrated onto the shared WorkflowFormShell/ModalLayoutShell/
+ * ContextRegion/SimpleModalFooter system. All state, handlers, and API calls
+ * below are unchanged — only the surrounding JSX shell moved.
  */
 
 import React, { useEffect, useState } from 'react';
-import {
-  Modal,
-  ModalDialog,
-  ModalClose,
-  Typography,
-  Box,
-  Card,
-  Chip,
-  Divider,
-  Button,
-  CircularProgress,
-  Alert,
-} from '@mui/joy';
+import { Typography, Box, Card, Chip, CircularProgress, Alert } from '@mui/joy';
 import { getWorkflowIncidentDetail, actOnSubcase } from '../../api/workflowApi';
+import WorkflowFormShell from './WorkflowFormShell';
+import ModalLayoutShell from './ModalLayoutShell';
+import ContextRegion from './ContextRegion';
+import SimpleModalFooter from './SimpleModalFooter';
+import StatusChip from './StatusChip';
 
 // Notice items carry whatever forward action the underlying case status allows
 // (e.g. a section seeing a notice on a new complaint can still accept_complaint
@@ -87,130 +84,112 @@ const NoticeModal = ({ open, onClose, item, onSuccess }) => {
 
   if (!item) return null;
 
+  const caseLabel = item.incidentNumber || `#${item.subcaseId}`;
+  const title = item.messageType === 'PATIENT_SERVICES_OPINION'
+    ? `إشعار — بانتظار قرار خدمات المرضى — ${caseLabel}`
+    : `إشعار — ${caseLabel}`;
+
   return (
-    <Modal open={open} onClose={onClose}>
-      <ModalDialog
-        sx={{
-          maxWidth: 560,
-          width: '100%',
-          direction: 'rtl',
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '85vh',
-        }}
-        layout="center"
-      >
-        <ModalClose />
+    <WorkflowFormShell open={open} onClose={onClose} submitting={submitting} size="sm">
+      <ModalLayoutShell
+        context={
+          <ContextRegion
+            title={title}
+            orgUnitName={item.targetOrgUnitName}
+            statusChip={item.status ? <StatusChip status={item.status} /> : null}
+            item={item}
+          />
+        }
+        mainContent={
+          <Box>
+            <Typography level="body-sm" sx={{ color: 'neutral.500', mb: 2 }}>
+              {item.messageType === 'PATIENT_SERVICES_OPINION'
+                ? 'هذه الحالة بانتظار قرار خدمات المرضى بحسب المراجع العلميّة. لا يوجد إجراء مطلوب منكم حاليًا.'
+                : 'رسالة إعلامية — لا يوجد إجراء مطلوب'}
+            </Typography>
 
-        <Typography level="title-lg" sx={{ mb: 1 }}>
-          {item.messageType === 'PATIENT_SERVICES_OPINION' ? 'إشعار — بانتظار قرار خدمات المرضى' : 'إشعار'}
-        </Typography>
-        <Typography level="body-sm" sx={{ color: 'neutral.500', mb: 2 }}>
-          {item.messageType === 'PATIENT_SERVICES_OPINION'
-            ? 'هذه الحالة بانتظار قرار خدمات المرضى بحسب المراجع العلميّة. لا يوجد إجراء مطلوب منكم حاليًا.'
-            : 'رسالة إعلامية — لا يوجد إجراء مطلوب'}
-        </Typography>
-
-        <Divider />
-
-        <Box sx={{ flex: 1, overflow: 'auto', py: 2 }}>
-          {/* Context chips */}
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-            {item.incidentNumber && (
-              <Chip size="sm" variant="outlined" color="neutral">{item.incidentNumber}</Chip>
-            )}
-            {item.targetOrgUnitName && (
-              <Chip size="sm" variant="soft" color="neutral">{item.targetOrgUnitName}</Chip>
-            )}
             {item.createdAt && (
-              <Chip size="sm" variant="soft" color="neutral">
-                {item.createdAt.toLocaleDateString('ar-SA')}
-              </Chip>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                <Chip size="sm" variant="soft" color="neutral">
+                  {item.createdAt.toLocaleDateString('ar-SA')}
+                </Chip>
+              </Box>
+            )}
+
+            {loading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            )}
+
+            {error && !loading && (
+              <Alert color="danger" variant="soft" sx={{ mb: 2 }}>
+                <Typography level="body-sm">{error}</Typography>
+              </Alert>
+            )}
+
+            {detail && !loading && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                {detail.complaint_text && (
+                  <Card variant="soft" color="neutral" sx={{ p: 1.5 }}>
+                    <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap' }}>
+                      {detail.complaint_text}
+                    </Typography>
+                  </Card>
+                )}
+                {detail.patient_name && (
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Typography level="body-xs" fontWeight="bold" sx={{ minWidth: 110 }}>المريض:</Typography>
+                    <Typography level="body-sm">{detail.patient_name}</Typography>
+                  </Box>
+                )}
+                {detail.issuing_department_name && (
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Typography level="body-xs" fontWeight="bold" sx={{ minWidth: 110 }}>القسم المُصدر:</Typography>
+                    <Typography level="body-sm">{detail.issuing_department_name}</Typography>
+                  </Box>
+                )}
+                {detail.feedback_received_date && (
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Typography level="body-xs" fontWeight="bold" sx={{ minWidth: 110 }}>تاريخ الإشعار:</Typography>
+                    <Typography level="body-sm">{detail.feedback_received_date}</Typography>
+                  </Box>
+                )}
+                {detail.doctors?.length > 0 && (
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Typography level="body-xs" fontWeight="bold" sx={{ minWidth: 110 }}>الأطباء:</Typography>
+                    <Typography level="body-sm">{detail.doctors.map(d => d.name).join('، ')}</Typography>
+                  </Box>
+                )}
+                {detail.employees?.length > 0 && (
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Typography level="body-xs" fontWeight="bold" sx={{ minWidth: 110 }}>الموظفون:</Typography>
+                    <Typography level="body-sm">{detail.employees.map(e => e.full_name).join('، ')}</Typography>
+                  </Box>
+                )}
+              </Box>
+            )}
+
+            {!detail && !loading && !error && (
+              <Typography level="body-sm" sx={{ color: 'neutral.500', fontStyle: 'italic' }}>
+                لا توجد تفاصيل إضافية متاحة لهذا الإشعار.
+              </Typography>
             )}
           </Box>
-
-          {loading && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress />
-            </Box>
-          )}
-
-          {error && !loading && (
-            <Alert color="danger" variant="soft" sx={{ mb: 2 }}>
-              <Typography level="body-sm">{error}</Typography>
-            </Alert>
-          )}
-
-          {detail && !loading && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              {detail.complaint_text && (
-                <Card variant="soft" color="neutral" sx={{ p: 1.5 }}>
-                  <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap' }}>
-                    {detail.complaint_text}
-                  </Typography>
-                </Card>
-              )}
-              {detail.patient_name && (
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <Typography level="body-xs" fontWeight="bold" sx={{ minWidth: 110 }}>المريض:</Typography>
-                  <Typography level="body-sm">{detail.patient_name}</Typography>
-                </Box>
-              )}
-              {detail.issuing_department_name && (
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <Typography level="body-xs" fontWeight="bold" sx={{ minWidth: 110 }}>القسم المُصدر:</Typography>
-                  <Typography level="body-sm">{detail.issuing_department_name}</Typography>
-                </Box>
-              )}
-              {detail.feedback_received_date && (
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <Typography level="body-xs" fontWeight="bold" sx={{ minWidth: 110 }}>تاريخ الإشعار:</Typography>
-                  <Typography level="body-sm">{detail.feedback_received_date}</Typography>
-                </Box>
-              )}
-              {detail.doctors?.length > 0 && (
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <Typography level="body-xs" fontWeight="bold" sx={{ minWidth: 110 }}>الأطباء:</Typography>
-                  <Typography level="body-sm">{detail.doctors.map(d => d.name).join('، ')}</Typography>
-                </Box>
-              )}
-              {detail.employees?.length > 0 && (
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <Typography level="body-xs" fontWeight="bold" sx={{ minWidth: 110 }}>الموظفون:</Typography>
-                  <Typography level="body-sm">{detail.employees.map(e => e.full_name).join('، ')}</Typography>
-                </Box>
-              )}
-            </Box>
-          )}
-
-          {!detail && !loading && !error && (
-            <Typography level="body-sm" sx={{ color: 'neutral.500', fontStyle: 'italic' }}>
-              لا توجد تفاصيل إضافية متاحة لهذا الإشعار.
-            </Typography>
-          )}
-        </Box>
-
-        {submitError && (
-          <Alert color="danger" variant="soft" sx={{ mb: 1 }}>
-            <Typography level="body-sm">{submitError}</Typography>
-          </Alert>
-        )}
-
-        <Divider />
-        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', pt: 2, direction: 'ltr' }}>
-          <Button variant="plain" color="neutral" onClick={onClose} disabled={submitting}>إغلاق</Button>
-          <Button
-            variant="solid"
-            color="primary"
-            onClick={handleAcknowledge}
-            loading={submitting}
-            disabled={submitting || loading}
-          >
-            حسناً
-          </Button>
-        </Box>
-      </ModalDialog>
-    </Modal>
+        }
+        footer={
+          <SimpleModalFooter
+            onClose={onClose}
+            closeDisabled={submitting}
+            primaryLabel="حسناً"
+            onPrimary={handleAcknowledge}
+            primaryDisabled={submitting || loading}
+            primaryLoading={submitting}
+            error={submitError}
+          />
+        }
+      />
+    </WorkflowFormShell>
   );
 };
 

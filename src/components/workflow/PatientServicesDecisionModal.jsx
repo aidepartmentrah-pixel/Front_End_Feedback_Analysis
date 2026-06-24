@@ -13,15 +13,24 @@
  *    getSubcaseFillState. Opens from archive items with status
  *    PATIENT_SERVICES_DECISION_COMPLETED where the user has no write action.
  *    Footer: Close + OK (no save).
+ *
+ * Stage S6: both modes migrated onto the shared WorkflowFormShell/
+ * ModalLayoutShell/ContextRegion/SimpleModalFooter system. All state,
+ * handlers, and API calls below are unchanged — only the surrounding JSX
+ * shell moved.
  */
 
 import React, { useState, useEffect } from 'react';
 import {
-  Modal, ModalDialog, ModalClose,
-  Typography, Box, Card, Button, Textarea,
-  FormControl, FormLabel, Alert, CircularProgress, Divider, Chip,
+  Typography, Box, Card, Textarea,
+  FormControl, FormLabel, Alert, CircularProgress, Chip,
 } from '@mui/joy';
 import { savePatientServicesDecision, getSubcaseFillState } from '../../api/workflowApi';
+import WorkflowFormShell from './WorkflowFormShell';
+import ModalLayoutShell from './ModalLayoutShell';
+import ContextRegion from './ContextRegion';
+import SimpleModalFooter from './SimpleModalFooter';
+import StatusChip from './StatusChip';
 
 const PatientServicesDecisionModal = ({ open, item, onClose, onSuccess, readOnly = false }) => {
   // Write mode state
@@ -96,163 +105,147 @@ const PatientServicesDecisionModal = ({ open, item, onClose, onSuccess, readOnly
     || item.allowedActions?.includes('edit_patient_services_decision')
   );
 
+  const caseLabel = item.incidentNumber || `#${item.subcaseId}`;
+
   // ── Read-Only Mode ──────────────────────────────────────────────────────────
   if (readOnly) {
     return (
-      <Modal open={open} onClose={onClose}>
-        <ModalDialog
-          sx={{ maxWidth: 600, width: '100%', direction: 'rtl', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}
-          layout="center"
-        >
-          <ModalClose />
+      <WorkflowFormShell open={open} onClose={onClose} submitting={false} size="sm">
+        <ModalLayoutShell
+          context={
+            <ContextRegion
+              title={`قرار خدمات المرضى — ${caseLabel}`}
+              orgUnitName={item.targetOrgUnitName}
+              statusChip={item.status ? <StatusChip status={item.status} /> : null}
+              item={item}
+            />
+          }
+          mainContent={
+            <Box>
+              <Typography level="body-sm" sx={{ color: 'neutral.500', mb: 2 }}>
+                القرار العلمي الصادر عن خدمات المرضى
+              </Typography>
 
-          <Typography level="title-lg" sx={{ mb: 1 }}>قرار خدمات المرضى</Typography>
-          <Typography level="body-sm" sx={{ color: 'neutral.500', mb: 2 }}>
-            القرار العلمي الصادر عن خدمات المرضى
-          </Typography>
-
-          <Divider />
-
-          <Box sx={{ flex: 1, overflow: 'auto', py: 2 }}>
-            {/* Case chips */}
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-              {item.incidentNumber && (
-                <Chip size="sm" variant="outlined" color="neutral">{item.incidentNumber}</Chip>
-              )}
-              {item.targetOrgUnitName && (
-                <Chip size="sm" variant="soft" color="primary">{item.targetOrgUnitName}</Chip>
-              )}
               {item.subcaseId && (
-                <Chip size="sm" variant="soft" color="neutral">Subcase #{item.subcaseId}</Chip>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                  <Chip size="sm" variant="soft" color="neutral">Subcase #{item.subcaseId}</Chip>
+                </Box>
+              )}
+
+              {fetchLoading && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                  <CircularProgress />
+                </Box>
+              )}
+
+              {fetchError && !fetchLoading && (
+                <Alert color="danger" variant="soft" sx={{ mb: 2 }}>
+                  {fetchError}
+                </Alert>
+              )}
+
+              {decisionData && !fetchLoading && (
+                <>
+                  <Card variant="soft" color="neutral" sx={{ mb: 2, p: 2 }}>
+                    <Typography level="body-xs" fontWeight="bold" sx={{ mb: 1 }}>
+                      نص القرار
+                    </Typography>
+                    <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
+                      {decisionData.decisionText || '—'}
+                    </Typography>
+                  </Card>
+
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                    {decisionData.enteredBy && (
+                      <Box>
+                        <Typography level="body-xs" sx={{ color: 'neutral.500' }}>أدخله</Typography>
+                        <Typography level="body-sm">{decisionData.enteredBy}</Typography>
+                      </Box>
+                    )}
+                    {decisionData.decisionAt && (
+                      <Box>
+                        <Typography level="body-xs" sx={{ color: 'neutral.500' }}>تاريخ القرار</Typography>
+                        <Typography level="body-sm">{decisionData.decisionAt.toLocaleDateString('ar-SA')}</Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </>
               )}
             </Box>
-
-            {fetchLoading && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                <CircularProgress />
-              </Box>
-            )}
-
-            {fetchError && !fetchLoading && (
-              <Alert color="danger" variant="soft" sx={{ mb: 2 }}>
-                {fetchError}
-              </Alert>
-            )}
-
-            {decisionData && !fetchLoading && (
-              <>
-                {/* Decision text */}
-                <Card variant="soft" color="neutral" sx={{ mb: 2, p: 2 }}>
-                  <Typography level="body-xs" fontWeight="bold" sx={{ mb: 1 }}>
-                    نص القرار
-                  </Typography>
-                  <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
-                    {decisionData.decisionText || '—'}
-                  </Typography>
-                </Card>
-
-                {/* Metadata */}
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                  {decisionData.enteredBy && (
-                    <Box>
-                      <Typography level="body-xs" sx={{ color: 'neutral.500' }}>أدخله</Typography>
-                      <Typography level="body-sm">{decisionData.enteredBy}</Typography>
-                    </Box>
-                  )}
-                  {decisionData.decisionAt && (
-                    <Box>
-                      <Typography level="body-xs" sx={{ color: 'neutral.500' }}>تاريخ القرار</Typography>
-                      <Typography level="body-sm">{decisionData.decisionAt.toLocaleDateString('ar-SA')}</Typography>
-                    </Box>
-                  )}
-                </Box>
-              </>
-            )}
-          </Box>
-
-          <Divider />
-          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', pt: 2 }}>
-            <Button variant="plain" color="neutral" onClick={onClose}>إغلاق</Button>
-            <Button variant="solid" color="primary" onClick={onClose}>حسناً</Button>
-          </Box>
-        </ModalDialog>
-      </Modal>
+          }
+          footer={
+            <SimpleModalFooter
+              onClose={onClose}
+              primaryLabel="حسناً"
+              onPrimary={onClose}
+            />
+          }
+        />
+      </WorkflowFormShell>
     );
   }
 
   // ── Write Mode ──────────────────────────────────────────────────────────────
   return (
-    <Modal open={open} onClose={saving ? undefined : onClose}>
-      <ModalDialog
-        sx={{ maxWidth: 600, width: '100%', direction: 'rtl' }}
-        layout="center"
-      >
-        {!saving && <ModalClose />}
-
-        <Typography level="title-lg" sx={{ mb: 1 }}>
-          {isEdit ? 'تعديل القرار' : 'إدخال القرار'}
-        </Typography>
-        <Typography level="body-sm" sx={{ color: 'neutral.500', mb: 2 }}>
-          قرار خدمات المرضى بحسب المراجع العلميّة
-        </Typography>
-
-        <Divider sx={{ mb: 2 }} />
-
-        {/* Case summary */}
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-          {item.incidentNumber && (
-            <Chip size="sm" variant="outlined" color="neutral">{item.incidentNumber}</Chip>
-          )}
-          {item.targetOrgUnitName && (
-            <Chip size="sm" variant="soft" color="primary">{item.targetOrgUnitName}</Chip>
-          )}
-          {item.subcaseId && (
-            <Chip size="sm" variant="soft" color="neutral">Subcase #{item.subcaseId}</Chip>
-          )}
-        </Box>
-
-        {/* Administration response context */}
-        {item.administrationExplanationText && (
-          <Card variant="soft" color="neutral" sx={{ mb: 2, p: 1.5 }}>
-            <Typography level="body-xs" fontWeight="bold" sx={{ mb: 0.5 }}>رد الإدارة العليا</Typography>
-            <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap' }}>
-              {item.administrationExplanationText}
-            </Typography>
-          </Card>
-        )}
-
-        {/* Decision textarea */}
-        <FormControl required sx={{ mb: 2 }}>
-          <FormLabel>قرار خدمات المرضى بحسب المراجع العلميّة</FormLabel>
-          <Textarea
-            minRows={4}
-            maxRows={10}
-            placeholder="اكتب القرار هنا..."
-            value={decisionText}
-            onChange={e => setDecisionText(e.target.value)}
-            disabled={saving}
-            sx={{ direction: 'rtl' }}
+    <WorkflowFormShell open={open} onClose={onClose} submitting={saving} size="sm">
+      <ModalLayoutShell
+        context={
+          <ContextRegion
+            title={`${isEdit ? 'تعديل القرار' : 'إدخال القرار'} — ${caseLabel}`}
+            orgUnitName={item.targetOrgUnitName}
+            statusChip={item.status ? <StatusChip status={item.status} /> : null}
+            item={item}
           />
-        </FormControl>
+        }
+        mainContent={
+          <Box>
+            <Typography level="body-sm" sx={{ color: 'neutral.500', mb: 2 }}>
+              قرار خدمات المرضى بحسب المراجع العلميّة
+            </Typography>
 
-        {error && (
-          <Alert color="danger" sx={{ mb: 2 }}>{error}</Alert>
-        )}
+            {item.subcaseId && (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                <Chip size="sm" variant="soft" color="neutral">Subcase #{item.subcaseId}</Chip>
+              </Box>
+            )}
 
-        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-          <Button variant="plain" color="neutral" onClick={onClose} disabled={saving}>إلغاء</Button>
-          <Button
-            variant="solid"
-            color="primary"
-            onClick={handleSave}
-            disabled={saving || !decisionText.trim()}
-            startDecorator={saving ? <CircularProgress size="sm" /> : null}
-          >
-            {saving ? 'جاري الحفظ...' : 'حفظ القرار'}
-          </Button>
-        </Box>
-      </ModalDialog>
-    </Modal>
+            {item.administrationExplanationText && (
+              <Card variant="soft" color="neutral" sx={{ mb: 2, p: 1.5 }}>
+                <Typography level="body-xs" fontWeight="bold" sx={{ mb: 0.5 }}>رد الإدارة العليا</Typography>
+                <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap' }}>
+                  {item.administrationExplanationText}
+                </Typography>
+              </Card>
+            )}
+
+            <FormControl required>
+              <FormLabel>قرار خدمات المرضى بحسب المراجع العلميّة</FormLabel>
+              <Textarea
+                minRows={4}
+                maxRows={10}
+                placeholder="اكتب القرار هنا..."
+                value={decisionText}
+                onChange={e => setDecisionText(e.target.value)}
+                disabled={saving}
+                sx={{ direction: 'rtl' }}
+              />
+            </FormControl>
+          </Box>
+        }
+        footer={
+          <SimpleModalFooter
+            onClose={onClose}
+            closeLabel="إلغاء"
+            closeDisabled={saving}
+            primaryLabel="حفظ القرار"
+            onPrimary={handleSave}
+            primaryDisabled={saving || !decisionText.trim()}
+            primaryLoading={saving}
+            error={error}
+          />
+        }
+      />
+    </WorkflowFormShell>
   );
 };
 

@@ -27,7 +27,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, CircularProgress, Chip } from '@mui/joy';
+import { Box, CircularProgress } from '@mui/joy';
 import { actOnSubcase, getWorkflowIncidentDetail, getSubcaseResponse, getSubcaseHistory, savePatientServicesDecision, getSubcaseFillState, giveSectionMoreTime, giveDepartmentMoreTime, giveAdministrationMoreTime } from '../../api/workflowApi';
 import { getRcaPairsForSubcase, saveRcaSelections } from '../../api/rcaApi';
 import WorkflowFormShell from './WorkflowFormShell';
@@ -36,29 +36,7 @@ import ContextRegion from './ContextRegion';
 import MainContentRegion from './MainContentRegion';
 import SupportRegion from './SupportRegion';
 import ActionFooterRegion from './ActionFooterRegion';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTS
-// ─────────────────────────────────────────────────────────────────────────────
-
-const STATUS_LABELS = {
-  SUBMITTED_TO_SECTION:             { label: 'بانتظار رد القسم',        color: 'primary' },
-  RETURNED_TO_SECTION_FOR_REVISION: { label: 'مُعاد للقسم للمراجعة',    color: 'warning' },
-  SECTION_ACCEPTED_PENDING_DEPT:    { label: 'بانتظار موافقة الدائرة',  color: 'success' },
-  RETURNED_TO_DEPT_FOR_REVISION:    { label: 'مُعاد للدائرة للمراجعة',  color: 'warning' },
-  DEPT_ACCEPTED_PENDING_ADMIN:      { label: 'بانتظار موافقة الإدارة',  color: 'success' },
-  ADMIN_APPROVED:                   { label: 'مُعتمدة',                  color: 'success' },
-  SECTION_DENIED:                   { label: 'مرفوضة من القسم',          color: 'danger'  },
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SMALL DISPLAY HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
-
-function StatusChip({ status }) {
-  const entry = STATUS_LABELS[status] || { label: status, color: 'neutral' };
-  return <Chip size="sm" color={entry.color} variant="soft">{entry.label}</Chip>;
-}
+import StatusChip from './StatusChip';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
@@ -398,7 +376,7 @@ const CaseReviewModal = ({ open, onClose, item, onSuccess }) => {
     .map(p => ({ pairId: p.pair_id, actionText: p.action_text_ar.trim() }));
 
   return (
-    <WorkflowFormShell open={open} onClose={onClose} submitting={submitting}>
+    <WorkflowFormShell open={open} onClose={onClose} submitting={submitting} size="lg">
       <ModalLayoutShell
         context={
           <ContextRegion
