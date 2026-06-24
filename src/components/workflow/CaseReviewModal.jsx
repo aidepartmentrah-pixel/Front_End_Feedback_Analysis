@@ -175,6 +175,18 @@ const CaseReviewModal = ({ open, onClose, item, onSuccess }) => {
   const updateActionItem = (i, field, val) =>
     setActionItems(prev => prev.map((ai, idx) => idx === i ? { ...ai, [field]: val } : ai));
 
+  // ── RCA ACTION ITEM SUGGESTIONS (Stage S4) ───────────────
+  // Accepting a suggestion creates a normal, fully editable action item —
+  // identical to one added via addActionItem(), just pre-filled. Fills the
+  // default blank row if nothing else has been entered yet, else appends.
+  const acceptSuggestedAction = (actionText) => {
+    setActionItems(prev => {
+      const isSingleBlank = prev.length === 1 && !prev[0].title.trim() && !prev[0].description.trim() && !prev[0].due_date;
+      const newItem = { action_item_id: null, title: actionText, description: '', due_date: '' };
+      return isSingleBlank ? [newItem] : [...prev, newItem];
+    });
+  };
+
   // Load RCA cause/action pairs on open — needed for both editable (owner) and read-only views
   useEffect(() => {
     if (!open || !subcaseId) return;
@@ -375,6 +387,16 @@ const CaseReviewModal = ({ open, onClose, item, onSuccess }) => {
   const showRcaSupport = showRcaEditableSupport || showRcaReadOnlySupport;
   const hasSupportContent = showActionItemsSupport || showRcaSupport;
 
+  // Suggested Action Items (Stage S4): derived, not separately tracked —
+  // a suggestion exists for a selected cause's paired action text as long as
+  // no current action item already has that exact title. Accepting one makes
+  // the titles match, which is what makes it disappear (no separate "accepted" flag needed).
+  const acceptedActionTitles = new Set(actionItems.map(ai => ai.title.trim()).filter(Boolean));
+  const suggestedActions = !showRcaEditableSupport ? [] : rcaCategories
+    .flatMap(cat => cat.pairs || [])
+    .filter(p => selectedIds.has(p.pair_id) && p.action_text_ar?.trim() && !acceptedActionTitles.has(p.action_text_ar.trim()))
+    .map(p => ({ pairId: p.pair_id, actionText: p.action_text_ar.trim() }));
+
   return (
     <WorkflowFormShell open={open} onClose={onClose} submitting={submitting}>
       <ModalLayoutShell
@@ -424,6 +446,8 @@ const CaseReviewModal = ({ open, onClose, item, onSuccess }) => {
               onAddItem={addActionItem}
               onRemoveItem={removeActionItem}
               onUpdateItem={updateActionItem}
+              suggestedActions={suggestedActions}
+              onAcceptSuggestedAction={acceptSuggestedAction}
               showRca={showRcaSupport}
               rcaCategories={rcaCategories}
               selectedIds={selectedIds}
