@@ -11,7 +11,12 @@
  *
  * Stage 1 refactor: shell, complaint details, existing response, action buttons,
  * action items editor, and RCA picker have been extracted to separate components.
- * Behavior is identical to the pre-refactor version.
+ *
+ * UI Smoothing S1: the modal body is now built from a region scaffold
+ * (ModalLayoutShell/ContextRegion/MainContentRegion/SupportRegion/
+ * ActionFooterRegion) for a larger, scrollable-body/sticky-footer layout.
+ * All state, handlers, validation, and payloads below are unchanged from
+ * the pre-S1 version — only where the JSX renders moved.
  *
  * TODO (Stage 7): Centralize STATUS_LABELS across CaseReviewModal and
  * WorkflowInboxPage. Confirmed backend key is RETURNED_TO_DEPT_FOR_REVISION
@@ -22,18 +27,15 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Typography, Box, Button, Textarea,
-  FormControl, FormLabel, Alert, CircularProgress, Divider, Chip,
-} from '@mui/joy';
+import { Box, CircularProgress, Chip } from '@mui/joy';
 import { actOnSubcase, getWorkflowIncidentDetail, getSubcaseResponse, getSubcaseHistory, savePatientServicesDecision, getSubcaseFillState, giveSectionMoreTime, giveDepartmentMoreTime, giveAdministrationMoreTime } from '../../api/workflowApi';
 import { getRcaPairsForSubcase, saveRcaSelections } from '../../api/rcaApi';
 import WorkflowFormShell from './WorkflowFormShell';
-import ComplaintDetailsSection from './ComplaintDetailsSection';
-import InvestigationHistorySection from './InvestigationHistorySection';
-import WorkflowActionButtons from './WorkflowActionButtons';
-import ActionItemsEditor from './ActionItemsEditor';
-import RcaPairsPicker from './RcaPairsPicker';
+import ModalLayoutShell from './ModalLayoutShell';
+import ContextRegion from './ContextRegion';
+import MainContentRegion from './MainContentRegion';
+import SupportRegion from './SupportRegion';
+import ActionFooterRegion from './ActionFooterRegion';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -111,6 +113,10 @@ const CaseReviewModal = ({ open, onClose, item, onSuccess }) => {
   const [rcaCategories,   setRcaCategories]   = useState([]);
   const [selectedIds,     setSelectedIds]      = useState(new Set());
   const [rcaLoading,      setRcaLoading]       = useState(false);
+  // RCA Text Assistant (Stage S3): tracks which exact sentence was auto-inserted
+  // into explanationText for each currently-selected pair, so deselecting can
+  // safely remove it ONLY if the user hasn't edited it since (Rules 1-4).
+  const [rcaGeneratedSegments, setRcaGeneratedSegments] = useState(new Map());
 
   // ── PATIENT SERVICES OPINION STATE ───────────────────────
   const [opinionText,    setOpinionText]    = useState('');
@@ -153,6 +159,7 @@ const CaseReviewModal = ({ open, onClose, item, onSuccess }) => {
     setActionItems([{ action_item_id: null, title: '', description: '', due_date: '' }]);
     setRcaCategories([]);
     setSelectedIds(new Set());
+    setRcaGeneratedSegments(new Map());
     setSubmitError(null);
     setIncidentData(null);
     setResponseData(null);
@@ -225,13 +232,59 @@ const CaseReviewModal = ({ open, onClose, item, onSuccess }) => {
     }
   };
 
+  // ── RCA TEXT ASSISTANT (Stage S3) ────────────────────────
+  // Composes a sentence for a given cause: prefers the curated DescriptionAr
+  // narrative (settings-authored) when present, else falls back to a neutral
+  // sentence built from the existing cause label + category — so the
+  // assistant is useful immediately and upgrades silently as narratives are
+  // added. Never invents unverified causal-impact claims.
+  const composeRcaSentence = (pairId) => {
+    for (const cat of rcaCategories) {
+      const pair = (cat.pairs || []).find(p => p.pair_id === pairId);
+      if (pair) {
+        if (pair.description_ar && pair.description_ar.trim()) {
+          return pair.description_ar.trim();
+        }
+        const categoryName = cat.category_name_ar || cat.category_name_en || '';
+        return `ضمن فئة «${categoryName}»، تم تحديد السبب الجذري التالي: ${pair.cause_text_ar}.`;
+      }
+    }
+    return null;
+  };
+
   // ── TOGGLE RCA PAIR ──────────────────────────────────────
   const toggleRcaId = (id) => {
+    const wasSelected = selectedIds.has(id);
+
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (wasSelected) next.delete(id); else next.add(id);
       return next;
     });
+
+    if (!wasSelected) {
+      // Selecting: compose and append — never overwrites existing text (Rules 1-3).
+      const sentence = composeRcaSentence(id);
+      if (sentence) {
+        setExplanationText(prev => (prev.trim() ? `${prev.trimEnd()}\n${sentence}` : sentence));
+        setRcaGeneratedSegments(prev => new Map(prev).set(id, sentence));
+      }
+    } else {
+      // Deselecting: remove the generated sentence only if it's still present
+      // verbatim (untouched by the user) — otherwise leave their edits alone (Rule 4).
+      const sentence = rcaGeneratedSegments.get(id);
+      if (sentence) {
+        setExplanationText(prev => {
+          if (!prev.includes(sentence)) return prev;
+          return prev.replace(`\n${sentence}`, '').replace(sentence, '');
+        });
+      }
+      setRcaGeneratedSegments(prev => {
+        const next = new Map(prev);
+        next.delete(id);
+        return next;
+      });
+    }
   };
 
   // ── SUBMIT ───────────────────────────────────────────────
@@ -301,317 +354,106 @@ const CaseReviewModal = ({ open, onClose, item, onSuccess }) => {
     }
   };
 
-  // ── RENDER: INLINE ACTION FORM ───────────────────────────
-  // Kept in CaseReviewModal because it directly reads/writes 5+ local state
-  // fields (explanationText, rejectionText, activeAction, submitError, submitting).
-  // ActionItemsEditor and RcaPairsPicker are used here as extracted sub-components.
-  const renderActionForm = () => {
-    if (!activeAction) return null;
-
-    const isGiveMoreTime =
-      activeAction === 'GIVE_SECTION_MORE_TIME' ||
-      activeAction === 'GIVE_DEPARTMENT_MORE_TIME' ||
-      activeAction === 'GIVE_ADMINISTRATION_MORE_TIME';
-
-    const confirmColor =
-      activeAction === 'REJECT'  ? 'danger'  :
-      (activeAction === 'REOPEN' || isGiveMoreTime) ? 'warning' :
-      'success';
-
-    return (
-      <Box sx={{
-        mt: 2, p: 2, borderRadius: 'sm',
-        border: '1px solid', borderColor: 'neutral.300',
-        backgroundColor: 'background.surface',
-      }}>
-
-        {/* APPROVE / ACCEPT_COMPLAINT — confirmation only */}
-        {(activeAction === 'APPROVE' || activeAction === 'ACCEPT_COMPLAINT') && (
-          <Alert color="success" variant="soft">
-            <Box>
-              <Typography level="body-md" sx={{ fontWeight: 600, mb: 0.5 }}>
-                {activeAction === 'APPROVE' ? 'تأكيد القبول' : 'تأكيد قبول الشكوى'}
-              </Typography>
-              {activeAction === 'ACCEPT_COMPLAINT' && (
-                <Typography level="body-sm">
-                  سيتم كتابة <strong>"قبول الشكوى"</strong> تلقائياً في حقل التوضيح. لا يلزم إدخال بنود إجراءات أو RCA.
-                </Typography>
-              )}
-            </Box>
-          </Alert>
-        )}
-
-        {/* SUBMIT_RESPONSE — full form with action items + RCA */}
-        {activeAction === 'SUBMIT_RESPONSE' && (
-          <>
-            <FormControl required sx={{ mb: 2 }}>
-              <FormLabel>التوضيح / الشرح</FormLabel>
-              <Textarea
-                minRows={4}
-                placeholder="أدخل التوضيح..."
-                value={explanationText}
-                onChange={e => setExplanationText(e.target.value)}
-                disabled={submitting}
-              />
-            </FormControl>
-            <Divider sx={{ my: 1 }} />
-            <ActionItemsEditor
-              actionItems={actionItems}
-              onAdd={addActionItem}
-              onRemove={removeActionItem}
-              onUpdate={updateActionItem}
-              disabled={submitting}
-            />
-            <Divider sx={{ my: 2 }} />
-            <RcaPairsPicker
-              categories={rcaCategories}
-              selectedIds={selectedIds}
-              onToggle={toggleRcaId}
-              loading={rcaLoading}
-              disabled={submitting}
-            />
-          </>
-        )}
-
-        {/* OVERRIDE — explanation + action items + RCA (when owner) */}
-        {activeAction === 'OVERRIDE' && (
-          <>
-            <FormControl required sx={{ mb: 1 }}>
-              <FormLabel>توضيح الدائرة / الإدارة</FormLabel>
-              <Textarea
-                minRows={3}
-                placeholder="أدخل التوضيح..."
-                value={explanationText}
-                onChange={e => setExplanationText(e.target.value)}
-                disabled={submitting}
-              />
-            </FormControl>
-            <ActionItemsEditor
-              actionItems={actionItems}
-              onAdd={addActionItem}
-              onRemove={removeActionItem}
-              onUpdate={updateActionItem}
-              disabled={submitting}
-            />
-            {isRcaOwner && (
-              <>
-                <Divider sx={{ my: 2 }} />
-                <RcaPairsPicker
-                  categories={rcaCategories}
-                  selectedIds={selectedIds}
-                  onToggle={toggleRcaId}
-                  loading={rcaLoading}
-                  disabled={submitting}
-                />
-              </>
-            )}
-          </>
-        )}
-
-        {/* REJECT */}
-        {activeAction === 'REJECT' && (
-          <FormControl required>
-            <FormLabel>سبب الرفض</FormLabel>
-            <Textarea
-              minRows={3}
-              placeholder="أدخل سبب الرفض..."
-              value={rejectionText}
-              onChange={e => setRejectionText(e.target.value)}
-              disabled={submitting}
-            />
-          </FormControl>
-        )}
-
-        {/* REOPEN */}
-        {activeAction === 'REOPEN' && (
-          <>
-            <Alert color="warning" variant="soft" sx={{ mb: 2 }}>
-              <Typography level="body-sm">ستعود الحالة إلى صندوق وارد القسم للمراجعة.</Typography>
-            </Alert>
-            <FormControl required>
-              <FormLabel>ملاحظة للقسم</FormLabel>
-              <Textarea
-                minRows={3}
-                placeholder="وضح سبب إعادة الإرسال..."
-                value={rejectionText}
-                onChange={e => setRejectionText(e.target.value)}
-                disabled={submitting}
-              />
-            </FormControl>
-          </>
-        )}
-
-        {/* GIVE MORE TIME — confirmation only, no text input */}
-        {isGiveMoreTime && (
-          <Alert color="warning" variant="soft">
-            <Box>
-              <Typography level="body-md" sx={{ fontWeight: 600, mb: 0.5 }}>
-                تأكيد منح المهلة الإضافية
-              </Typography>
-              <Typography level="body-sm">
-                ستتم إعادة تفعيل الحالة في صندوق وارد المستوى المسؤول لاستكمال الرد.
-              </Typography>
-            </Box>
-          </Alert>
-        )}
-
-        {submitError && (
-          <Alert color="danger" variant="soft" sx={{ mt: 2 }}>
-            <Typography level="body-sm">{submitError}</Typography>
-          </Alert>
-        )}
-
-        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', mt: 2 }}>
-          <Button
-            variant="outlined"
-            color="neutral"
-            onClick={() => { setActiveAction(null); setSubmitError(null); }}
-            disabled={submitting}
-          >
-            إلغاء
-          </Button>
-          <Button
-            color={confirmColor}
-            onClick={handleSubmit}
-            loading={submitting}
-            disabled={submitting}
-          >
-            تأكيد
-          </Button>
-        </Box>
-      </Box>
-    );
-  };
-
   // ── MAIN RENDER ──────────────────────────────────────────
-  const caseLabel     = item?.incidentId ? `Case #${item.incidentId}` : `#${subcaseId}`;
-  const needsBigModal = isPatientServicesReview || activeAction === 'SUBMIT_RESPONSE' || activeAction === 'OVERRIDE';
+  const caseLabel = item?.incidentId ? `Case #${item.incidentId}` : `#${subcaseId}`;
+
+  const isGiveMoreTimeActive =
+    activeAction === 'GIVE_SECTION_MORE_TIME' ||
+    activeAction === 'GIVE_DEPARTMENT_MORE_TIME' ||
+    activeAction === 'GIVE_ADMINISTRATION_MORE_TIME';
+
+  const confirmColor =
+    activeAction === 'REJECT' ? 'danger' :
+    (activeAction === 'REOPEN' || isGiveMoreTimeActive) ? 'warning' :
+    'success';
+
+  // Support-column gating: editable RCA/Action Items while filling SUBMIT_RESPONSE/OVERRIDE,
+  // otherwise the read-only RCA recap for non-owners. Never both at once.
+  const showActionItemsSupport = !isPatientServicesReview && (activeAction === 'SUBMIT_RESPONSE' || activeAction === 'OVERRIDE');
+  const showRcaEditableSupport = !isPatientServicesReview && (activeAction === 'SUBMIT_RESPONSE' || (activeAction === 'OVERRIDE' && isRcaOwner));
+  const showRcaReadOnlySupport = !showRcaEditableSupport && !isRcaOwner && !isPatientServicesReview && rcaCategories.length > 0 && selectedIds.size > 0;
+  const showRcaSupport = showRcaEditableSupport || showRcaReadOnlySupport;
+  const hasSupportContent = showActionItemsSupport || showRcaSupport;
 
   return (
-    <WorkflowFormShell open={open} onClose={onClose} submitting={submitting} wide={needsBigModal}>
-
-      {/* ── HEADER ─────────────────────────────────────── */}
-      <Box sx={{ mb: 1 }}>
-        <Typography level="h4" sx={{ mb: 0.5 }}>
-          {isPatientServicesReview
-            ? `مراجعة — خدمات المرضى — ${caseLabel}`
-            : `مراجعة الحالة — ${caseLabel}`}
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-          {item?.targetOrgUnitName && (
-            <Chip size="sm" color="neutral" variant="outlined">{item.targetOrgUnitName}</Chip>
-          )}
-          {item?.status && <StatusChip status={item.status} />}
-        </Box>
-      </Box>
-
-      <Divider sx={{ mb: 2 }} />
-
-      {/* ── LOADING ────────────────────────────────────── */}
-      {dataLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress size="md" />
-        </Box>
-      ) : (
-        <>
-          {/* ── COMPLAINT DETAILS ────────────────────────── */}
-          <ComplaintDetailsSection
-            incidentData={incidentData}
+    <WorkflowFormShell open={open} onClose={onClose} submitting={submitting}>
+      <ModalLayoutShell
+        context={
+          <ContextRegion
+            title={isPatientServicesReview
+              ? `مراجعة — خدمات المرضى — ${caseLabel}`
+              : `مراجعة الحالة — ${caseLabel}`}
+            orgUnitName={item?.targetOrgUnitName}
+            statusChip={item?.status ? <StatusChip status={item.status} /> : null}
             item={item}
-            open={complaintOpen}
-            onChange={() => setComplaintOpen(p => !p)}
           />
-
-          {/* ── INVESTIGATION HISTORY ────────────────────── */}
-          <InvestigationHistorySection history={history} responseData={responseData} />
-
-          {/* ── RCA — read-only for non-owners when pairs exist (not shown for PS) ── */}
-          {!isRcaOwner && !isPatientServicesReview && rcaCategories.length > 0 && selectedIds.size > 0 && (
-            <Box sx={{ mb: 2 }}>
-              <RcaPairsPicker
-                categories={rcaCategories}
-                selectedIds={selectedIds}
-                onToggle={() => {}}
-                loading={rcaLoading}
-                disabled={true}
-              />
+        }
+        mainContent={
+          dataLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size="md" />
             </Box>
-          )}
-
-          {/* ── PATIENT SERVICES OPINION REGION ──────────── */}
-          {isPatientServicesReview && (
-            <Box sx={{ mt: 2 }}>
-              <Divider sx={{ mb: 2 }} />
-              <Typography level="title-md" sx={{ mb: 0.5 }}>رأي خدمات المرضى</Typography>
-              <Typography level="body-sm" sx={{ color: 'neutral.500', mb: 2 }}>
-                Patient Services Opinion
-              </Typography>
-              <FormControl sx={{ mb: 2 }}>
-                <Textarea
-                  minRows={7}
-                  placeholder="أدخل رأي خدمات المرضى هنا..."
-                  value={opinionText}
-                  onChange={e => setOpinionText(e.target.value)}
-                  disabled={opinionSaving}
-                  sx={{ minHeight: 180 }}
-                />
-              </FormControl>
-              {opinionError && (
-                <Alert color="danger" variant="soft" sx={{ mb: 2 }}>
-                  <Typography level="body-sm">{opinionError}</Typography>
-                </Alert>
-              )}
-              <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                <Button variant="plain" color="neutral" onClick={onClose} disabled={opinionSaving}>
-                  إغلاق
-                </Button>
-                <Button
-                  variant="solid"
-                  color="primary"
-                  onClick={handleOpinionSave}
-                  disabled={opinionSaving || !opinionText.trim()}
-                  startDecorator={opinionSaving ? <CircularProgress size="sm" /> : null}
-                >
-                  {opinionSaving ? 'جاري الحفظ...' : 'حفظ الرأي'}
-                </Button>
-              </Box>
-            </Box>
-          )}
-
-          {/* ── ACTION PANEL (hidden for PS review only) ── */}
-          {!isPatientServicesReview && (
-            <>
-              <Divider sx={{ mb: 2 }} />
-              {/* Force-closed info banner — shown whenever give-more-time is available */}
-              {giveMoreTimeAction && (
-                <Alert color="warning" variant="soft" sx={{ mb: 2 }}>
-                  <Box>
-                    <Typography level="title-sm" sx={{ mb: 0.5 }}>هذه الحالة أُغلقت قسريًا</Typography>
-                    <Typography level="body-sm" sx={{ color: 'neutral.700' }}>
-                      السبب: تجاوز المهلة المحددة دون تقديم رد.
-                      يمكنك منح مهلة إضافية لإعادة تفعيل الحالة في الصف المسؤول، أو اتخاذ أي إجراء آخر متاح أدناه.
-                    </Typography>
-                  </Box>
-                </Alert>
-              )}
-              <Typography level="title-sm" sx={{ mb: 1 }}>الإجراء المطلوب:</Typography>
-              {/* Normal workflow action buttons (driven entirely by backend allowedActions) */}
-              <WorkflowActionButtons
-                allowedActions={allowedActions}
-                activeAction={activeAction}
-                onSelect={selectAction}
-                disabled={submitting}
-              />
-              {submitError && (
-                <Alert color="danger" variant="soft" sx={{ mt: 2 }}>
-                  <Typography level="body-sm">{submitError}</Typography>
-                </Alert>
-              )}
-              {renderActionForm()}
-            </>
-          )}
-        </>
-      )}
+          ) : (
+            <MainContentRegion
+              incidentData={incidentData}
+              item={item}
+              complaintOpen={complaintOpen}
+              onToggleComplaint={() => setComplaintOpen(p => !p)}
+              history={history}
+              responseData={responseData}
+              isPatientServicesReview={isPatientServicesReview}
+              opinionText={opinionText}
+              onOpinionChange={e => setOpinionText(e.target.value)}
+              opinionSaving={opinionSaving}
+              opinionError={opinionError}
+              giveMoreTimeAction={giveMoreTimeAction}
+              activeAction={activeAction}
+              explanationText={explanationText}
+              onExplanationChange={e => setExplanationText(e.target.value)}
+              rejectionText={rejectionText}
+              onRejectionChange={e => setRejectionText(e.target.value)}
+              submitting={submitting}
+            />
+          )
+        }
+        supportContent={
+          !dataLoading && hasSupportContent ? (
+            <SupportRegion
+              showActionItems={showActionItemsSupport}
+              actionItems={actionItems}
+              onAddItem={addActionItem}
+              onRemoveItem={removeActionItem}
+              onUpdateItem={updateActionItem}
+              showRca={showRcaSupport}
+              rcaCategories={rcaCategories}
+              selectedIds={selectedIds}
+              onToggleRca={showRcaEditableSupport ? toggleRcaId : () => {}}
+              rcaLoading={rcaLoading}
+              rcaDisabled={showRcaEditableSupport ? submitting : true}
+              submitting={submitting}
+            />
+          ) : null
+        }
+        footer={
+          dataLoading ? null : (
+            <ActionFooterRegion
+              isPatientServicesReview={isPatientServicesReview}
+              onClose={onClose}
+              opinionSaving={opinionSaving}
+              onSaveOpinion={handleOpinionSave}
+              opinionDisabled={opinionSaving || !opinionText.trim()}
+              allowedActions={allowedActions}
+              activeAction={activeAction}
+              onSelectAction={selectAction}
+              submitting={submitting}
+              submitError={submitError}
+              confirmColor={confirmColor}
+              onCancelAction={() => { setActiveAction(null); setSubmitError(null); }}
+              onConfirmAction={handleSubmit}
+            />
+          )
+        }
+      />
     </WorkflowFormShell>
   );
 };

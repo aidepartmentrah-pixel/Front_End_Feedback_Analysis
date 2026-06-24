@@ -5,6 +5,7 @@ import {
 } from '@mui/joy';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { getDeadlineCountdown, isCountdownEligible } from '../../utils/deadlineCountdown';
+import theme from '../../theme';
 
 function InfoRow({ label, value }) {
   if (!value) return null;
@@ -61,10 +62,10 @@ const ComplaintDetailsSection = ({ incidentData, item, open, onChange }) => {
     <Accordion
       expanded={open}
       onChange={onChange}
-      sx={{ border: '1px solid', borderColor: 'neutral.200', borderRadius: 'sm', mb: 2 }}
+      sx={{ border: `1px solid ${theme.colors.border}`, borderRadius: theme.radius.lg, mb: 2 }}
     >
       <AccordionSummary indicator={<ExpandMoreIcon />}>
-        <Typography level="title-sm">📋 تفاصيل الشكوى</Typography>
+        <Typography sx={theme.typography.cardTitle}>📋 تفاصيل الشكوى</Typography>
         {!open && (
           <Typography level="body-xs" sx={{ color: 'neutral.500', mr: 1 }}>
             (انقر للتوسيع)

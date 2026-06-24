@@ -14,6 +14,7 @@ import {
   Button,
 } from '@mui/joy';
 import { getSeasonalReportDetail, actOnSubcase } from '../../api/workflowApi';
+import theme from '../../theme';
 
 const SeasonalReportViewerModal = ({ open, onClose, seasonalReportId, item, onSuccess }) => {
   const [loading, setLoading] = useState(false);
@@ -170,34 +171,34 @@ const SeasonalReportViewerModal = ({ open, onClose, seasonalReportId, item, onSu
               )}
 
               {/* Severity Breakdown */}
-              <Card variant="outlined" sx={{ p: 2 }}>
-                <Typography level="title-sm" sx={{ mb: 1 }}>Severity Breakdown</Typography>
+              <Card variant="outlined" sx={{ p: 2, borderRadius: theme.radius.lg, borderColor: theme.colors.border }}>
+                <Typography sx={{ ...theme.typography.cardTitle, mb: 1 }}>Severity Breakdown</Typography>
                 <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography level="h3" sx={{ color: 'success.500' }}>{header.low_severity_count ?? 0}</Typography>
+                    <Typography level="h3" sx={{ color: theme.colors.success }}>{header.low_severity_count ?? 0}</Typography>
                     <Typography level="body-xs">Low</Typography>
                   </Box>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography level="h3" sx={{ color: 'warning.500' }}>{header.medium_severity_count ?? 0}</Typography>
+                    <Typography level="h3" sx={{ color: theme.colors.warning }}>{header.medium_severity_count ?? 0}</Typography>
                     <Typography level="body-xs">Medium</Typography>
                   </Box>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography level="h3" sx={{ color: 'danger.500' }}>{header.high_severity_count ?? 0}</Typography>
+                    <Typography level="h3" sx={{ color: theme.colors.error }}>{header.high_severity_count ?? 0}</Typography>
                     <Typography level="body-xs">High</Typography>
                   </Box>
                 </Box>
               </Card>
 
               {/* Domain Breakdown */}
-              <Card variant="outlined" sx={{ p: 2 }}>
-                <Typography level="title-sm" sx={{ mb: 1 }}>Domain Breakdown</Typography>
+              <Card variant="outlined" sx={{ p: 2, borderRadius: theme.radius.lg, borderColor: theme.colors.border }}>
+                <Typography sx={{ ...theme.typography.cardTitle, mb: 1 }}>Domain Breakdown</Typography>
                 <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography level="h3" sx={{ color: 'primary.500' }}>{header.clinical_domain_count ?? 0}</Typography>
+                    <Typography level="h3" sx={{ color: theme.colors.primary }}>{header.clinical_domain_count ?? 0}</Typography>
                     <Typography level="body-xs">Clinical</Typography>
                   </Box>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography level="h3" sx={{ color: 'warning.500' }}>{header.management_domain_count ?? 0}</Typography>
+                    <Typography level="h3" sx={{ color: theme.colors.warning }}>{header.management_domain_count ?? 0}</Typography>
                     <Typography level="body-xs">Management</Typography>
                   </Box>
                   <Box sx={{ textAlign: 'center' }}>
@@ -209,8 +210,8 @@ const SeasonalReportViewerModal = ({ open, onClose, seasonalReportId, item, onSu
 
               {/* Policy Thresholds */}
               {policy && (
-                <Card variant="outlined" sx={{ p: 2 }}>
-                  <Typography level="title-sm" sx={{ mb: 1 }}>Policy Thresholds</Typography>
+                <Card variant="outlined" sx={{ p: 2, borderRadius: theme.radius.lg, borderColor: theme.colors.border }}>
+                  <Typography sx={{ ...theme.typography.cardTitle, mb: 1 }}>Policy Thresholds</Typography>
                   <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                     <Typography level="body-sm">Low limit: <strong>{policy.low_severity_limit}</strong></Typography>
                     <Typography level="body-sm">Medium limit: <strong>{policy.medium_severity_limit}</strong></Typography>
@@ -227,7 +228,7 @@ const SeasonalReportViewerModal = ({ open, onClose, seasonalReportId, item, onSu
               {/* Classification Stats Table */}
               {stats.length > 0 && (
                 <Box>
-                  <Typography level="title-sm" sx={{ mb: 1 }}>
+                  <Typography sx={{ ...theme.typography.cardTitle, mb: 1 }}>
                     Classification Breakdown ({stats.length})
                   </Typography>
                   <Box sx={{ overflowX: 'auto' }}>
@@ -235,7 +236,7 @@ const SeasonalReportViewerModal = ({ open, onClose, seasonalReportId, item, onSu
                       variant="outlined"
                       size="sm"
                       sx={{
-                        '& thead th': { fontWeight: 600, backgroundColor: 'neutral.50', fontSize: '0.75rem' },
+                        '& thead th': { fontWeight: 600, backgroundColor: theme.colors.surfaceHover, fontSize: '0.75rem' },
                         '& tbody td': { fontSize: '0.75rem' },
                       }}
                     >

@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Typography, Button, Input, Textarea, Card, IconButton, Chip } from '@mui/joy';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import theme from '../../theme';
 
 /**
  * ActionItemsEditor — editable list of action items (بنود الإجراءات).
@@ -25,7 +26,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 const ActionItemsEditor = ({ actionItems, onAdd, onRemove, onUpdate, disabled }) => (
   <Box sx={{ mt: 2 }}>
     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-      <Typography level="title-sm">بنود الإجراءات</Typography>
+      <Typography sx={theme.typography.cardTitle}>بنود الإجراءات</Typography>
       <Button
         size="sm"
         variant="outlined"
@@ -38,7 +39,11 @@ const ActionItemsEditor = ({ actionItems, onAdd, onRemove, onUpdate, disabled })
     </Box>
 
     {actionItems.map((ai, idx) => (
-      <Card key={ai.action_item_id ?? `new-${idx}`} variant="outlined" sx={{ mb: 1, p: 1.5 }}>
+      <Card
+        key={ai.action_item_id ?? `new-${idx}`}
+        variant="outlined"
+        sx={{ mb: 1, p: 1.5, borderRadius: theme.radius.lg, borderColor: theme.colors.border }}
+      >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
             <Typography level="body-xs" fontWeight="bold">بند {idx + 1}</Typography>

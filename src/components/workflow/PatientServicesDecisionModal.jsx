@@ -18,7 +18,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Modal, ModalDialog, ModalClose,
-  Typography, Box, Button, Textarea,
+  Typography, Box, Card, Button, Textarea,
   FormControl, FormLabel, Alert, CircularProgress, Divider, Chip,
 } from '@mui/joy';
 import { savePatientServicesDecision, getSubcaseFillState } from '../../api/workflowApi';
@@ -142,14 +142,14 @@ const PatientServicesDecisionModal = ({ open, item, onClose, onSuccess, readOnly
             {decisionData && !fetchLoading && (
               <>
                 {/* Decision text */}
-                <Box sx={{ mb: 2, p: 2, bgcolor: 'background.level1', borderRadius: 'sm' }}>
+                <Card variant="soft" color="neutral" sx={{ mb: 2, p: 2 }}>
                   <Typography level="body-xs" fontWeight="bold" sx={{ mb: 1 }}>
                     نص القرار
                   </Typography>
                   <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
                     {decisionData.decisionText || '—'}
                   </Typography>
-                </Box>
+                </Card>
 
                 {/* Metadata */}
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
@@ -213,12 +213,12 @@ const PatientServicesDecisionModal = ({ open, item, onClose, onSuccess, readOnly
 
         {/* Administration response context */}
         {item.administrationExplanationText && (
-          <Box sx={{ mb: 2, p: 1.5, bgcolor: 'background.level1', borderRadius: 'sm' }}>
+          <Card variant="soft" color="neutral" sx={{ mb: 2, p: 1.5 }}>
             <Typography level="body-xs" fontWeight="bold" sx={{ mb: 0.5 }}>رد الإدارة العليا</Typography>
             <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap' }}>
               {item.administrationExplanationText}
             </Typography>
-          </Box>
+          </Card>
         )}
 
         {/* Decision textarea */}

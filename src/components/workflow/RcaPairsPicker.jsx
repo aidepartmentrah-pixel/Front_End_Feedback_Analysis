@@ -3,6 +3,7 @@ import {
   Box, Typography, Chip, Checkbox, CircularProgress,
   Accordion, AccordionSummary, AccordionDetails, AccordionGroup,
 } from '@mui/joy';
+import theme from '../../theme';
 
 /**
  * RcaPairsPicker — displays DB-driven RCA cause/action pairs as selectable checkboxes.
@@ -23,12 +24,17 @@ import {
  */
 const RcaPairsPicker = ({ categories, selectedIds, onToggle, loading, disabled }) => (
   <Box sx={{ mt: 1 }}>
-    <Typography level="title-sm" sx={{ mb: 0.5, color: 'primary.600', fontFamily: 'Traditional Arabic, Calibri' }}>
+    <Typography sx={{ ...theme.typography.cardTitle, mb: 0.5, color: theme.colors.primary }}>
       📋 تحليل السبب الجذري (RCA)
     </Typography>
-    <Typography level="body-xs" sx={{ mb: 1.5, color: 'text.secondary' }}>
+    <Typography level="body-xs" sx={{ mb: 0.5, color: 'text.secondary' }}>
       اختياري — يمكن تقديم التوضيح بدون اختيار أسباب
     </Typography>
+    {!disabled && (
+      <Typography level="body-xs" sx={{ mb: 1.5, color: 'text.secondary', fontStyle: 'italic' }}>
+        اختيار سبب يضيف نصاً تلقائياً في مربع التوضيح
+      </Typography>
+    )}
 
     {loading && <CircularProgress size="sm" />}
 
@@ -59,10 +65,9 @@ const RcaPairsPicker = ({ categories, selectedIds, onToggle, loading, disabled }
                       cursor: 'pointer',
                       p: 1,
                       mb: 1,
-                      borderRadius: '6px',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      '&:hover': { bgcolor: 'rgba(0,0,0,0.03)' },
+                      borderRadius: theme.radius.md,
+                      border: `1px solid ${theme.colors.border}`,
+                      '&:hover': { bgcolor: theme.colors.surfaceHover },
                     }}
                     onClick={() => !disabled && onToggle(p.pair_id)}
                   >
@@ -76,7 +81,7 @@ const RcaPairsPicker = ({ categories, selectedIds, onToggle, loading, disabled }
                         <Chip size="sm" variant="soft" color="warning" sx={{ fontWeight: 'bold', mb: 0.25 }}>
                           السبب
                         </Chip>
-                        <Typography level="body-sm" sx={{ fontFamily: 'Traditional Arabic, Calibri', textAlign: 'right' }}>
+                        <Typography level="body-sm" sx={{ textAlign: 'right' }}>
                           {p.cause_text_ar}
                         </Typography>
                       </Box>
@@ -84,7 +89,7 @@ const RcaPairsPicker = ({ categories, selectedIds, onToggle, loading, disabled }
                         <Chip size="sm" variant="soft" color="primary" sx={{ fontWeight: 'bold', mb: 0.25 }}>
                           الإجراء التصحيحي
                         </Chip>
-                        <Typography level="body-sm" sx={{ fontFamily: 'Traditional Arabic, Calibri', textAlign: 'right' }}>
+                        <Typography level="body-sm" sx={{ textAlign: 'right' }}>
                           {p.action_text_ar}
                         </Typography>
                       </Box>

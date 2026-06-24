@@ -23,6 +23,7 @@ const EMPTY_FORM = {
   category_id: '',
   cause_text_ar: '',
   cause_text_en: '',
+  cause_description_ar: '',
   action_text_ar: '',
   action_text_en: '',
 };
@@ -74,6 +75,7 @@ export default function RcaSuggestionsTab() {
       category_id: String(p.CategoryID),
       cause_text_ar: p.CauseTextAr || '',
       cause_text_en: p.CauseTextEn || '',
+      cause_description_ar: p.CauseDescriptionAr || '',
       action_text_ar: p.ActionTextAr || '',
       action_text_en: p.ActionTextEn || '',
     });
@@ -89,6 +91,7 @@ export default function RcaSuggestionsTab() {
       const payload = {
         cause_text_ar: form.cause_text_ar.trim(),
         cause_text_en: form.cause_text_en.trim() || null,
+        cause_description_ar: form.cause_description_ar.trim() || null,
         action_text_ar: form.action_text_ar.trim(),
         action_text_en: form.action_text_en.trim() || null,
       };
@@ -262,6 +265,15 @@ export default function RcaSuggestionsTab() {
                                 {p.CauseTextEn}
                               </Typography>
                             )}
+                            {p.CauseDescriptionAr ? (
+                              <Typography dir="rtl" sx={{ fontSize: 13, color: theme.colors.textSecondary, textAlign: 'right', fontStyle: 'italic', mt: 0.75 }}>
+                                {p.CauseDescriptionAr}
+                              </Typography>
+                            ) : (
+                              <Chip size="sm" variant="outlined" sx={{ mt: 0.75, color: theme.colors.textTertiary, borderColor: theme.colors.borderLight }}>
+                                لا يوجد نص RCA موصوف
+                              </Chip>
+                            )}
                           </Box>
 
                           {/* Corrective Action */}
@@ -342,6 +354,19 @@ export default function RcaSuggestionsTab() {
                 placeholder="Cause text in English"
                 sx={{ minHeight: '52px', bgcolor: theme.colors.background }}
                 slotProps={{ textarea: { dir: 'ltr', style: { textAlign: 'left', padding: '8px 10px', fontSize: 13, lineHeight: 1.5 } } }}
+              />
+            </Box>
+            <Box sx={{ mt: '10px' }}>
+              <FormLabel sx={{ fontSize: 11, color: theme.colors.textTertiary, mb: '4px' }}>
+                نص RCA الموصوف (اختياري — يُستخدم تلقائياً في نص التوضيح عند اختيار هذا السبب)
+              </FormLabel>
+              <Textarea
+                minRows={2}
+                value={form.cause_description_ar}
+                onChange={e => setForm(f => ({ ...f, cause_description_ar: e.target.value }))}
+                placeholder="نص سردي كامل، مثال: تم تحديد وجود خلل في التنسيق بين فرق العمل أثناء فترات تبديل الدوام..."
+                sx={{ minHeight: '60px' }}
+                slotProps={{ textarea: { dir: 'rtl', style: { fontFamily: FONT_STACK, textAlign: 'right', padding: '10px 12px', lineHeight: 1.7 } } }}
               />
             </Box>
           </Box>

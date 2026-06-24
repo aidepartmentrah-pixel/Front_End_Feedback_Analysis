@@ -150,6 +150,12 @@ export const theme = {
     overlay: 'rgba(0, 0, 0, 0.5)',
     background: brandColors.white,
     border: brandColors.gray200,
+    width: '85vw',
+    maxWidth: '1500px',
+    height: '85vh',
+    maxHeight: '900px',
+    primaryColumnBasis: '60%',
+    supportColumnBasis: '40%',
   },
   
   // Alert styles

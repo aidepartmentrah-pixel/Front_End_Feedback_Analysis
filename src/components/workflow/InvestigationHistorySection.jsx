@@ -3,6 +3,7 @@ import {
   Box, Typography, Card, Accordion, AccordionSummary, AccordionDetails, Chip,
 } from '@mui/joy';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import theme from '../../theme';
 
 /**
  * Single read-only history entry for one investigation level.
@@ -15,7 +16,7 @@ function HistoryEntry({ label, color, data }) {
     <Accordion
       expanded={open}
       onChange={() => setOpen(p => !p)}
-      sx={{ border: '1px solid', borderColor: 'neutral.200', borderRadius: 'sm', mb: 1 }}
+      sx={{ border: `1px solid ${theme.colors.border}`, borderRadius: theme.radius.lg, mb: 1 }}
     >
       <AccordionSummary indicator={<ExpandMoreIcon />}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -76,7 +77,7 @@ const InvestigationHistorySection = ({ history, responseData }) => {
     <Box sx={{ mb: 2 }}>
       {hasHistory && (
         <>
-          <Typography level="title-sm" sx={{ mb: 1 }}>سجل التحقيق</Typography>
+          <Typography sx={{ ...theme.typography.cardTitle, mb: 1 }}>سجل التحقيق</Typography>
           <HistoryEntry label="رد القسم"    color="primary" data={history.section} />
           <HistoryEntry label="رد الدائرة"  color="success" data={history.department} />
           <HistoryEntry label="رد الإدارة"  color="warning" data={history.administration} />
@@ -86,7 +87,7 @@ const InvestigationHistorySection = ({ history, responseData }) => {
 
       {actionItems.length > 0 && (
         <Box sx={{ mt: hasHistory ? 1.5 : 0 }}>
-          <Typography level="title-sm" sx={{ mb: 0.75 }}>
+          <Typography sx={{ ...theme.typography.cardTitle, mb: 0.75 }}>
             بنود الإجراءات ({actionItems.length})
           </Typography>
           {actionItems.map((ai, i) => (
@@ -94,7 +95,7 @@ const InvestigationHistorySection = ({ history, responseData }) => {
               key={i}
               sx={{
                 display: 'flex', gap: 1, mb: 0.5, alignItems: 'flex-start',
-                p: 1, borderRadius: 'sm', border: '1px solid', borderColor: 'neutral.200',
+                p: 1, borderRadius: theme.radius.md, border: `1px solid ${theme.colors.border}`,
               }}
             >
               <Typography level="body-xs" sx={{ color: 'neutral.500', flexShrink: 0, mt: 0.1 }}>•</Typography>

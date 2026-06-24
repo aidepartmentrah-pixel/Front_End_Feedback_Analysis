@@ -15,6 +15,7 @@ import {
   ModalClose,
   Typography,
   Box,
+  Card,
   Chip,
   Divider,
   Button,
@@ -143,11 +144,11 @@ const NoticeModal = ({ open, onClose, item, onSuccess }) => {
           {detail && !loading && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               {detail.complaint_text && (
-                <Box sx={{ p: 1.5, bgcolor: 'background.level1', borderRadius: 'sm' }}>
+                <Card variant="soft" color="neutral" sx={{ p: 1.5 }}>
                   <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap' }}>
                     {detail.complaint_text}
                   </Typography>
-                </Box>
+                </Card>
               )}
               {detail.patient_name && (
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
