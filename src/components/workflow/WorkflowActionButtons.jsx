@@ -14,7 +14,7 @@ import { Box, Button } from '@mui/joy';
  *   disabled       — bool  (true while a submission is in-flight)
  */
 const WorkflowActionButtons = ({ allowedActions, activeAction, onSelect, disabled }) => (
-  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
     {allowedActions.includes('submit_response') && (
       <Button
         size="sm"

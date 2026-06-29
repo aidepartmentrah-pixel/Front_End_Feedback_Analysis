@@ -21,7 +21,7 @@ const FC_PIPELINE_LABEL = {
 // Force Closed → Late → Never Event → Red Flag → Morbidity
 const MAX_VISIBLE_BADGES = 2;
 
-function SubcaseCard({ subcase, onFillData, onGiveMoreTime }) {
+function SubcaseCard({ subcase, onFillData, onGiveMoreTime, onEnterDecision }) {
   const { user } = useAuth();
   const roles = user?.roles || [];
   const canIntervene = roles.includes('COMPLAINT_SUPERVISOR') || roles.includes('WORKER');
@@ -121,11 +121,15 @@ function SubcaseCard({ subcase, onFillData, onGiveMoreTime }) {
           {subcase.org_unit_name && (
             <span className="category">{subcase.org_unit_name}</span>
           )}
+          {/* Originating section — only meaningful once the case has moved past it */}
+          {subcase.issuing_org_unit_name && subcase.issuing_org_unit_name !== subcase.org_unit_name && (
+            <span className="category">Originating Section: {subcase.issuing_org_unit_name}</span>
+          )}
         </div>
       </div>
 
       {/* Action buttons — role-gated */}
-      {canIntervene && (onFillData || onGiveMoreTime) && (
+      {canIntervene && (onFillData || onGiveMoreTime || onEnterDecision) && (
         <Box className="subcase-actions" sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
           {onFillData && (
             <Button size="sm" color="primary" variant="soft" onClick={() => onFillData(subcase.subcase_id)}>
@@ -135,6 +139,11 @@ function SubcaseCard({ subcase, onFillData, onGiveMoreTime }) {
           {fcPipelineLabel && onGiveMoreTime && (
             <Button size="sm" color="warning" variant="soft" onClick={() => onGiveMoreTime(subcase)}>
               Give More Time
+            </Button>
+          )}
+          {onEnterDecision && (
+            <Button size="sm" color="primary" variant="soft" onClick={() => onEnterDecision(subcase.subcase_id)}>
+              Enter Decision
             </Button>
           )}
         </Box>

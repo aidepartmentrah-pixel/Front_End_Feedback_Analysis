@@ -25,15 +25,17 @@ const BADGE_ICON_MAP = {
  * src/utils/inboxTheme.js, so the modal and the Inbox row agree on what
  * "Force Closed" / "Late" / "Red Flag" etc. mean — display only, no logic.
  */
-const CaseStateBadges = ({ item }) => {
+const CaseStateBadges = ({ item, showType = true }) => {
   if (!item) return null;
   const rowTheme = getRowTheme(item);
 
   return (
     <>
-      <Chip size="sm" variant="soft" color={rowTheme.typeChipColor} sx={{ whiteSpace: 'nowrap' }}>
-        {rowTheme.typeLabel}
-      </Chip>
+      {showType && (
+        <Chip size="sm" variant="soft" color={rowTheme.typeChipColor} sx={{ whiteSpace: 'nowrap' }}>
+          {rowTheme.typeLabel}
+        </Chip>
+      )}
       {rowTheme.visibleBadges.map((badge) => (
         <Chip
           key={badge.key}

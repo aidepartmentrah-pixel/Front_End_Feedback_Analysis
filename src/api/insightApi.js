@@ -456,6 +456,8 @@ function adaptGroupedInbox(rawList) {
             waiting_days: Number(subcase.waiting_days) || 0,
             created_at: subcase.created_at,
             status: subcase.status,
+            org_unit_name: subcase.org_unit_name || null,
+            issuing_org_unit_name: subcase.issuing_org_unit_name || null,
             force_close_reason: subcase.force_close_reason || null,
             is_red_flag: Boolean(subcase.is_red_flag),
             is_never_event: Boolean(subcase.is_never_event),
@@ -653,16 +655,28 @@ export async function getPatientServicesPendingCases() {
   try {
     const res = await apiClient.get('/api/v2/insight/patient-services-pending');
     const raw = Array.isArray(res.data) ? res.data : [];
+    // Same snake_case shape as getForceClosedPipelineCases — renders through SubcaseCard.
     return raw.map(row => ({
-      subcaseId: row.subcase_id,
-      incidentId: row.incident_request_case_id,
-      incidentNumber: row.incident_number || null,
-      targetOrgUnitId: row.target_org_unit_id,
-      targetOrgUnitName: row.org_unit_name || null,
+      subcase_id: row.subcase_id,
+      case_type: row.case_type,
       status: row.status,
-      createdAt: row.created_at ? new Date(row.created_at) : null,
-      updatedAt: row.updated_at ? new Date(row.updated_at) : null,
-      administrationExplanationText: row.administration_explanation_text || '',
+      created_at: row.created_at,
+      waiting_days: Number(row.waiting_days) || 0,
+      target_org_unit_id: row.target_org_unit_id,
+      org_unit_name: row.org_unit_name || null,
+      issuing_org_unit_name: row.issuing_org_unit_name || null,
+      incident_request_case_id: row.incident_request_case_id,
+      incident_id: row.incident_request_case_id,
+      incident_number: row.incident_number || null,
+      case_description: String(row.case_description ?? ''),
+      patient_name: String(row.patient_name ?? ''),
+      severity: row.severity ?? 'NEUTRAL',
+      category: String(row.category ?? ''),
+      is_red_flag: Boolean(row.is_red_flag),
+      is_never_event: Boolean(row.is_never_event),
+      is_morbidity: Boolean(row.is_morbidity),
+      is_late: Boolean(row.section_late_reply || row.department_late_reply || row.administration_late_reply),
+      seasonal_report_id: row.seasonal_report_id,
     }));
   } catch (err) {
     const message = err.response?.data?.detail || 'Failed to load patient services pending cases';
@@ -701,6 +715,7 @@ export async function getForceClosedPipelineCases() {
       is_never_event:           Boolean(row.is_never_event),
       seasonal_report_id:       row.seasonal_report_id,
       give_more_time_action:    row.give_more_time_action || null,
+      issuing_org_unit_name:    row.issuing_org_unit_name || null,
     }));
   } catch (err) {
     const message = err.response?.data?.detail || 'Failed to load force-closed pipeline cases';

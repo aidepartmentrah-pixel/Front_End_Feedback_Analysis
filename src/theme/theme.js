@@ -160,9 +160,9 @@ export const theme = {
     // Modal sizing above; 'md'/'sm' are for simpler, shorter-content modal
     // variants (Stage S6) so they don't sit in oversized empty whitespace.
     sizes: {
-      lg: { width: '85vw', maxWidth: '1500px', height: '85vh', maxHeight: '900px' },
-      md: { width: '85vw', maxWidth: '900px',  height: 'auto', maxHeight: '85vh' },
-      sm: { width: '90vw', maxWidth: '640px',  height: 'auto', maxHeight: '85vh' },
+      lg: { width: '85vw', maxWidth: '1500px', height: 'auto', maxHeight: 'min(92vh, 900px)' },
+      md: { width: '85vw', maxWidth: '900px',  height: 'auto', maxHeight: '92vh' },
+      sm: { width: '90vw', maxWidth: '640px',  height: 'auto', maxHeight: '92vh' },
     },
   },
   

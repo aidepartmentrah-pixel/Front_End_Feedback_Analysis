@@ -28,11 +28,13 @@ import {
   Sheet,
 } from '@mui/joy';
 import DescriptionIcon from '@mui/icons-material/Description';
+import AddTaskIcon from '@mui/icons-material/AddTask';
+import CreateSupervisorActionItemModal from '../components/workflow/CreateSupervisorActionItemModal';
 import ErrorPanel from '../components/common/ErrorPanel';
 import MainLayout from '../components/common/MainLayout';
 import ActionCalendar from '../components/followUp/ActionCalendar';
 import { useAuth } from '../context/AuthContext';
-import { canAccessDrawerNotes } from '../utils/roleGuards';
+import { canAccessDrawerNotes, canCreateSupervisorActionItem } from '../utils/roleGuards';
 import {
   getFollowUpItems,
   startActionItem,
@@ -40,6 +42,11 @@ import {
   delayActionItem,
 } from '../api/workflowApi';
 import { exportActionLogByDateRange } from '../api/actionLogApi';
+import {
+  listSupervisorActionItems,
+  completeSupervisorActionItem,
+  cancelSupervisorActionItem,
+} from '../api/supervisorActionItems';
 import { downloadBlob } from '../api/reports';
 import { formatDueDate, getToday } from '../utils/dateOnly';
 
@@ -60,6 +67,7 @@ const getOperationalGroup = (item) => {
 const FollowUpPage = () => {
   const { user } = useAuth();
   const canExportActionLog = canAccessDrawerNotes(user);
+  const canCreateActionItem = canCreateSupervisorActionItem(user);
 
   // ============================
   // STATE
@@ -79,8 +87,11 @@ const FollowUpPage = () => {
   const [delayTargetId, setDelayTargetId] = useState(null);
   const [delayDays, setDelayDays] = useState(7);
 
-  // FAB
+  // FAB — action log export
   const [fabExpanded, setFabExpanded] = useState(false);
+
+  // Create Supervisor Action Item modal
+  const [createActionItemOpen, setCreateActionItemOpen] = useState(false);
 
   // Action Log Export
   const [reportDateFrom, setReportDateFrom] = useState('');
@@ -98,15 +109,15 @@ const FollowUpPage = () => {
   // ============================
   const adaptItemsForCalendar = (apiItems) => {
     return apiItems.map(item => {
+      const isSupervisor = item.sourceType === 'SUPERVISOR';
+
       let calendarStatus = 'pending';
       if (item.completedAt) {
         calendarStatus = 'completed';
       } else if (item.dueDate && item.dueDate.getTime() < getToday().getTime()) {
-        // Strictly before today - "due today" is not yet delayed
         calendarStatus = 'delayed';
       }
 
-      // Human-readable operational status for display in popup/tooltip
       let displayStatus;
       if (item.completedAt) {
         displayStatus = 'Completed';
@@ -122,22 +133,28 @@ const FollowUpPage = () => {
 
       const dueDateStr = formatDueDate(item.dueDate);
 
+      // Supervisor items have different field names than case-bound follow-up items
+      const orgUnitName = isSupervisor
+        ? (item.targetOrgUnitName || null)
+        : (item.orgUnitName || null);
+
       return {
         id: item.actionItemId,
-        actionTitle: item.title || 'Untitled Action',
+        actionTitle: isSupervisor
+          ? (item.description || 'مهمة إدارية')
+          : (item.title || 'Untitled Action'),
         description: item.description || null,
         dueDate: dueDateStr,
         status: calendarStatus,
         displayStatus,
-        // Case context for popup — no weak placeholders
-        orgUnitName: item.orgUnitName || null,
-        department: item.orgUnitName || null,
+        orgUnitName,
+        department: orgUnitName,
         incidentNumber: item.incidentNumber || null,
         patientName: item.patientName || null,
         caseDescription: item.caseDescription || null,
         severityName: item.severityName || null,
-        // Only show "Unassigned" when truly unassigned; suppress the numeric-ID fallback
         assignedTo: item.assignedToUserId ? null : 'Unassigned',
+        sourceType: item.sourceType || 'CASE',
         _original: item,
       };
     });
@@ -161,8 +178,15 @@ const FollowUpPage = () => {
     setError(null);
     setActionError(null);
     try {
-      const followUpItems = await getFollowUpItems();
-      const sorted = followUpItems.sort((a, b) => {
+      // Fetch both case-bound follow-up items and supervisor-assigned items in parallel.
+      // Supervisor items with CANCELLED status are filtered out (terminal, not actionable).
+      const [followUpItems, supervisorItems] = await Promise.all([
+        getFollowUpItems(),
+        listSupervisorActionItems().catch(() => []),
+      ]);
+      const activeSupervisorItems = supervisorItems.filter(i => i.status !== 'CANCELLED');
+      const merged = [...followUpItems, ...activeSupervisorItems];
+      const sorted = merged.sort((a, b) => {
         if (!a.dueDate) return 1;
         if (!b.dueDate) return -1;
         return a.dueDate - b.dueDate;
@@ -266,6 +290,42 @@ const FollowUpPage = () => {
     setDelayDialogOpen(true);
   };
 
+  const handleSupervisorComplete = async (id) => {
+    setActiveActionId(id);
+    setActionError(null);
+    try {
+      await completeSupervisorActionItem(id);
+      await loadFollowUp();
+      setModalOpen(false);
+    } catch (err) {
+      let msg = 'Failed to complete action';
+      if (err.response?.status === 403) msg = 'You are not authorised to complete this action item';
+      else if (err.response?.status === 400) msg = err.message;
+      else if (!err.response) msg = 'Network error — check your connection';
+      setActionError(msg);
+    } finally {
+      setActiveActionId(null);
+    }
+  };
+
+  const handleSupervisorCancel = async (id) => {
+    setActiveActionId(id);
+    setActionError(null);
+    try {
+      await cancelSupervisorActionItem(id);
+      await loadFollowUp();
+      setModalOpen(false);
+    } catch (err) {
+      let msg = 'Failed to cancel action';
+      if (err.response?.status === 403) msg = 'Only the creator can cancel this action item';
+      else if (err.response?.status === 400) msg = err.message;
+      else if (!err.response) msg = 'Network error — check your connection';
+      setActionError(msg);
+    } finally {
+      setActiveActionId(null);
+    }
+  };
+
   const handleDelayConfirm = async () => {
     if (!delayTargetId) return;
     setActiveActionId(delayTargetId);
@@ -293,6 +353,25 @@ const FollowUpPage = () => {
   // ============================
   const renderActionButtons = (item) => {
     const isProcessing = activeActionId === item.actionItemId;
+
+    // Supervisor-assigned administrative items use a simpler Complete / Cancel lifecycle
+    if (item.sourceType === 'SUPERVISOR') {
+      if (item.status === 'PENDING') {
+        return (
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button size="sm" variant="solid" color="success"
+              onClick={() => handleSupervisorComplete(item.actionItemId)}
+              disabled={isProcessing} loading={isProcessing}>إتمام</Button>
+            <Button size="sm" variant="outlined" color="danger"
+              onClick={() => handleSupervisorCancel(item.actionItemId)}
+              disabled={isProcessing} loading={isProcessing}>إلغاء</Button>
+          </Box>
+        );
+      }
+      return null;
+    }
+
+    // Case-bound follow-up items use the existing Start / Complete / Delay lifecycle
     return (
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
         {canStart(item) && (
@@ -315,6 +394,11 @@ const FollowUpPage = () => {
   };
 
   const renderStatusChip = (item) => {
+    if (item.sourceType === 'SUPERVISOR') {
+      if (item.status === 'COMPLETED') return <Chip size="sm" color="success">مكتمل</Chip>;
+      if (item.status === 'CANCELLED') return <Chip size="sm" color="neutral">ملغى</Chip>;
+      return <Chip size="sm" color="warning">معلّق</Chip>;
+    }
     if (item.completedAt) return <Chip size="sm" color="success">Completed</Chip>;
     if (item.startedAt) return <Chip size="sm" color="primary">In Progress</Chip>;
     return <Chip size="sm" color="neutral">Not Started</Chip>;
@@ -736,12 +820,51 @@ const FollowUpPage = () => {
         )}
 
         {/* ============================
+            FAB — Create Supervisor Action Item
+            Only visible to COMPLAINT_SUPERVISOR / SOFTWARE_ADMIN
+        ============================ */}
+        {canCreateActionItem && (
+          <Box
+            onClick={() => setCreateActionItemOpen(true)}
+            title="إنشاء بند إجراء إداري"
+            sx={{
+              position: 'fixed',
+              bottom: 104,
+              right: 24,
+              zIndex: 1000,
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+              boxShadow: '0 6px 20px rgba(17,153,142,0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                transform: 'scale(1.12)',
+                boxShadow: '0 8px 28px rgba(17,153,142,0.55)',
+              },
+              '&:active': { transform: 'scale(1.05)' },
+            }}
+          >
+            <AddTaskIcon sx={{ fontSize: 26, color: 'white' }} />
+          </Box>
+        )}
+
+        {/* ============================
             ACTION DETAIL MODAL
         ============================ */}
         <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
           <ModalDialog sx={{ minWidth: 500, maxWidth: 700 }}>
             <ModalClose />
-            <Typography level="h5" sx={{ mb: 2 }}>Action Item Details</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+              <Typography level="h5" sx={{ flex: 1 }}>Action Item Details</Typography>
+              {selectedAction?.sourceType === 'SUPERVISOR' && (
+                <Chip size="sm" color="success" variant="soft">مهمة إدارية</Chip>
+              )}
+            </Box>
             <Divider sx={{ mb: 2 }} />
             {selectedAction && (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -870,6 +993,18 @@ const FollowUpPage = () => {
           </ModalDialog>
         </Modal>
       </Box>
+
+      {/* ============================
+          CREATE SUPERVISOR ACTION ITEM MODAL
+      ============================ */}
+      <CreateSupervisorActionItemModal
+        open={createActionItemOpen}
+        onClose={() => setCreateActionItemOpen(false)}
+        onSuccess={() => {
+          setCreateActionItemOpen(false);
+          loadFollowUp();
+        }}
+      />
     </MainLayout>
   );
 };

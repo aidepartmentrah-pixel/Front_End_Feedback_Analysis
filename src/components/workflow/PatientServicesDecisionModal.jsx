@@ -23,14 +23,15 @@
 import React, { useState, useEffect } from 'react';
 import {
   Typography, Box, Card, Textarea,
-  FormControl, FormLabel, Alert, CircularProgress, Chip,
+  FormControl, FormLabel, Alert, Chip,
 } from '@mui/joy';
-import { savePatientServicesDecision, getSubcaseFillState } from '../../api/workflowApi';
+import { savePatientServicesDecision, acknowledgePatientServicesDecision } from '../../api/workflowApi';
 import WorkflowFormShell from './WorkflowFormShell';
 import ModalLayoutShell from './ModalLayoutShell';
 import ContextRegion from './ContextRegion';
 import SimpleModalFooter from './SimpleModalFooter';
 import StatusChip from './StatusChip';
+import theme from '../../theme';
 
 const PatientServicesDecisionModal = ({ open, item, onClose, onSuccess, readOnly = false }) => {
   // Write mode state
@@ -38,47 +39,29 @@ const PatientServicesDecisionModal = ({ open, item, onClose, onSuccess, readOnly
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  // Read-only mode state
-  const [fetchLoading, setFetchLoading] = useState(false);
-  const [fetchError, setFetchError] = useState(null);
-  const [decisionData, setDecisionData] = useState(null);
+  // Read-only mode: decision text comes directly from the inbox/archive item
+  const [acknowledging, setAcknowledging] = useState(false);
+  const [acknowledgeError, setAcknowledgeError] = useState(null);
 
-  // Pre-fill / fetch on open
+  // Pre-fill on open
   useEffect(() => {
     if (!open || !item) return;
     setError(null);
-    setFetchError(null);
-
-    if (readOnly) {
-      fetchDecisionData();
-    } else {
+    setAcknowledgeError(null);
+    if (!readOnly) {
       setDecisionText(item.patientServicesDecisionText || '');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, item, readOnly]);
 
   // Reset on close
   useEffect(() => {
     if (!open) {
-      setDecisionData(null);
       setDecisionText('');
       setError(null);
-      setFetchError(null);
+      setAcknowledgeError(null);
+      setAcknowledging(false);
     }
   }, [open]);
-
-  const fetchDecisionData = async () => {
-    setFetchLoading(true);
-    setFetchError(null);
-    try {
-      const fillState = await getSubcaseFillState(item.subcaseId);
-      setDecisionData(fillState.patientServicesDecision);
-    } catch (err) {
-      setFetchError(err.message || 'فشل تحميل بيانات القرار');
-    } finally {
-      setFetchLoading(false);
-    }
-  };
 
   const handleSave = async () => {
     if (!decisionText.trim()) {
@@ -95,6 +78,22 @@ const PatientServicesDecisionModal = ({ open, item, onClose, onSuccess, readOnly
       setError(err.message || 'حدث خطأ أثناء الحفظ');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const canAcknowledge = readOnly && item?.allowedActions?.includes('acknowledge_decision');
+
+  const handleAcknowledge = async () => {
+    if (!item?.subcaseId) { onClose(); return; }
+    setAcknowledging(true);
+    setAcknowledgeError(null);
+    try {
+      await acknowledgePatientServicesDecision(item.subcaseId);
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      setAcknowledgeError(err.message || 'فشل تأكيد القرار، يرجى المحاولة مرة أخرى.');
+      setAcknowledging(false);
     }
   };
 
@@ -132,52 +131,32 @@ const PatientServicesDecisionModal = ({ open, item, onClose, onSuccess, readOnly
                 </Box>
               )}
 
-              {fetchLoading && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                  <CircularProgress />
-                </Box>
-              )}
-
-              {fetchError && !fetchLoading && (
-                <Alert color="danger" variant="soft" sx={{ mb: 2 }}>
-                  {fetchError}
-                </Alert>
-              )}
-
-              {decisionData && !fetchLoading && (
-                <>
-                  <Card variant="soft" color="neutral" sx={{ mb: 2, p: 2 }}>
-                    <Typography level="body-xs" fontWeight="bold" sx={{ mb: 1 }}>
-                      نص القرار
-                    </Typography>
-                    <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
-                      {decisionData.decisionText || '—'}
-                    </Typography>
-                  </Card>
-
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                    {decisionData.enteredBy && (
-                      <Box>
-                        <Typography level="body-xs" sx={{ color: 'neutral.500' }}>أدخله</Typography>
-                        <Typography level="body-sm">{decisionData.enteredBy}</Typography>
-                      </Box>
-                    )}
-                    {decisionData.decisionAt && (
-                      <Box>
-                        <Typography level="body-xs" sx={{ color: 'neutral.500' }}>تاريخ القرار</Typography>
-                        <Typography level="body-sm">{decisionData.decisionAt.toLocaleDateString('ar-SA')}</Typography>
-                      </Box>
-                    )}
-                  </Box>
-                </>
-              )}
+              <Card
+                variant="soft"
+                color="neutral"
+                sx={{
+                  mb: 2, p: 2,
+                  borderRight: `2px solid ${theme.colors.primary}`,
+                }}
+              >
+                <Typography level="body-xs" fontWeight="bold" sx={{ mb: 1 }}>
+                  نص القرار
+                </Typography>
+                <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
+                  {item.patientServicesDecisionText || '—'}
+                </Typography>
+              </Card>
             </Box>
           }
           footer={
             <SimpleModalFooter
               onClose={onClose}
+              closeDisabled={acknowledging}
               primaryLabel="حسناً"
-              onPrimary={onClose}
+              onPrimary={canAcknowledge ? handleAcknowledge : onClose}
+              primaryDisabled={acknowledging}
+              primaryLoading={acknowledging}
+              error={acknowledgeError}
             />
           }
         />

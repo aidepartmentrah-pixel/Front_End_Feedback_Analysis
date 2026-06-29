@@ -7,7 +7,9 @@ import theme from '../../theme';
  *
  * Fixed context header, a scrolling body (single column, or primary/support
  * columns when supportContent is provided), and a fixed sticky footer.
- * Only the body scrolls — context and footer never move.
+ * Only the body scrolls — context and footer never move. The two columns
+ * share one scrollbar (not one each) — independent per-column scrolling was
+ * tried and reverted, it read as broken double-scrollbar UI chrome.
  *
  * Props:
  *   context        — ReactNode  (fixed header slot)

@@ -289,10 +289,22 @@ export const canAccessMigration = (user) => {
 export const hasFullOperationalAccess = (user) => {
   const role = getPrimaryRole(user);
   if (!role) return false;
-  
+
   // Limited admin roles (the 3 monkeys)
   const limitedAdminRoles = ['ADMINISTRATION_ADMIN', 'DEPARTMENT_ADMIN', 'SECTION_ADMIN'];
-  
+
   // Return false if user is a limited admin, true otherwise
   return !limitedAdminRoles.includes(role);
+};
+
+/**
+ * Check if user can create supervisor action items (cross-unit administrative assignment).
+ * Only COMPLAINT_SUPERVISOR and SOFTWARE_ADMIN may create these.
+ * UX-level guard only — backend enforces the same check independently.
+ * @param {Object} user - user object from AuthContext
+ * @returns {boolean}
+ */
+export const canCreateSupervisorActionItem = (user) => {
+  if (!user || !Array.isArray(user.roles)) return false;
+  return user.roles.includes('COMPLAINT_SUPERVISOR') || user.roles.includes('SOFTWARE_ADMIN');
 };

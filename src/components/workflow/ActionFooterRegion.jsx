@@ -35,37 +35,46 @@ const ActionFooterRegion = ({
 
   return (
     <Box>
-      <Typography level="title-sm" sx={{ mb: 1 }}>الإجراء المطلوب:</Typography>
-      <WorkflowActionButtons
-        allowedActions={allowedActions}
-        activeAction={activeAction}
-        onSelect={onSelectAction}
-        disabled={submitting}
-      />
-      {submitError && (
-        <Alert color="danger" variant="soft" sx={{ mt: 1, mb: activeAction ? 1 : 0 }}>
-          <Typography level="body-sm">{submitError}</Typography>
-        </Alert>
-      )}
-      {activeAction && (
-        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', mt: 1 }}>
-          <Button
-            variant="outlined"
-            color="neutral"
-            onClick={onCancelAction}
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1 }}>
+          <Typography level="title-sm" sx={{ whiteSpace: 'nowrap' }}>الإجراء المطلوب:</Typography>
+          <WorkflowActionButtons
+            allowedActions={allowedActions}
+            activeAction={activeAction}
+            onSelect={onSelectAction}
             disabled={submitting}
-          >
-            إلغاء
-          </Button>
-          <Button
-            color={confirmColor}
-            onClick={onConfirmAction}
-            loading={submitting}
-            disabled={submitting}
-          >
-            تأكيد
+          />
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {activeAction && (
+            <>
+              <Button
+                variant="outlined"
+                color="neutral"
+                onClick={onCancelAction}
+                disabled={submitting}
+              >
+                إلغاء
+              </Button>
+              <Button
+                color={confirmColor}
+                onClick={onConfirmAction}
+                loading={submitting}
+                disabled={submitting}
+              >
+                تأكيد
+              </Button>
+            </>
+          )}
+          <Button variant="plain" color="neutral" onClick={onClose} disabled={submitting}>
+            إغلاق
           </Button>
         </Box>
+      </Box>
+      {submitError && (
+        <Alert color="danger" variant="soft" sx={{ mt: 1 }}>
+          <Typography level="body-sm">{submitError}</Typography>
+        </Alert>
       )}
     </Box>
   );

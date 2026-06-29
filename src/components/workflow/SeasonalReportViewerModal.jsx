@@ -111,7 +111,14 @@ const SeasonalReportViewerModal = ({ open, onClose, seasonalReportId, item, onSu
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
 
                 {/* Report Info */}
-                <Card variant="soft" color="neutral" sx={{ p: 2 }}>
+                <Card
+                  variant="soft"
+                  color="neutral"
+                  sx={{
+                    p: 2,
+                    borderRight: `2px solid ${theme.colors.primary}`,
+                  }}
+                >
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'space-between' }}>
                     <Box>
                       <Typography level="body-xs" sx={{ color: 'neutral.500' }}>Period</Typography>

@@ -10,10 +10,10 @@ import theme from '../../theme';
 function InfoRow({ label, value }) {
   if (!value) return null;
   return (
-    <Box sx={{ display: 'flex', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
-      <Typography level="body-xs" sx={{ fontWeight: 600, minWidth: 110 }}>{label}:</Typography>
-      <Typography level="body-xs" sx={{ flex: 1 }}>{value}</Typography>
-    </Box>
+    <>
+      <Typography level="body-sm" sx={{ fontWeight: 600, color: theme.colors.textSecondary }}>{label}:</Typography>
+      <Typography level="body-sm">{value}</Typography>
+    </>
   );
 }
 
@@ -62,7 +62,12 @@ const ComplaintDetailsSection = ({ incidentData, item, open, onChange }) => {
     <Accordion
       expanded={open}
       onChange={onChange}
-      sx={{ border: `1px solid ${theme.colors.border}`, borderRadius: theme.radius.lg, mb: 2 }}
+      sx={{
+        border: `1px solid ${theme.colors.border}`,
+        borderRight: `3px solid ${theme.colors.primary}`,
+        borderRadius: theme.radius.lg,
+        mb: 2,
+      }}
     >
       <AccordionSummary indicator={<ExpandMoreIcon />}>
         <Typography sx={theme.typography.cardTitle}>📋 تفاصيل الشكوى</Typography>
@@ -72,40 +77,49 @@ const ComplaintDetailsSection = ({ incidentData, item, open, onChange }) => {
           </Typography>
         )}
       </AccordionSummary>
-      <AccordionDetails>
+      <AccordionDetails sx={{ px: 2, py: 1.5 }}>
         {incidentData ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          <Box>
             {incidentData.complaint_text && (
-              <Card variant="soft" color="neutral" sx={{ p: 1.5, mb: 1 }}>
+              <Card variant="soft" color="neutral" sx={{ p: 1.5, mb: 1.5 }}>
                 <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap' }}>
                   {incidentData.complaint_text}
                 </Typography>
               </Card>
             )}
-            <InfoRow label="المريض"               value={incidentData.patient_name} />
-            <InfoRow label="الأطباء"              value={doctorNames} />
-            <InfoRow label="العاملون"             value={workerNames} />
-            <InfoRow label="Domain"               value={incidentData.domain_name} />
-            <InfoRow label="Category"             value={incidentData.category_name} />
-            <InfoRow label="Subcategory"          value={incidentData.subcategory_name} />
-            <InfoRow label="Classification"       value={incidentData.classification_name} />
-            <InfoRow label="Severity"             value={incidentData.severity_name} />
-            <InfoRow label="Harm Level"              value={incidentData.harm_level} />
-            <InfoRow label="Stage"                 value={incidentData.stage_name} />
-            <InfoRow label="القسم المُبلِّغ"      value={incidentData.issuing_department_name} />
-            <InfoRow label="الجهة المستهدفة"      value={item?.targetOrgUnitName} />
-            <InfoRow label="الإجراء الفوري"       value={incidentData.immediate_action} />
-            <InfoRow label="تاريخ الحادثة"        value={incidentData.feedback_received_date} />
-            <InfoRow label="تاريخ الاستحقاق"      value={fmtDate(dueDate)} />
-            {countdown && (
-              <Box sx={{ display: 'flex', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
-                <Typography level="body-xs" sx={{ fontWeight: 600, minWidth: 110 }}>الوقت المتبقي:</Typography>
-                <Chip size="sm" variant="soft" color={countdown.color}>{countdown.label}</Chip>
-              </Box>
-            )}
-            {forceCloseDate && (
-              <InfoRow label="تاريخ الإغلاق القسري" value={fmtDate(forceCloseDate)} />
-            )}
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: '120px 1fr',
+                rowGap: 0.75,
+                columnGap: 1.5,
+              }}
+            >
+              <InfoRow label="المريض"               value={incidentData.patient_name} />
+              <InfoRow label="الأطباء"              value={doctorNames} />
+              <InfoRow label="العاملون"             value={workerNames} />
+              <InfoRow label="Domain"               value={incidentData.domain_name} />
+              <InfoRow label="Category"             value={incidentData.category_name} />
+              <InfoRow label="Subcategory"          value={incidentData.subcategory_name} />
+              <InfoRow label="Classification"       value={incidentData.classification_name} />
+              <InfoRow label="Severity"             value={incidentData.severity_name} />
+              <InfoRow label="Harm Level"              value={incidentData.harm_level} />
+              <InfoRow label="Stage"                 value={incidentData.stage_name} />
+              <InfoRow label="القسم المُبلِّغ"      value={incidentData.issuing_department_name} />
+              <InfoRow label="الجهة المستهدفة"      value={item?.targetOrgUnitName} />
+              <InfoRow label="الإجراء الفوري"       value={incidentData.immediate_action} />
+              <InfoRow label="تاريخ الحادثة"        value={incidentData.feedback_received_date} />
+              <InfoRow label="تاريخ الاستحقاق"      value={fmtDate(dueDate)} />
+              {countdown && (
+                <>
+                  <Typography level="body-sm" sx={{ fontWeight: 600, color: theme.colors.textSecondary }}>الوقت المتبقي:</Typography>
+                  <Box><Chip size="sm" variant="soft" color={countdown.color}>{countdown.label}</Chip></Box>
+                </>
+              )}
+              {forceCloseDate && (
+                <InfoRow label="تاريخ الإغلاق القسري" value={fmtDate(forceCloseDate)} />
+              )}
+            </Box>
           </Box>
         ) : (
           <Typography level="body-sm" sx={{ color: 'neutral.400', fontStyle: 'italic' }}>

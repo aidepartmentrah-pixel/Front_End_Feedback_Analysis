@@ -1,12 +1,18 @@
 import React from 'react';
 import {
-  Box, Typography, Chip, Checkbox, CircularProgress,
+  Box, Typography, Checkbox, CircularProgress,
   Accordion, AccordionSummary, AccordionDetails, AccordionGroup,
 } from '@mui/joy';
 import theme from '../../theme';
 
 /**
- * RcaPairsPicker — displays DB-driven RCA cause/action pairs as selectable checkboxes.
+ * RcaPairsPicker — displays DB-driven RCA cause/action pairs as selectable
+ * checkboxes. Selecting a cause composes a sentence and appends it into the
+ * shared explanationText field (owned by CaseReviewModal, edited in the
+ * "التوضيح / الشرح" box) — there's no separate preview here, since the two
+ * boxes would just be the same field shown twice (removed per user feedback
+ * after testing: editing either one updated the other, which is confusing,
+ * not useful).
  *
  * Uses getRcaPairsForSubcase shape: { categories: [{ category_id, category_name_ar,
  * category_name_en, pairs: [{ pair_id, cause_text_ar, action_text_ar, action_suggestion_id,
@@ -23,18 +29,20 @@ import theme from '../../theme';
  *   disabled    — bool
  */
 const RcaPairsPicker = ({ categories, selectedIds, onToggle, loading, disabled }) => (
-  <Box sx={{ mt: 1 }}>
-    <Typography sx={{ ...theme.typography.cardTitle, mb: 0.5, color: theme.colors.primary }}>
+  <Box
+    sx={{
+      mt: 1, p: 1.5,
+      border: `1px solid ${theme.colors.border}`,
+      borderRight: `2px solid ${theme.colors.warning}`,
+      borderRadius: theme.radius.lg,
+    }}
+  >
+    <Typography sx={{ ...theme.typography.cardTitle, mb: 0.5 }}>
       📋 تحليل السبب الجذري (RCA)
     </Typography>
-    <Typography level="body-xs" sx={{ mb: 0.5, color: 'text.secondary' }}>
+    <Typography level="body-xs" sx={{ mb: 1.5, color: 'text.secondary' }}>
       اختياري — يمكن تقديم التوضيح بدون اختيار أسباب
     </Typography>
-    {!disabled && (
-      <Typography level="body-xs" sx={{ mb: 1.5, color: 'text.secondary', fontStyle: 'italic' }}>
-        اختيار سبب يضيف نصاً تلقائياً في مربع التوضيح
-      </Typography>
-    )}
 
     {loading && <CircularProgress size="sm" />}
 
@@ -77,22 +85,9 @@ const RcaPairsPicker = ({ categories, selectedIds, onToggle, loading, disabled }
                       sx={{ pointerEvents: 'none', mt: 0.5 }}
                     />
                     <Box sx={{ flex: 1, mr: 1, userSelect: 'none' }} dir="rtl">
-                      <Box sx={{ mb: 0.75 }}>
-                        <Chip size="sm" variant="soft" color="warning" sx={{ fontWeight: 'bold', mb: 0.25 }}>
-                          السبب
-                        </Chip>
-                        <Typography level="body-sm" sx={{ textAlign: 'right' }}>
-                          {p.cause_text_ar}
-                        </Typography>
-                      </Box>
-                      <Box>
-                        <Chip size="sm" variant="soft" color="primary" sx={{ fontWeight: 'bold', mb: 0.25 }}>
-                          الإجراء التصحيحي
-                        </Chip>
-                        <Typography level="body-sm" sx={{ textAlign: 'right' }}>
-                          {p.action_text_ar}
-                        </Typography>
-                      </Box>
+                      <Typography level="body-sm" sx={{ textAlign: 'right' }}>
+                        {p.cause_text_ar}
+                      </Typography>
                     </Box>
                   </Box>
                 ))}

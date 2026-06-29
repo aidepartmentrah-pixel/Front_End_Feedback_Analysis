@@ -100,7 +100,7 @@ const MainContentRegion = ({
                 <FormControl required>
                   <FormLabel>التوضيح / الشرح</FormLabel>
                   <Textarea
-                    minRows={4}
+                    minRows={3}
                     placeholder="أدخل التوضيح..."
                     value={explanationText}
                     onChange={onExplanationChange}

@@ -384,46 +384,14 @@ const InsightPage = () => {
             </Typography>
           </Box>
           {expandedGroups.PATIENT_SERVICES && (
-            <Box sx={{ p: 2, backgroundColor: '#fafafa', overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #e0e0e0' }}>
-                    <th style={{ padding: '8px', textAlign: 'left', fontWeight: 600, fontSize: 13 }}>Incident</th>
-                    <th style={{ padding: '8px', textAlign: 'left', fontWeight: 600, fontSize: 13 }}>Unit</th>
-                    <th style={{ padding: '8px', textAlign: 'left', fontWeight: 600, fontSize: 13 }}>Date</th>
-                    {canEdit && (
-                      <th style={{ padding: '8px', textAlign: 'right', fontWeight: 600, fontSize: 13 }}>Action</th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {patientServicesPending.map(row => (
-                    <tr key={row.subcaseId} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: '8px', fontSize: 13 }}>
-                        {row.incidentNumber || `#${row.incidentId}`}
-                      </td>
-                      <td style={{ padding: '8px', fontSize: 13 }}>
-                        {row.targetOrgUnitName || row.targetOrgUnitId}
-                      </td>
-                      <td style={{ padding: '8px', fontSize: 13 }}>
-                        {row.createdAt?.toLocaleDateString() || '—'}
-                      </td>
-                      {canEdit && (
-                        <td style={{ padding: '8px', textAlign: 'right' }}>
-                          <Button
-                            size="sm"
-                            color="primary"
-                            variant="soft"
-                            onClick={() => navigate(`/manual-fill/${row.subcaseId}`)}
-                          >
-                            Enter Decision
-                          </Button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <Box sx={{ p: 2, backgroundColor: '#fafafa', display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {patientServicesPending.map(row => (
+                <SubcaseCard
+                  key={row.subcase_id}
+                  subcase={row}
+                  onEnterDecision={canEdit ? (subcaseId) => navigate(`/manual-fill/${subcaseId}`) : undefined}
+                />
+              ))}
             </Box>
           )}
         </Card>

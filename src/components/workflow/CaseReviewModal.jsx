@@ -376,7 +376,7 @@ const CaseReviewModal = ({ open, onClose, item, onSuccess }) => {
     .map(p => ({ pairId: p.pair_id, actionText: p.action_text_ar.trim() }));
 
   return (
-    <WorkflowFormShell open={open} onClose={onClose} submitting={submitting} size="lg">
+    <WorkflowFormShell open={open} onClose={onClose} submitting={submitting} size={hasSupportContent ? 'lg' : 'md'}>
       <ModalLayoutShell
         context={
           <ContextRegion

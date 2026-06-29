@@ -77,7 +77,7 @@ const InvestigationHistorySection = ({ history, responseData }) => {
     <Box sx={{ mb: 2 }}>
       {hasHistory && (
         <>
-          <Typography sx={{ ...theme.typography.cardTitle, mb: 1 }}>سجل التحقيق</Typography>
+          <Typography sx={{ ...theme.typography.cardTitle, mb: 1 }}>🕓 سجل التحقيق</Typography>
           <HistoryEntry label="رد القسم"    color="primary" data={history.section} />
           <HistoryEntry label="رد الدائرة"  color="success" data={history.department} />
           <HistoryEntry label="رد الإدارة"  color="warning" data={history.administration} />
@@ -88,7 +88,7 @@ const InvestigationHistorySection = ({ history, responseData }) => {
       {actionItems.length > 0 && (
         <Box sx={{ mt: hasHistory ? 1.5 : 0 }}>
           <Typography sx={{ ...theme.typography.cardTitle, mb: 0.75 }}>
-            بنود الإجراءات ({actionItems.length})
+            ✅ بنود الإجراءات ({actionItems.length})
           </Typography>
           {actionItems.map((ai, i) => (
             <Box

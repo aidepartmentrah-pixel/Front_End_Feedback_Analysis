@@ -85,6 +85,7 @@ const normalizeInboxItem = (item) => ({
   isMorbidity:        item.is_morbidity        ?? false,
   clinicalIndicators: item.clinical_indicators ?? [],
   workflowIndicators: item.workflow_indicators ?? [],
+  patientServicesDecisionText: item.patient_services_decision_text ?? null,
 });
 
 /**
@@ -134,6 +135,7 @@ const normalizeArchiveItem = (item) => ({
   isMorbidity:        item.is_morbidity        ?? false,
   clinicalIndicators: item.clinical_indicators ?? [],
   workflowIndicators: item.workflow_indicators ?? [],
+  patientServicesDecisionText: item.patient_services_decision_text ?? null,
 });
 
 /**
@@ -431,6 +433,21 @@ export const actOnSubcase = async (subcaseId, action, payload = {}) => {
 export const savePatientServicesDecision = (subcaseId, decisionText) =>
   actOnSubcase(subcaseId, 'SAVE_PATIENT_SERVICES_DECISION', { decision_text: decisionText });
 
+/**
+ * Acknowledge a completed Patient Services decision.
+ *
+ * Wraps actOnSubcase with action = 'ACKNOWLEDGE_DECISION'.
+ * Transitions PATIENT_SERVICES_DECISION_COMPLETED → DECISION_ACKNOWLEDGED,
+ * removing the item from the office's active inbox and placing it in archive.
+ *
+ * Allowed roles: SECTION_ADMIN, DEPARTMENT_ADMIN, ADMINISTRATION_ADMIN
+ *
+ * @param {number} subcaseId
+ * @returns {Promise<boolean>}
+ */
+export const acknowledgePatientServicesDecision = (subcaseId) =>
+  actOnSubcase(subcaseId, 'ACKNOWLEDGE_DECISION');
+
 
 /**
  * Force close an incident and all its subcases (administrative action)
@@ -642,9 +659,11 @@ export const getSubcaseFillState = async (subcaseId) => {
       caseDescription: d.case_description || null,
       patientName: d.patient_name || null,
       incidentNumber: d.incident_number || null,
+      domainName: d.domain_name || null,
       categoryName: d.category_name || null,
       subCategoryName: d.sub_category_name || null,
       classificationEN: d.classification_en || null,
+      issuingOrgUnitName: d.issuing_org_unit_name || null,
     };
   } catch (error) {
     throw mapWorkflowError(error);

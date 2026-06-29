@@ -20,6 +20,7 @@ import ModalLayoutShell from './ModalLayoutShell';
 import ContextRegion from './ContextRegion';
 import SimpleModalFooter from './SimpleModalFooter';
 import StatusChip from './StatusChip';
+import theme from '../../theme';
 
 // Notice items carry whatever forward action the underlying case status allows
 // (e.g. a section seeing a notice on a new complaint can still accept_complaint
@@ -131,7 +132,14 @@ const NoticeModal = ({ open, onClose, item, onSuccess }) => {
             {detail && !loading && (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                 {detail.complaint_text && (
-                  <Card variant="soft" color="neutral" sx={{ p: 1.5 }}>
+                  <Card
+                    variant="soft"
+                    color="neutral"
+                    sx={{
+                      p: 1.5,
+                      borderRight: `2px solid ${theme.colors.primary}`,
+                    }}
+                  >
                     <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap' }}>
                       {detail.complaint_text}
                     </Typography>

@@ -38,7 +38,6 @@ import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/common/MainLayout';
 import ErrorPanel from '../components/common/ErrorPanel';
 import { getWorkflowInbox, getWorkflowInboxArchive } from '../api/workflowApi';
-import AccountabilityBox from '../components/workflow/AccountabilityBox';
 import CaseReviewModal from '../components/workflow/CaseReviewModal';
 import SeasonalReportViewerModal from '../components/workflow/SeasonalReportViewerModal';
 import PatientServicesDecisionModal from '../components/workflow/PatientServicesDecisionModal';
@@ -67,8 +66,6 @@ const WorkflowInboxPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Roles that get an accountability box (own force-closed cases shown for awareness)
-  const showAccountability = user?.roles?.includes('SECTION_ADMIN') || user?.roles?.includes('DEPARTMENT_ADMIN');
 
   // ============================
   // STATE
@@ -189,6 +186,12 @@ const WorkflowInboxPage = () => {
     item.messageType === 'PATIENT_SERVICES_OPINION' &&
     !item.allowedActions?.includes('save_patient_services_decision') &&
     !item.allowedActions?.includes('edit_patient_services_decision');
+
+  // Patient Services decision has arrived — section/dept/admin must acknowledge it.
+  // Opens PatientServicesDecisionModal in readOnly mode with acknowledge action.
+  const isDecisionArrivedItem = (item) =>
+    item.messageType === 'DECISION_TAKEN' &&
+    item.allowedActions?.includes('acknowledge_decision');
 
   /**
    * Determine if an item is an incident (vs seasonal report).
@@ -337,6 +340,20 @@ const WorkflowInboxPage = () => {
           onClick={() => { setNoticeModalItem(item); setNoticeModalOpen(true); }}
         >
           عرض الإشعار
+        </Button>
+      );
+    }
+
+    // Patient Services decision arrived — section/dept/admin acknowledges it
+    if (isDecisionArrivedItem(item)) {
+      return (
+        <Button
+          size="sm"
+          variant="solid"
+          color="success"
+          onClick={() => { setDecisionViewerItem(item); setDecisionViewerOpen(true); }}
+        >
+          عرض القرار
         </Button>
       );
     }
@@ -591,7 +608,7 @@ const WorkflowInboxPage = () => {
               <Button size="sm" variant="outlined" color="neutral" onClick={() => handleSeasonalView(item)}>
                 عرض
               </Button>
-            ) : item.status === 'PATIENT_SERVICES_DECISION_COMPLETED' ? (
+            ) : item.messageType === 'DECISION_TAKEN' ? (
               item.allowedActions?.includes('edit_patient_services_decision') ? (
                 <Button size="sm" variant="soft" color="primary" onClick={() => openReviewModal(item)}>
                   مراجعة الرأي وتعديله
@@ -936,13 +953,6 @@ const WorkflowInboxPage = () => {
                     </Card>
                   )}
 
-                  {/* ── ZONE 3: Accountability Log (Section/Department only) ── */}
-                  {showAccountability && (
-                    <AccountabilityBox
-                      userId={user?.user_id || user?.id || 0}
-                      onViewCase={(item) => openReviewModal(item)}
-                    />
-                  )}
                 </Box>
               );
             })()}
@@ -1066,12 +1076,13 @@ const WorkflowInboxPage = () => {
         onSuccess={() => { setSeasonalViewerOpen(false); loadInbox(); }}
       />
 
-      {/* Patient Services Decision Viewer (read-only: archive completed decisions) */}
+      {/* Patient Services Decision Viewer — readOnly; active inbox items also acknowledge here */}
       <PatientServicesDecisionModal
         open={decisionViewerOpen}
         item={decisionViewerItem}
         readOnly={true}
         onClose={() => { setDecisionViewerOpen(false); setDecisionViewerItem(null); }}
+        onSuccess={() => { setDecisionViewerOpen(false); setDecisionViewerItem(null); loadInbox(); }}
       />
 
       {/* Notice Modal (informational notice items) */}

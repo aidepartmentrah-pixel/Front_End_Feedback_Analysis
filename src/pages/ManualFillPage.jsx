@@ -658,11 +658,17 @@ const ManualFillPage = () => {
               {fillState.incidentNumber && (
                 <Typography level="body-sm"><strong>Incident:</strong> {fillState.incidentNumber}</Typography>
               )}
+              {fillState.issuingOrgUnitName && (
+                <Typography level="body-sm"><strong>Target Section:</strong> {fillState.issuingOrgUnitName}</Typography>
+              )}
             </Box>
 
             {/* HCAT Classification chain */}
-            {(fillState.categoryName || fillState.subCategoryName || fillState.classificationEN) && (
+            {(fillState.domainName || fillState.categoryName || fillState.subCategoryName || fillState.classificationEN) && (
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 1 }}>
+                {fillState.domainName && (
+                  <Typography level="body-sm"><strong>Domain:</strong> {fillState.domainName}</Typography>
+                )}
                 {fillState.categoryName && (
                   <Typography level="body-sm"><strong>Category:</strong> {fillState.categoryName}</Typography>
                 )}
