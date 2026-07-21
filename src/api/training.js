@@ -1,5 +1,6 @@
 // src/api/training.js
 import apiClient from "./apiClient";
+import { downloadBlob } from "./reports";
 
 const TRAINING_BASE = "/api/settings/training";
 
@@ -90,6 +91,40 @@ export const runTraining = async () => {
   }
 };
 
+/**
+ * List Stage 9 versioned training runs (per-run folders with ROC/AUC
+ * artifacts) — separate from the older SQLite-backed /history.
+ * @returns {Promise<Array>} List of {run_id, status, started_at, finished_at, model_count, families_with_warnings}
+ */
+export const getVersionedRuns = async () => {
+  try {
+    const response = await apiClient.get(`${TRAINING_BASE}/versioned-runs`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching versioned training runs:", error);
+    throw error;
+  }
+};
+
+/**
+ * Download a versioned training run's artifacts as a ZIP and trigger the
+ * browser download.
+ * @param {string} runId
+ * @returns {Promise<void>}
+ */
+export const downloadRunArtifacts = async (runId) => {
+  const response = await apiClient.get(
+    `${TRAINING_BASE}/versioned-runs/${runId}/download`,
+    { responseType: "blob" }
+  );
+
+  const disposition = response.headers["content-disposition"] || "";
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  const filename = match ? match[1] : `training_run_${runId}.zip`;
+
+  downloadBlob(response.data, filename);
+};
+
 export default {
   getGroupedStatus,
   getTrainingProgress,
@@ -97,4 +132,6 @@ export default {
   getPerformanceTrendsChart,
   getFamilyComparisonChart,
   runTraining,
+  getVersionedRuns,
+  downloadRunArtifacts,
 };

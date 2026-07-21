@@ -594,6 +594,48 @@ export const downloadPatientFeedbackSeasonalWordV2 = async (season_start, season
 };
 
 // ============================================================
+// ERROR MESSAGE HELPER
+// ============================================================
+
+/**
+ * Extract a human-readable error message from an Axios error.
+ *
+ * Requests in this file use responseType: 'blob' (since success returns a
+ * file). Axios still blob-ifies the body on error responses, so
+ * err.response.data is a Blob containing the backend's JSON error text
+ * (e.g. {"detail": "No doctors with incidents found..."}) rather than a
+ * parsed object. This reads and parses that blob to recover the real
+ * backend message instead of falling back to axios's generic
+ * "Request failed with status code 400".
+ *
+ * @param {Error} err - Axios error
+ * @param {string} fallback - Message to use if nothing better can be extracted
+ * @returns {Promise<string>}
+ */
+export const extractApiErrorMessage = async (err, fallback = "Something went wrong. Please try again.") => {
+  const data = err?.response?.data;
+
+  if (data instanceof Blob) {
+    try {
+      const text = await data.text();
+      const parsed = JSON.parse(text);
+      if (parsed?.detail) {
+        return typeof parsed.detail === "string" ? parsed.detail : JSON.stringify(parsed.detail);
+      }
+    } catch (_) {
+      // Body wasn't JSON (e.g. an HTML error page) - fall through to default
+    }
+    return err.message || fallback;
+  }
+
+  if (data?.detail) {
+    return typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
+  }
+
+  return err.message || fallback;
+};
+
+// ============================================================
 // BLOB DOWNLOAD HELPER
 // ============================================================
 

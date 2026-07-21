@@ -1,5 +1,5 @@
 // src/components/TableView/CustomViewManager.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Modal,
   ModalDialog,
@@ -33,11 +33,16 @@ import {
   DEFAULT_VIEW_COLUMNS,
 } from "../../api/customViews";
 
+// View selected automatically on first load, so the table never lands on the
+// bare/unstyled fallback the user gets when no view is chosen yet.
+const DEFAULT_VIEW_NAME = "Classifications";
+
 const CustomViewManager = ({ onViewSelect, isAdmin = false }) => {
   const [views, setViews] = useState([]);
   const [selectedView, setSelectedView] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const hasAutoSelected = useRef(false);
 
   // Dialog states
   const [showDialog, setShowDialog] = useState(false);
@@ -83,6 +88,17 @@ const CustomViewManager = ({ onViewSelect, isAdmin = false }) => {
       
       setViews(viewsArray);
       setError(null);
+
+      // Auto-select the default view once, the first time views load — never
+      // clobbers a selection the user made afterward (e.g. via create/edit/delete refresh).
+      if (!hasAutoSelected.current && viewsArray.length > 0) {
+        hasAutoSelected.current = true;
+        const defaultView = viewsArray.find((v) => v.ViewName === DEFAULT_VIEW_NAME);
+        if (defaultView) {
+          setSelectedView(defaultView);
+          onViewSelect(defaultView);
+        }
+      }
     } catch (err) {
       setError("Failed to load custom views");
       console.error("Error loading views:", err);
@@ -440,7 +456,7 @@ const CustomViewManager = ({ onViewSelect, isAdmin = false }) => {
             {[
               {
                 label: "Case Identity",
-                keys: ["ShowIncidentNumber", "ShowIncidentRequestCaseID", "ShowFeedbackRecievedDate", "ShowCreatedAt", "ShowCreatedByUserID"],
+                keys: ["ShowRecordType", "ShowIncidentNumber", "ShowIncidentRequestCaseID", "ShowIncidentDate", "ShowFeedbackRecievedDate", "ShowCreatedAt", "ShowPublicationDate", "ShowCreatedByUserID"],
               },
               {
                 label: "Patient & Location",
@@ -456,7 +472,11 @@ const CustomViewManager = ({ onViewSelect, isAdmin = false }) => {
               },
               {
                 label: "Text & Responses",
-                keys: ["ShowComplaintText", "ShowImmediateAction", "ShowTakenAction", "ShowSectionAnswer", "ShowDepartmentAnswer", "ShowAdministrationAnswer"],
+                keys: ["ShowComplaintText", "ShowComplaintSummary", "ShowImmediateAction", "ShowTakenAction", "ShowSectionAnswer", "ShowDepartmentAnswer", "ShowAdministrationAnswer", "ShowRcaReplies", "ShowCustomerServiceDecision", "ShowCustomerServiceDecisionDate"],
+              },
+              {
+                label: "Workflow Timing (per level)",
+                keys: ["ShowSectionEntry", "ShowSectionDeadline", "ShowDepartmentEntry", "ShowDepartmentDeadline", "ShowAdministrationEntry", "ShowAdministrationDeadline"],
               },
               {
                 label: "Operational Indicators",

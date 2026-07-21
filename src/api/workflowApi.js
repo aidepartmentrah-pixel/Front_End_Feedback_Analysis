@@ -74,6 +74,7 @@ const normalizeInboxItem = (item) => ({
   messageType:        item.message_type        ?? 'COMPLAINT',
   messageCategory:    item.message_category    ?? 'WORKFLOW',
   currentLevel:       item.current_level       ?? null,
+  issuingOrgUnitName: item.issuing_org_unit_name ?? null,
   targetLevel:        item.target_level        ?? null,
   incidentDate:       item.incident_date  ? new Date(item.incident_date)  : null,
   displayDate:        item.display_date   ? new Date(item.display_date)   : null,
@@ -124,6 +125,7 @@ const normalizeArchiveItem = (item) => ({
   messageType:        item.message_type        ?? 'COMPLAINT',
   messageCategory:    item.message_category    ?? 'WORKFLOW',
   currentLevel:       item.current_level       ?? null,
+  issuingOrgUnitName: item.issuing_org_unit_name ?? null,
   targetLevel:        item.target_level        ?? null,
   incidentDate:       item.incident_date  ? new Date(item.incident_date)  : null,
   displayDate:        item.display_date   ? new Date(item.display_date)   : null,
@@ -350,7 +352,7 @@ export const completeActionItem = async (actionItemId) => {
  * 
  * Endpoint: POST /api/v2/workflow/follow-up/{action_item_id}/delay
  * 
- * Note: Backend extends the DueDate by delay_days from current DueDate or today
+ * Note: Backend extends the DueDate by delay_days from the item's current DueDate
  * 
  * @param {number} actionItemId - Action item ID
  * @param {number} delayDays - Number of days to extend the due date (1-90)
@@ -849,6 +851,133 @@ export const giveAdministrationMoreTime = async (subcaseId) => {
       subcaseId: response.data.subcase_id,
       workflowState: response.data.workflow_state,
     };
+  } catch (error) {
+    throw mapWorkflowError(error);
+  }
+};
+
+// ============================================================================
+// AIC-S7: ACTION ITEM NOTIFICATIONS
+// Two notice types merged into the Inbox client-side (same pattern as the
+// Calendar's supervisor-action-item merge) rather than server-side, since
+// they come from tables outside the subcase-driven inbox query.
+// ============================================================================
+
+/**
+ * Normalize a supervisor action item assignment notice ("assigned to you").
+ * @param {Object} item - Raw item from /api/v2/supervisor-action-items/unacknowledged
+ */
+const normalizeSupervisorActionItemNotice = (item) => ({
+  messageType: 'ACTION_ITEM_ASSIGNED',
+  actionItemId: item.action_item_id,
+  incidentRequestCaseId: item.incident_request_case_id,
+  subcaseId: item.subcase_id,
+  targetOrgUnitId: item.target_org_unit_id,
+  targetOrgUnitName: item.target_org_unit_name || null,
+  targetUserId: item.target_user_id,
+  createdByUserId: item.created_by_user_id,
+  createdByDisplayName: item.created_by_display_name || null,
+  description: item.description,
+  dueDate: parseDueDate(item.due_date),
+  status: item.status,
+  createdAt: toDateOrNull(item.created_at),
+  caseDescription: item.case_description || null,
+  patientName: item.patient_name || null,
+  incidentNumber: item.incident_number || null,
+});
+
+/**
+ * Normalize an action-item change notice ("your suggestion was changed").
+ * @param {Object} item - Raw item from /api/v2/action-item-notices/unacknowledged
+ */
+const normalizeActionItemChangeNotice = (item) => ({
+  messageType: 'ACTION_ITEM_CHANGED',
+  noticeId: item.notice_id,
+  actionItemId: item.action_item_id,
+  subcaseId: item.subcase_id,
+  oldTitle: item.old_title,
+  newTitle: item.new_title,
+  oldDescription: item.old_description,
+  newDescription: item.new_description,
+  oldDueDate: parseDueDate(item.old_due_date),
+  newDueDate: parseDueDate(item.new_due_date),
+  changedByUserId: item.changed_by_user_id,
+  changedByDisplayName: item.changed_by_display_name || null,
+  changedAt: toDateOrNull(item.changed_at),
+  currentActionItemTitle: item.current_action_item_title || null,
+});
+
+/**
+ * Get unacknowledged supervisor action item assignments for the Inbox.
+ *
+ * Endpoint: GET /api/v2/supervisor-action-items/unacknowledged
+ *
+ * @returns {Promise<Array>} Normalized assignment notices (see normalizeSupervisorActionItemNotice)
+ * @throws {Error} Normalized error with detail message
+ */
+export const getUnacknowledgedSupervisorActionItems = async () => {
+  try {
+    const response = await apiClient.get('/api/v2/supervisor-action-items/unacknowledged');
+    return (response.data.items || []).map(normalizeSupervisorActionItemNotice);
+  } catch (error) {
+    if (error.response && error.response.status === 403) {
+      return [];
+    }
+    throw mapWorkflowError(error);
+  }
+};
+
+/**
+ * Acknowledge a supervisor action item assignment notice.
+ *
+ * Endpoint: POST /api/v2/supervisor-action-items/{action_item_id}/acknowledge
+ *
+ * @param {number} actionItemId
+ * @returns {Promise<boolean>} true if acknowledged
+ * @throws {Error} Normalized error (403/404)
+ */
+export const acknowledgeSupervisorActionItem = async (actionItemId) => {
+  try {
+    await apiClient.post(`/api/v2/supervisor-action-items/${actionItemId}/acknowledge`);
+    return true;
+  } catch (error) {
+    throw mapWorkflowError(error);
+  }
+};
+
+/**
+ * Get unacknowledged action-item change notices for the Inbox.
+ *
+ * Endpoint: GET /api/v2/action-item-notices/unacknowledged
+ *
+ * @returns {Promise<Array>} Normalized change notices (see normalizeActionItemChangeNotice)
+ * @throws {Error} Normalized error with detail message
+ */
+export const getUnacknowledgedActionItemChangeNotices = async () => {
+  try {
+    const response = await apiClient.get('/api/v2/action-item-notices/unacknowledged');
+    return (response.data.notices || []).map(normalizeActionItemChangeNotice);
+  } catch (error) {
+    if (error.response && error.response.status === 403) {
+      return [];
+    }
+    throw mapWorkflowError(error);
+  }
+};
+
+/**
+ * Acknowledge an action-item change notice.
+ *
+ * Endpoint: POST /api/v2/action-item-notices/{notice_id}/acknowledge
+ *
+ * @param {number} noticeId
+ * @returns {Promise<boolean>} true if acknowledged
+ * @throws {Error} Normalized error (403/404)
+ */
+export const acknowledgeActionItemChangeNotice = async (noticeId) => {
+  try {
+    await apiClient.post(`/api/v2/action-item-notices/${noticeId}/acknowledge`);
+    return true;
   } catch (error) {
     throw mapWorkflowError(error);
   }

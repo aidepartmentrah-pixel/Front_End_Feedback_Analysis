@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Card,
+  Chip,
   Typography,
   Select,
   Option,
@@ -29,6 +30,7 @@ import MainLayout from '../components/common/MainLayout';
 import ErrorPanel from '../components/common/ErrorPanel';
 import SectionCard from '../components/SectionCard';
 import SubcaseCard from '../components/SubcaseCard';
+import theme from '../theme';
 import {
   getInsightStatusCounts,
   getGroupedInbox,
@@ -85,6 +87,8 @@ const InsightPage = () => {
   // Filter state
   const [dateRange, setDateRange] = useState('30');
   const [searchTerm, setSearchTerm] = useState('');
+  // Quick-filter for Workload Overview: 'all' | 'late' | 'forceClosed' | 'extraTime'
+  const [workflowQuickFilter, setWorkflowQuickFilter] = useState('all');
 
   // Export state
   const [exportingWord, setExportingWord] = useState(false);
@@ -98,6 +102,9 @@ const InsightPage = () => {
     FC_ADMIN: false,
   });
   const [expandedSections, setExpandedSections] = useState({});
+  // Separate from expandedSections to avoid key collisions — the same Administration
+  // unit ID can appear both in the normal workload group and the force-closed panel.
+  const [expandedFcAdminUnits, setExpandedFcAdminUnits] = useState({});
 
   // Org hierarchy — used by the Workflow Performance Report panel's Target Unit filter
   const [hierarchy, setHierarchy] = useState(null);
@@ -156,8 +163,27 @@ const InsightPage = () => {
       .filter(group => group.items.length > 0);
   }
 
+  // Force-closed-at-administration cases have nowhere further to escalate, so they
+  // stay in their own panel — but grouped per Administration unit, same as the
+  // regular workload groups, instead of one flat mixed list.
+  function groupFcAdminCasesByUnit(cases) {
+    const groups = {};
+    cases.forEach(c => {
+      const unitId = c.target_org_unit_id || 'unknown';
+      if (!groups[unitId]) {
+        groups[unitId] = { unitId, unitName: c.org_unit_name || `Unit ${unitId}`, cases: [] };
+      }
+      groups[unitId].cases.push(c);
+    });
+    return Object.values(groups).sort((a, b) => b.cases.length - a.cases.length);
+  }
+
   function toggleOrgGroup(orgType) {
     setExpandedGroups(prev => ({ ...prev, [orgType]: !prev[orgType] }));
+  }
+
+  function toggleFcAdminUnit(unitId) {
+    setExpandedFcAdminUnits(prev => ({ ...prev, [unitId]: !prev[unitId] }));
   }
 
   function toggleSectionExpand(sectionId) {
@@ -196,7 +222,71 @@ const InsightPage = () => {
       .filter(section => section.subcases.length > 0);
   }
 
-  const filteredInbox = filterBySearch(groupedInbox, searchTerm);
+  // Quick-filter chips: Force-closed / Given extra time — status-derived
+  // shortcuts over the Workload Overview groups. ("Late responses" removed —
+  // not a real category in this system; every late case is either still
+  // ticking toward force-close or already force-closed.)
+  const WORKFLOW_QUICK_FILTER_OPTIONS = [
+    { value: 'all', label: 'All', emoji: '○' },
+    { value: 'forceClosed', label: 'Force-closed', emoji: '🔒' },
+    { value: 'extraTime', label: 'Given extra time', emoji: '⏳' },
+  ];
+
+  function filterByQuickFilter(sections, quickFilter) {
+    if (quickFilter === 'all') return sections;
+    return sections
+      .map(section => ({
+        ...section,
+        subcases: section.subcases.filter(subcase => {
+          if (quickFilter === 'forceClosed') return subcase.is_force_closed;
+          if (quickFilter === 'extraTime') return !!subcase.extra_time_granted_at;
+          return true;
+        }),
+      }))
+      .map(section => ({ ...section, pending_count: section.subcases.length }))
+      .filter(section => section.subcases.length > 0);
+  }
+
+  const renderWorkflowQuickFilterChips = () => (
+    <Box>
+      <Typography level="body-sm" sx={{ color: theme.colors.textTertiary, fontWeight: 600, mb: 1 }}>
+        🔽 Filter by Status
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+        {WORKFLOW_QUICK_FILTER_OPTIONS.map((opt) => {
+          const selected = workflowQuickFilter === opt.value;
+          return (
+            <Chip
+              key={opt.value}
+              size="lg"
+              variant={selected ? 'solid' : 'outlined'}
+              startDecorator={<span>{opt.emoji}</span>}
+              onClick={() => setWorkflowQuickFilter(opt.value)}
+              sx={{
+                borderRadius: '999px',
+                px: 2,
+                py: 0.75,
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                '--variant-solidBg': selected ? theme.colors.primary : undefined,
+                '--variant-solidColor': selected ? theme.colors.textOnPrimary : undefined,
+                '--variant-solidHoverBg': selected ? theme.colors.primaryHover : undefined,
+                '--variant-outlinedBorder': !selected ? theme.colors.border : undefined,
+                '--variant-outlinedColor': !selected ? theme.colors.textPrimary : undefined,
+                '--variant-outlinedBg': !selected ? theme.colors.surface : undefined,
+                '--variant-outlinedHoverBg': !selected ? theme.colors.surfaceHover : undefined,
+              }}
+            >
+              {opt.label}
+            </Chip>
+          );
+        })}
+      </Box>
+    </Box>
+  );
+
+  const filteredInbox = filterByQuickFilter(filterBySearch(groupedInbox, searchTerm), workflowQuickFilter);
   const orgTypeGroups = groupByOrgType(filteredInbox);
 
   // ============================
@@ -222,7 +312,7 @@ const InsightPage = () => {
       value: (statusCountMap['DEPT_ACCEPTED_PENDING_ADMIN'] || 0) + (statusCountMap['FORCE_CLOSED_AT_DEPARTMENT'] || 0),
       color: ORG_COLORS.ADMINISTRATION,
     },
-    { label: 'Patient Services', value: statusCountMap['WAITING_PATIENT_SERVICES_DECISION'] || 0, color: ORG_COLORS.PATIENT_SERVICES },
+    { label: 'Customer Service', value: statusCountMap['WAITING_PATIENT_SERVICES_DECISION'] || 0, color: ORG_COLORS.PATIENT_SERVICES },
   ].filter(item => item.value > 0);
 
   // "Force Close Distribution" — which organizational level force-closes the most.
@@ -367,7 +457,7 @@ const InsightPage = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Box>
                 <Typography level="title-lg" sx={{ fontWeight: 700, color: 'white' }}>
-                  Patient Services Scientific Decision
+                  🩺 Customer Service Scientific Decision
                 </Typography>
                 <Typography level="body-xs" sx={{ color: 'rgba(255,255,255,0.85)' }}>
                   بانتظار قرار خدمات المرضى بحسب المراجع العلميّة
@@ -415,6 +505,34 @@ const InsightPage = () => {
           <Typography level="body-xs">{value} complaints</Typography>
           <Typography level="body-xs">{pct}%</Typography>
         </Box>
+      );
+    };
+  }
+
+  // ============================
+  // PIE CHART SLICE LABEL — callout outside the pie with a connector line
+  // (labelLine={true} on the <Pie>), showing "Name pct%" instead of cramming
+  // white percentage text onto thin/dark slices where it's hard to read.
+  // ============================
+  function renderSliceLabel(total) {
+    return ({ cx, cy, midAngle, outerRadius, value, name }) => {
+      if (total <= 0 || value <= 0) return null;
+      const RADIAN = Math.PI / 180;
+      const radius = outerRadius + 22;
+      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+      const pct = Math.round((value / total) * 100);
+      return (
+        <text
+          x={x} y={y}
+          textAnchor={x > cx ? 'start' : 'end'}
+          dominantBaseline="central"
+          fontSize={12}
+          fontWeight={600}
+          fill="#334155"
+        >
+          {`${name} ${pct}%`}
+        </text>
       );
     };
   }
@@ -479,8 +597,17 @@ const InsightPage = () => {
             <Box sx={{ minHeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {ownershipData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie data={ownershipData} dataKey="value" nameKey="label" cx="50%" cy="50%" outerRadius={80}>
+                  <PieChart margin={{ top: 20, right: 70, bottom: 20, left: 70 }}>
+                    <Pie
+                      data={ownershipData}
+                      dataKey="value"
+                      nameKey="label"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={70}
+                      label={renderSliceLabel(ownershipTotal)}
+                      labelLine
+                    >
                       {ownershipData.map((entry, index) => (
                         <Cell key={`ownership-cell-${index}`} fill={entry.color} />
                       ))}
@@ -500,8 +627,17 @@ const InsightPage = () => {
             <Box sx={{ minHeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {forceCloseData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie data={forceCloseData} dataKey="value" nameKey="label" cx="50%" cy="50%" outerRadius={80}>
+                  <PieChart margin={{ top: 20, right: 70, bottom: 20, left: 70 }}>
+                    <Pie
+                      data={forceCloseData}
+                      dataKey="value"
+                      nameKey="label"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={70}
+                      label={renderSliceLabel(forceCloseTotal)}
+                      labelLine
+                    >
                       {forceCloseData.map((entry, index) => (
                         <Cell key={`force-close-cell-${index}`} fill={entry.color} />
                       ))}
@@ -554,6 +690,9 @@ const InsightPage = () => {
                         startDecorator="🔍"
                       />
                     </FormControl>
+                  </Box>
+                  <Box sx={{ mt: 2 }}>
+                    {renderWorkflowQuickFilterChips()}
                   </Box>
                 </Card>
 
@@ -626,7 +765,7 @@ const InsightPage = () => {
                       >
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                           <Typography level="title-lg" sx={{ fontWeight: 700, color: 'white' }}>
-                            Force Closed at Administration — Awaiting Intervention
+                            🔒 Force Closed at Administration — Awaiting Intervention
                           </Typography>
                           <Box sx={{ backgroundColor: 'rgba(255,255,255,0.3)', px: 1.5, py: 0.5, borderRadius: '12px' }}>
                             <Typography level="body-sm" sx={{ fontWeight: 700, color: 'white' }}>
@@ -643,14 +782,38 @@ const InsightPage = () => {
                           {fcPipelineError ? (
                             <Typography level="body-sm" color="danger">{fcPipelineError}</Typography>
                           ) : (
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                              {fcPipelineCases.map(subcase => (
-                                <SubcaseCard
-                                  key={subcase.subcase_id}
-                                  subcase={subcase}
-                                  onFillData={handleFillData}
-                                  onGiveMoreTime={handleGiveMoreTime}
-                                />
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              {groupFcAdminCasesByUnit(fcPipelineCases).map(unitGroup => (
+                                <Card key={unitGroup.unitId} variant="outlined" sx={{ overflow: 'hidden', borderLeft: '3px solid #e17055' }}>
+                                  <Box
+                                    sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5, backgroundColor: '#fde4e1', cursor: 'pointer' }}
+                                    onClick={() => toggleFcAdminUnit(unitGroup.unitId)}
+                                  >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                      <Typography level="title-sm" sx={{ fontWeight: 700, color: '#9c3a2e' }}>
+                                        {unitGroup.unitName}
+                                      </Typography>
+                                      <Chip size="sm" color="danger" variant="soft">
+                                        {unitGroup.cases.length}
+                                      </Chip>
+                                    </Box>
+                                    <Typography level="body-sm" sx={{ color: '#9c3a2e', fontWeight: 600 }}>
+                                      {expandedFcAdminUnits[unitGroup.unitId] ? '▲' : '▼'}
+                                    </Typography>
+                                  </Box>
+                                  {expandedFcAdminUnits[unitGroup.unitId] && (
+                                    <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                      {unitGroup.cases.map(subcase => (
+                                        <SubcaseCard
+                                          key={subcase.subcase_id}
+                                          subcase={subcase}
+                                          onFillData={handleFillData}
+                                          onGiveMoreTime={handleGiveMoreTime}
+                                        />
+                                      ))}
+                                    </Box>
+                                  )}
+                                </Card>
                               ))}
                             </Box>
                           )}

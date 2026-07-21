@@ -7,6 +7,7 @@ export function buildIncidentPayload(saveMode, incident, cases, refData) {
     common: {
       complaint_text: incident.complaint_summary || "",
       feedback_received_date: incident.feedback_received_date,
+      incident_date: incident.incident_date,
       issuing_department_id: incident.issuing_department_id ? Number(incident.issuing_department_id) : null,
       source_id: incident.source_id ? Number(incident.source_id) : null,
       is_inpatient: incident.is_inpatient,
@@ -23,6 +24,7 @@ export function buildIncidentPayload(saveMode, incident, cases, refData) {
         immediate_action: c.immediate_action || "",
         taken_action: c.taken_action || "",
         feedback_received_date: incident.feedback_received_date,
+        incident_date: incident.incident_date,
         issuing_department_id: incident.issuing_department_id ? Number(incident.issuing_department_id) : null,
         source_id: incident.source_id ? Number(incident.source_id) : null,
         building_id: incident.building_id ? Number(incident.building_id) : null,

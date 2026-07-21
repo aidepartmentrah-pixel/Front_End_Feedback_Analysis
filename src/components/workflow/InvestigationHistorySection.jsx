@@ -9,7 +9,8 @@ import theme from '../../theme';
  * Single read-only history entry for one investigation level.
  */
 function HistoryEntry({ label, color, data }) {
-  const [open, setOpen] = useState(false);
+  // Defaults to expanded for every role — manual collapse still works via onChange.
+  const [open, setOpen] = useState(true);
   if (!data?.hasContent) return null;
 
   return (

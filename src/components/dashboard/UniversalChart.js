@@ -1,8 +1,9 @@
 import React from "react";
-import { 
+import {
   BarChart, Bar, PieChart, Pie, LineChart, Line,
   XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend
 } from "recharts";
+import { renderBarValueLabel, BAR_LABEL_TOP_MARGIN, barLabelYAxisDomain, percentOf } from "./chartLabels";
 
 // Custom tick component for vertical labels positioned below bars
 const CustomXAxisTick = ({ x, y, payload }) => {
@@ -23,12 +24,13 @@ const CustomXAxisTick = ({ x, y, payload }) => {
   );
 };
 
-const UniversalChart = ({ 
-  data = [], 
-  type = "bar", 
+const UniversalChart = ({
+  data = [],
+  type = "bar",
   height = 300,
   onBarClick,
-  layout = "vertical"
+  layout = "vertical",
+  total
 }) => {
   const [activeIndex, setActiveIndex] = React.useState(null);
 
@@ -70,16 +72,19 @@ const UniversalChart = ({
 
   // Bar Chart
   if (type === "bar") {
+    const resolvedTotal = typeof total === "number" ? total : data.reduce((sum, d) => sum + (d.count || 0), 0);
+    const isColumnLayout = layout === "horizontal"; // bars grow upward; labels render above each bar
+
     return (
       <ResponsiveContainer width="100%" height={height}>
-        <BarChart 
-          data={data} 
+        <BarChart
+          data={data}
           layout={layout}
-          margin={{ top: 10, right: 30, left: layout === "vertical" ? 90 : 5, bottom: layout === "vertical" ? 20 : 100 }}
+          margin={{ top: isColumnLayout ? BAR_LABEL_TOP_MARGIN : 10, right: 30, left: layout === "vertical" ? 90 : 5, bottom: layout === "vertical" ? 20 : 100 }}
         >
           {layout === "horizontal" && (
-            <XAxis 
-              dataKey="name" 
+            <XAxis
+              dataKey="name"
               height={100}
               interval={0}
               tick={<CustomXAxisTick />}
@@ -87,26 +92,26 @@ const UniversalChart = ({
               tickLine={{ stroke: '#ccc' }}
             />
           )}
-          {layout === "horizontal" && <YAxis />}
+          {layout === "horizontal" && <YAxis domain={barLabelYAxisDomain} />}
           {layout === "vertical" && <XAxis type="number" />}
           {layout === "vertical" && <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11 }} />}
-          <Tooltip 
+          <Tooltip
             content={({ active, payload }) => {
               if (active && payload && payload[0]) {
                 return (
                   <div style={{ bgcolor: '#fff', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '12px' }}>
                     <p style={{ margin: '0 0 4px 0' }}><strong>{payload[0].payload.name}</strong></p>
-                    <p style={{ margin: '0' }}>Count: {payload[0].value}</p>
+                    <p style={{ margin: '0' }}>Count: {payload[0].value} ({percentOf(payload[0].value, resolvedTotal)}%)</p>
                   </div>
                 );
               }
               return null;
             }}
           />
-          <Bar dataKey="count" onClick={handleClick} cursor="pointer">
+          <Bar dataKey="count" onClick={handleClick} cursor="pointer" label={isColumnLayout ? renderBarValueLabel(resolvedTotal) : undefined}>
             {data.map((entry, index) => (
-              <Cell 
-                key={`cell-${index}`} 
+              <Cell
+                key={`cell-${index}`}
                 fill={activeIndex === index ? COLORS[0] : COLORS[index % COLORS.length]}
               />
             ))}

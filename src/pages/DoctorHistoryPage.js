@@ -14,7 +14,7 @@ import DoctorStatisticsCards from "../components/doctorHistory/DoctorStatisticsC
 import DoctorCharts from "../components/doctorHistory/DoctorCharts";
 import UniversalIncidentsTable from "../components/common/UniversalIncidentsTable";
 import SeasonSelector from "../components/personReporting/SeasonSelector";
-import { getDoctorFullHistoryV2, exportDoctorCsvV2, exportDoctorJsonV2, exportDoctorWordV2, downloadDoctorSeasonalWordV2, downloadAllDoctorsSeasonalWordV2, downloadBlobFile } from "../api/personApiV2";
+import { getDoctorFullHistoryV2, exportDoctorCsvV2, exportDoctorJsonV2, exportDoctorWordV2, downloadDoctorSeasonalWordV2, downloadAllDoctorsSeasonalWordV2, downloadBlobFile, extractApiErrorMessage } from "../api/personApiV2";
 import { useAuth } from "../context/AuthContext";
 import { canViewPersonReporting } from "../utils/roleGuards";
 
@@ -107,7 +107,8 @@ const DoctorHistoryPage = ({ embedded = false }) => {
       setSuccess(`Doctor history exported as ${format.toUpperCase()}!`);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(`Failed to export as ${format.toUpperCase()}: ${err.message}`);
+      const message = await extractApiErrorMessage(err, `Failed to export as ${format.toUpperCase()}.`);
+      setError(`Failed to export as ${format.toUpperCase()}: ${message}`);
     } finally {
       setExporting(false);
     }
@@ -187,7 +188,11 @@ const DoctorHistoryPage = ({ embedded = false }) => {
       console.log("✅ Report downloaded:", filename);
     } catch (err) {
       console.error("❌ Error generating seasonal report:", err);
-      setReportError(err.message || "Failed to generate seasonal report. Please try again.");
+      const message = await extractApiErrorMessage(err, "Failed to generate seasonal report. Please try again.");
+      // A 400 here means "no data for this period" - that's an informational
+      // result, not a system failure, so don't alarm the user with a red alert.
+      const color = err?.response?.status === 400 ? "warning" : "danger";
+      setReportError({ message, color });
     } finally {
       setGeneratingReport(false);
     }
@@ -392,8 +397,8 @@ const DoctorHistoryPage = ({ embedded = false }) => {
               </Button>
 
               {reportError && (
-                <Alert color="danger" size="sm">
-                  {reportError}
+                <Alert color={reportError.color} size="sm">
+                  {reportError.message}
                 </Alert>
               )}
             </Box>

@@ -47,9 +47,6 @@ const CaseReviewModal = ({ open, onClose, item, onSuccess }) => {
   const subcaseId      = item?.subcaseId;
   const incidentId     = item?.incidentId;
 
-  // True when the user is section-level (must write the first response)
-  const isSection = allowedActions.includes('submit_response') || allowedActions.includes('accept_complaint');
-
   // Org unit type constants: 323=Administration, 324=Section, 325=Department
   // RCA ownership follows the target: Section-target → Section edits,
   // Department-target → Dept edits, Administration-target → Admin edits.
@@ -130,7 +127,10 @@ const CaseReviewModal = ({ open, onClose, item, onSuccess }) => {
   useEffect(() => {
     if (!open) return;
     // Reset all state when a new item opens
-    setComplaintOpen(isSection || isPatientServicesReview || giveMoreTimeAction !== null);
+    // Always expanded by default (Department/Administration users were
+    // getting it collapsed before, since they aren't isSection) — open by
+    // default for every role, manual collapse is still available.
+    setComplaintOpen(true);
     setActiveAction(null);
     setExplanationText('');
     setRejectionText('');
@@ -285,7 +285,7 @@ const CaseReviewModal = ({ open, onClose, item, onSuccess }) => {
       return;
     }
     if ((activeAction === 'REJECT' || activeAction === 'REOPEN') && !rejectionText.trim()) {
-      setSubmitError(activeAction === 'REOPEN' ? 'يرجى إدخال ملاحظة للقسم' : 'يرجى إدخال سبب الرفض');
+      setSubmitError(activeAction === 'REOPEN' ? 'يرجى إدخال ملاحظة للقسم' : 'يرجى إدخال سبب طلب التعديل');
       return;
     }
 

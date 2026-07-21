@@ -23,7 +23,7 @@ const WorkflowActionButtons = ({ allowedActions, activeAction, onSelect, disable
         onClick={() => onSelect('SUBMIT_RESPONSE')}
         disabled={disabled}
       >
-        إرسال الرد
+        تعليق إضافي على الرد
       </Button>
     )}
     {allowedActions.includes('accept_complaint') && (
@@ -34,7 +34,7 @@ const WorkflowActionButtons = ({ allowedActions, activeAction, onSelect, disable
         onClick={() => onSelect('ACCEPT_COMPLAINT')}
         disabled={disabled}
       >
-        قبول الشكوى
+        قبول الرد
       </Button>
     )}
     {allowedActions.includes('accept') && (
@@ -63,11 +63,11 @@ const WorkflowActionButtons = ({ allowedActions, activeAction, onSelect, disable
       <Button
         size="sm"
         variant={activeAction === 'REJECT' ? 'solid' : 'outlined'}
-        color="danger"
+        color="warning"
         onClick={() => onSelect('REJECT')}
         disabled={disabled}
       >
-        رفض
+        طلب تعديل
       </Button>
     )}
     {allowedActions.includes('reopen') && (

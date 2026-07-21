@@ -40,7 +40,9 @@ const TopBar = () => {
       case "/insight":
         return "🔍 Workflow Page";
       case "/inbox":
-        return "📥 Workflow Inbox";
+        return "📥 Notifications";
+      case "/follow-up":
+        return "📅 Calendar";
       default:
         return "📊 Dashboard";
     }

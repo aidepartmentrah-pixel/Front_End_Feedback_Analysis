@@ -8,13 +8,24 @@ import { Chip } from '@mui/joy';
 // the modal-only UI smoothing project — fix when a stage touches the Inbox
 // page's status display system directly.
 const STATUS_LABELS = {
-  SUBMITTED_TO_SECTION:             { label: 'بانتظار رد القسم',        color: 'primary' },
-  RETURNED_TO_SECTION_FOR_REVISION: { label: 'مُعاد للقسم للمراجعة',    color: 'warning' },
-  SECTION_ACCEPTED_PENDING_DEPT:    { label: 'بانتظار موافقة الدائرة',  color: 'success' },
-  RETURNED_TO_DEPT_FOR_REVISION:    { label: 'مُعاد للدائرة للمراجعة',  color: 'warning' },
-  DEPT_ACCEPTED_PENDING_ADMIN:      { label: 'بانتظار موافقة الإدارة',  color: 'success' },
-  ADMIN_APPROVED:                   { label: 'مُعتمدة',                  color: 'success' },
-  SECTION_DENIED:                   { label: 'مرفوضة من القسم',          color: 'danger'  },
+  SUBMITTED_TO_SECTION:                { label: 'بانتظار رد القسم',          color: 'primary' },
+  SUBMITTED_TO_DEPT:                   { label: 'بانتظار رد الدائرة',        color: 'primary' },
+  SUBMITTED_TO_ADMIN:                  { label: 'بانتظار رد الإدارة',        color: 'primary' },
+  RETURNED_TO_SECTION_FOR_REVISION:    { label: 'مُعاد للقسم للمراجعة',      color: 'warning' },
+  SECTION_ACCEPTED_PENDING_DEPT:       { label: 'بانتظار موافقة الدائرة',    color: 'success' },
+  RETURNED_TO_DEPT_FOR_REVISION:       { label: 'مُعاد للدائرة للمراجعة',    color: 'warning' },
+  DEPT_ACCEPTED_PENDING_ADMIN:         { label: 'بانتظار موافقة الإدارة',    color: 'success' },
+  ADMIN_APPROVED:                      { label: 'مُعتمدة',                    color: 'success' },
+  SECTION_DENIED:                      { label: 'مرفوضة من القسم',            color: 'danger'  },
+  WAITING_PATIENT_SERVICES_DECISION:   { label: 'بانتظار قرار خدمات المرضى',  color: 'warning' },
+  PATIENT_SERVICES_DECISION_COMPLETED: { label: 'تم إدخال قرار خدمات المرضى', color: 'success' },
+  DECISION_ACKNOWLEDGED:               { label: 'تم تأكيد القرار',            color: 'success' },
+  FORCE_CLOSED:                        { label: 'مغلقة قسريًا',               color: 'danger'  },
+  FORCE_CLOSED_AT_SECTION:             { label: 'مغلقة قسريًا — القسم',       color: 'danger'  },
+  FORCE_CLOSED_AT_DEPARTMENT:          { label: 'مغلقة قسريًا — الدائرة',     color: 'danger'  },
+  FORCE_CLOSED_AT_ADMINISTRATION:      { label: 'مغلقة قسريًا — الإدارة',     color: 'danger'  },
+  FORCE_CLOSED_COMPLETE:               { label: 'مغلقة قسريًا (نهائي)',       color: 'danger'  },
+  FORCE_CLOSED_DRAFT:                  { label: 'مسودة إغلاق قسري',           color: 'neutral' },
 };
 
 /**

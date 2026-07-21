@@ -1,5 +1,6 @@
 import React from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { renderBarValueLabel, BAR_LABEL_TOP_MARGIN, barLabelYAxisDomain, percentOf } from "./chartLabels";
 
 // Custom tick component for vertical labels positioned below bars
 const CustomXAxisTick = ({ x, y, payload }) => {
@@ -20,7 +21,7 @@ const CustomXAxisTick = ({ x, y, payload }) => {
   );
 };
 
-const StageHistogram = ({ data = [], onBarClick }) => {
+const StageHistogram = ({ data = [], onBarClick, total }) => {
   const [activeIndex, setActiveIndex] = React.useState(null);
 
   const handleClick = (data, index) => {
@@ -45,10 +46,10 @@ const StageHistogram = ({ data = [], onBarClick }) => {
 
   if (chartData.length === 0) {
     return (
-      <div style={{ 
-        height: 300, 
-        display: 'flex', 
-        alignItems: 'center', 
+      <div style={{
+        height: 300,
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'center',
         color: '#999',
         fontSize: '14px'
@@ -58,36 +59,38 @@ const StageHistogram = ({ data = [], onBarClick }) => {
     );
   }
 
+  const resolvedTotal = typeof total === "number" ? total : chartData.reduce((sum, d) => sum + (d.count || 0), 0);
+
   return (
     <ResponsiveContainer width="100%" height={320}>
-      <BarChart data={chartData} margin={{ top: 10, right: 20, left: 5, bottom: 100 }}>
-        <XAxis 
-          dataKey="displayStage" 
+      <BarChart data={chartData} margin={{ top: BAR_LABEL_TOP_MARGIN, right: 20, left: 5, bottom: 100 }}>
+        <XAxis
+          dataKey="displayStage"
           height={100}
           interval={0}
           tick={<CustomXAxisTick />}
           axisLine={{ stroke: '#ccc' }}
           tickLine={{ stroke: '#ccc' }}
         />
-        <YAxis />
-        <Tooltip 
+        <YAxis domain={barLabelYAxisDomain} />
+        <Tooltip
           cursor={{ fill: '#ffa50215' }}
           content={({ active, payload }) => {
             if (active && payload && payload[0]) {
               return (
                 <div style={{ bgcolor: '#fff', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '12px' }}>
                   <p style={{ margin: '0 0 4px 0' }}><strong>{payload[0].payload.fullStage}</strong></p>
-                  <p style={{ margin: '0' }}>Count: {payload[0].value}</p>
+                  <p style={{ margin: '0' }}>Count: {payload[0].value} ({percentOf(payload[0].value, resolvedTotal)}%)</p>
                 </div>
               );
             }
             return null;
           }}
         />
-        <Bar dataKey="count" onClick={handleClick} cursor="pointer">
+        <Bar dataKey="count" onClick={handleClick} cursor="pointer" label={renderBarValueLabel(resolvedTotal)}>
           {chartData.map((entry, index) => (
-            <Cell 
-              key={`cell-${index}`} 
+            <Cell
+              key={`cell-${index}`}
               fill={activeIndex === index ? "#ffa502" : "#ff9800"}
             />
           ))}

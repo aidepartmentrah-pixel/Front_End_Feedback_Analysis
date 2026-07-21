@@ -43,6 +43,7 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import WarningIcon from "@mui/icons-material/Warning";
 import ErrorIcon from "@mui/icons-material/Error";
 import InfoIcon from "@mui/icons-material/Info";
+import DownloadIcon from "@mui/icons-material/Download";
 import theme from '../../theme';
 import * as trainingApi from '../../api/training';
 
@@ -65,6 +66,11 @@ const Training = () => {
   const [isTraining, setIsTraining] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  // State for versioned training-run history (Stage 10)
+  const [versionedRuns, setVersionedRuns] = useState([]);
+  const [versionedRunsLoading, setVersionedRunsLoading] = useState(true);
+  const [downloadingRunId, setDownloadingRunId] = useState(null);
   
   // Phase 5: Filter & Sort States
   const [groupBy, setGroupBy] = useState("family"); // "family" | "performance" | "record_count"
@@ -135,6 +141,31 @@ const Training = () => {
     }
   };
 
+  // Fetch versioned training-run history (Stage 10)
+  const fetchVersionedRuns = async () => {
+    try {
+      setVersionedRunsLoading(true);
+      const data = await trainingApi.getVersionedRuns();
+      setVersionedRuns(data);
+    } catch (err) {
+      console.error("Error fetching versioned training runs:", err);
+    } finally {
+      setVersionedRunsLoading(false);
+    }
+  };
+
+  const handleDownloadRun = async (runId) => {
+    try {
+      setDownloadingRunId(runId);
+      await trainingApi.downloadRunArtifacts(runId);
+    } catch (err) {
+      console.error("Error downloading training run artifacts:", err);
+      setError("Failed to download training run artifacts: " + err.message);
+    } finally {
+      setDownloadingRunId(null);
+    }
+  };
+
   // Start training
   const handleTraining = async () => {
     try {
@@ -153,6 +184,7 @@ const Training = () => {
       setTimeout(() => {
         fetchGroupedStatus();
         fetchCharts();
+        fetchVersionedRuns();
       }, 1000);
       
     } catch (err) {
@@ -238,6 +270,7 @@ const Training = () => {
   useEffect(() => {
     fetchGroupedStatus();
     fetchCharts();
+    fetchVersionedRuns();
   }, []);
 
   // Poll status every 30 seconds
@@ -287,6 +320,7 @@ const Training = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case "completed": return "success";
+      case "completed_with_warnings": return "warning";
       case "running": return "warning";
       case "failed": return "danger";
       default: return "neutral";
@@ -637,6 +671,62 @@ const Training = () => {
           )}
         </>
       )}
+
+      {/* Versioned Training-Run Artifacts (Stage 10) */}
+      <Card sx={{ p: 3 }}>
+        <Typography level="h3" sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+          🗂️ Training Run Artifacts
+        </Typography>
+        {versionedRunsLoading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+            <CircularProgress />
+          </Box>
+        ) : versionedRuns.length > 0 ? (
+          <Table sx={{ "--Table-headerUnderlineThickness": "2px" }}>
+            <thead>
+              <tr>
+                <th>Run ID</th>
+                <th>Status</th>
+                <th>Started At</th>
+                <th>Models</th>
+                <th>Warnings</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {versionedRuns.map((run) => (
+                <tr key={run.run_id}>
+                  <td>{run.run_id}</td>
+                  <td>
+                    <Chip size="sm" color={getStatusColor(run.status)} variant="soft">
+                      {run.status}
+                    </Chip>
+                  </td>
+                  <td>{run.started_at ? formatDateTime(run.started_at) : "—"}</td>
+                  <td>{run.model_count}</td>
+                  <td>{run.families_with_warnings}</td>
+                  <td>
+                    <Button
+                      size="sm"
+                      variant="outlined"
+                      startDecorator={<DownloadIcon />}
+                      loading={downloadingRunId === run.run_id}
+                      disabled={downloadingRunId !== null}
+                      onClick={() => handleDownloadRun(run.run_id)}
+                    >
+                      Download ZIP
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        ) : (
+          <Typography level="body-md" sx={{ color: "text.secondary", textAlign: "center", p: 2 }}>
+            No versioned training runs yet.
+          </Typography>
+        )}
+      </Card>
 
       {/* Train All Button */}
       <Card sx={{ p: 3 }}>

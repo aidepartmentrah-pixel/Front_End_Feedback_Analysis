@@ -97,7 +97,7 @@ const SectionComplianceTable = ({ data, scope, defaultExpanded = true }) => {
                 <tr style={{ background: "rgba(102,126,234,0.08)" }}>
                   <th style={{ fontWeight: 700, minWidth: 180 }}>Classification</th>
                   <th style={{ textAlign: "center", fontWeight: 700, width: 90 }}>
-                    Total<br />
+                    Low<br />
                     <span style={{ fontSize: "10px", fontWeight: 400, color: "#888" }}>actual / target</span>
                   </th>
                   <th style={{ textAlign: "center", fontWeight: 700, width: 90 }}>
@@ -114,7 +114,7 @@ const SectionComplianceTable = ({ data, scope, defaultExpanded = true }) => {
               <tbody>
                 {sorted.map((row, idx) => {
                   const cfg = STATUS_CONFIG[row.compliance_status] || STATUS_CONFIG.Compliant;
-                  const totalViolated  = row.total_target  != null && row.total_actual  > row.total_target;
+                  const lowViolated    = row.low_target    != null && row.low_actual    > row.low_target;
                   const mediumViolated = row.medium_target != null && row.medium_actual > row.medium_target;
                   const highViolated   = row.high_target   != null && row.high_actual   > row.high_target;
 
@@ -136,7 +136,7 @@ const SectionComplianceTable = ({ data, scope, defaultExpanded = true }) => {
                         )}
                       </td>
                       <td>
-                        <AVT actual={row.total_actual}  target={row.total_target}  violated={totalViolated}  />
+                        <AVT actual={row.low_actual}  target={row.low_target}  violated={lowViolated}  />
                       </td>
                       <td>
                         <AVT actual={row.medium_actual} target={row.medium_target} violated={mediumViolated} />

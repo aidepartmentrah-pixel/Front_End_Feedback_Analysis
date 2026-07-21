@@ -65,12 +65,15 @@ const TableView = () => {
     target_admin_id: null,
     domain_id: null,
     category_id: null,
+    subcategory_id: null,
+    classification_id: null,
     severity_id: null,
     stage_id: null,
     harm_level_id: null,
     case_status_id: null,
-    year: null,
-    month: null,
+    clinical_risk_type_id: null,
+    feedback_intent_type_id: null,
+    source_id: null,
     start_date: null,
     end_date: null,
   });
@@ -143,11 +146,15 @@ const TableView = () => {
           issuing_org_units: data.departments || [],
           domains: data.domains || [],
           categories: data.categories || [],
+          subcategories: data.subcategories || [],
           severities: data.severity_levels || data.severity || [],
           stages: data.stages || [],
           harm_levels: data.harm_levels || data.harm || [],
           classifications_en: data.classifications_en || [],
           statuses: data.statuses || data.case_statuses || data.status || [],
+          clinical_risk_types: data.clinical_risk_types || [],
+          feedback_intent_types: data.feedback_intent_types || [],
+          sources: data.sources || [],
           years: data.years || [],
           sections,
           target_departments: data.target_departments || [],
@@ -225,12 +232,15 @@ const TableView = () => {
       target_admin_id: null,
       domain_id: null,
       category_id: null,
+      subcategory_id: null,
+      classification_id: null,
       severity_id: null,
       stage_id: null,
       harm_level_id: null,
       case_status_id: null,
-      year: null,
-      month: null,
+      clinical_risk_type_id: null,
+      feedback_intent_type_id: null,
+      source_id: null,
       start_date: null,
       end_date: null,
     });
@@ -551,6 +561,7 @@ const TableView = () => {
           loading={loadingFilters}
           onChange={handleFilterChange}
           onClear={handleClearFilters}
+          user={user}
         />
 
         {/* Results Summary */}
@@ -629,6 +640,8 @@ const TableView = () => {
               viewMode={viewMode}
               customView={selectedCustomView}
               filterOptions={filterOptions}
+              filters={filters}
+              onHeaderFilterChange={handleFilterChange}
               isReadOnly={isReadOnly}
             />
 

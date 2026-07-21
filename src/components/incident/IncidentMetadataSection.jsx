@@ -28,10 +28,21 @@ const IncidentMetadataSection = ({
       </Typography>
       <Divider sx={{ mb: 2 }} />
 
-      {/* Row 1: date + issuing dept + source */}
+      {/* Row 1: incident date + received date + issuing dept + source */}
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mb: 2 }}>
         <FormControl required sx={{ flex: 1, minWidth: 160 }}>
-          <FormLabel sx={{ color: validationErrors.feedback_received_date ? "danger.500" : undefined }}>Feedback Date *</FormLabel>
+          <FormLabel sx={{ color: validationErrors.incident_date ? "danger.500" : undefined }}>Incident Date *</FormLabel>
+          <Input
+            type="date"
+            value={incident.incident_date}
+            onChange={(e) => onFieldChange("incident_date", e.target.value)}
+            color={validationErrors.incident_date ? "danger" : "neutral"}
+            slotProps={{ input: { lang: "en-GB" } }}
+          />
+        </FormControl>
+
+        <FormControl required sx={{ flex: 1, minWidth: 160 }}>
+          <FormLabel sx={{ color: validationErrors.feedback_received_date ? "danger.500" : undefined }}>Received Date *</FormLabel>
           <Input
             type="date"
             value={incident.feedback_received_date}
@@ -143,18 +154,17 @@ const IncidentMetadataSection = ({
             onRemove={() => {
               onFieldChange("patient_name", "");
               onPatientConfirmedChange(false);
-              patientSearch.setQuery("");
-              patientSearch.setResults([]);
+              patientSearch.search("");
             }}
             onAddNew={onAddNewPatient}
           />
         )}
       </Box>
 
-      {/* Complaint summary */}
+      {/* Complaint summary — optional */}
       <FormControl>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
-          <FormLabel>Complaint Summary (shared)</FormLabel>
+          <FormLabel>Complaint Summary <Typography component="span" level="body-xs" sx={{ color: "neutral.500", fontWeight: 400 }}>(Optional)</Typography></FormLabel>
         </Box>
         <Textarea
           minRows={3}

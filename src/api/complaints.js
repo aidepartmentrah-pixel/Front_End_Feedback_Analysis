@@ -7,6 +7,11 @@ const fetchWithAuth = async (url) => {
   return response.data;
 };
 
+// Header filters may store a value as an array of IDs (multi-select) or a
+// plain scalar (single-select, e.g. from the older filter panel). The backend
+// accepts both shapes as one comma-separated string.
+const toMultiParam = (value) => (Array.isArray(value) ? value.join(",") : value);
+
 /**
  * Fetch complaints with pagination, filtering, sorting
  * @param {Object} params - Query parameters
@@ -30,22 +35,26 @@ export async function fetchComplaints(params = {}) {
   if (params.target_department_id) queryParams.append("target_department_id", params.target_department_id);
   if (params.target_dept_parent_id) queryParams.append("target_dept_parent_id", params.target_dept_parent_id);
   if (params.target_admin_id) queryParams.append("target_admin_id", params.target_admin_id);
-  if (params.domain_id) queryParams.append("domain_id", params.domain_id);
-  if (params.category_id) queryParams.append("category_id", params.category_id);
-  if (params.classification_en_id) queryParams.append("classification_en_id", params.classification_en_id);
-  if (params.severity_id) queryParams.append("severity_id", params.severity_id);
-  if (params.stage_id) queryParams.append("stage_id", params.stage_id);
-  if (params.harm_level_id) queryParams.append("harm_level_id", params.harm_level_id);
-  if (params.case_status_id) queryParams.append("case_status_id", params.case_status_id);
+  if (params.domain_id) queryParams.append("domain_id", toMultiParam(params.domain_id));
+  if (params.category_id) queryParams.append("category_id", toMultiParam(params.category_id));
+  if (params.subcategory_id) queryParams.append("subcategory_id", toMultiParam(params.subcategory_id));
+  if (params.classification_id) queryParams.append("classification_id", toMultiParam(params.classification_id));
+  if (params.severity_id) queryParams.append("severity_id", toMultiParam(params.severity_id));
+  if (params.stage_id) queryParams.append("stage_id", toMultiParam(params.stage_id));
+  if (params.harm_level_id) queryParams.append("harm_level_id", toMultiParam(params.harm_level_id));
+  if (params.case_status_id) queryParams.append("case_status_id", toMultiParam(params.case_status_id));
+  if (params.clinical_risk_type_id) queryParams.append("clinical_risk_type_id", toMultiParam(params.clinical_risk_type_id));
+  if (params.feedback_intent_type_id) queryParams.append("feedback_intent_type_id", toMultiParam(params.feedback_intent_type_id));
+  if (params.source_id) queryParams.append("source_id", toMultiParam(params.source_id));
   if (params.year) queryParams.append("year", params.year);
   if (params.month) queryParams.append("month", params.month);
   if (params.start_date) queryParams.append("start_date", params.start_date);
   if (params.end_date) queryParams.append("end_date", params.end_date);
-  
+
   // Sorting
   if (params.sort_by) queryParams.append("sort_by", params.sort_by);
   if (params.sort_order) queryParams.append("sort_order", params.sort_order);
-  
+
   // View
   if (params.view) queryParams.append("view", params.view);
 
@@ -196,7 +205,7 @@ export async function fetchComplaintsCount(filters = {}) {
   
   const queryParams = new URLSearchParams();
   Object.keys(filters).forEach(key => {
-    if (filters[key]) queryParams.append(key, filters[key]);
+    if (filters[key]) queryParams.append(key, toMultiParam(filters[key]));
   });
 
   const url = `/api/complaints/count?${queryParams.toString()}`;
@@ -231,12 +240,17 @@ export async function exportComplaints(params = {}) {
   if (params.target_department_id) queryParams.append("target_department_id", params.target_department_id);
   if (params.target_dept_parent_id) queryParams.append("target_dept_parent_id", params.target_dept_parent_id);
   if (params.target_admin_id) queryParams.append("target_admin_id", params.target_admin_id);
-  if (params.domain_id) queryParams.append("domain_id", params.domain_id);
-  if (params.category_id) queryParams.append("category_id", params.category_id);
-  if (params.severity_id) queryParams.append("severity_id", params.severity_id);
-  if (params.stage_id) queryParams.append("stage_id", params.stage_id);
-  if (params.harm_level_id) queryParams.append("harm_level_id", params.harm_level_id);
-  if (params.case_status_id) queryParams.append("case_status_id", params.case_status_id);
+  if (params.domain_id) queryParams.append("domain_id", toMultiParam(params.domain_id));
+  if (params.category_id) queryParams.append("category_id", toMultiParam(params.category_id));
+  if (params.subcategory_id) queryParams.append("subcategory_id", toMultiParam(params.subcategory_id));
+  if (params.classification_id) queryParams.append("classification_id", toMultiParam(params.classification_id));
+  if (params.severity_id) queryParams.append("severity_id", toMultiParam(params.severity_id));
+  if (params.stage_id) queryParams.append("stage_id", toMultiParam(params.stage_id));
+  if (params.harm_level_id) queryParams.append("harm_level_id", toMultiParam(params.harm_level_id));
+  if (params.case_status_id) queryParams.append("case_status_id", toMultiParam(params.case_status_id));
+  if (params.clinical_risk_type_id) queryParams.append("clinical_risk_type_id", toMultiParam(params.clinical_risk_type_id));
+  if (params.feedback_intent_type_id) queryParams.append("feedback_intent_type_id", toMultiParam(params.feedback_intent_type_id));
+  if (params.source_id) queryParams.append("source_id", toMultiParam(params.source_id));
   if (params.year) queryParams.append("year", params.year);
   if (params.month) queryParams.append("month", params.month);
   if (params.start_date) queryParams.append("start_date", params.start_date);

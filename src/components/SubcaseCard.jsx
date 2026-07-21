@@ -50,6 +50,17 @@ function SubcaseCard({ subcase, onFillData, onGiveMoreTime, onEnterDecision }) {
     ? { borderLeft: '3px solid #c0392b' }
     : { borderLeft: '3px solid transparent' };
 
+  // Time-distinction fields. `deadline_at`/`extra_time_granted_at` (generic) come from
+  // the Workload Overview groups; `administration_deadline_at`/`administration_extra_time_granted_at`
+  // come from the Force-Closed-at-Administration panel — same card, two data sources.
+  const rawDeadlineAt = subcase.deadline_at ?? subcase.administration_deadline_at;
+  const rawExtraTimeGrantedAt = subcase.extra_time_granted_at ?? subcase.administration_extra_time_granted_at;
+  const deadlineAt = rawDeadlineAt ? new Date(rawDeadlineAt) : null;
+  const extraTimeGrantedAt = rawExtraTimeGrantedAt ? new Date(rawExtraTimeGrantedAt) : null;
+  const extraDaysGiven = (deadlineAt && extraTimeGrantedAt)
+    ? Math.round((deadlineAt.getTime() - extraTimeGrantedAt.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
   return (
     <div className="subcase-card" style={cardBorderStyle}>
       <div className="subcase-header">
@@ -116,7 +127,7 @@ function SubcaseCard({ subcase, onFillData, onGiveMoreTime, onEnterDecision }) {
           )}
           {subcase.category && <span className="category">{subcase.category}</span>}
           <span className="created-date">
-            {subcase.created_at ? new Date(subcase.created_at).toLocaleDateString() : '—'}
+            Publication Date: {subcase.created_at ? new Date(subcase.created_at).toLocaleDateString() : '—'}
           </span>
           {subcase.org_unit_name && (
             <span className="category">{subcase.org_unit_name}</span>
@@ -126,6 +137,18 @@ function SubcaseCard({ subcase, onFillData, onGiveMoreTime, onEnterDecision }) {
             <span className="category">Originating Section: {subcase.issuing_org_unit_name}</span>
           )}
         </div>
+        {/* Time-distinction fields — deadline, and extension detail if extra time was granted */}
+        {deadlineAt && (
+          <div className="subcase-meta">
+            <span className="category">
+              {extraTimeGrantedAt ? 'New Deadline (after extra time): ' : 'Deadline: '}
+              {deadlineAt.toLocaleDateString()}
+            </span>
+            {extraTimeGrantedAt && extraDaysGiven != null && (
+              <span className="category">+{extraDaysGiven} extra day{extraDaysGiven !== 1 ? 's' : ''} given</span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Action buttons — role-gated */}

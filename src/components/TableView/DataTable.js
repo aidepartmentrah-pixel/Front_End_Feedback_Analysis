@@ -18,6 +18,44 @@ import BarChartIcon from "@mui/icons-material/BarChart";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { getRowTheme } from "../../utils/inboxTheme";
 import { getBackendSortField } from "../../utils/tableViewSortFields";
+import ColumnHeaderFilter from "./ColumnHeaderFilter";
+
+// Columns that support header-based filtering (in addition to sorting).
+// filterKey must match the key used in TableView.js's `filters` state / backend query param.
+const HEADER_FILTER_COLUMNS = {
+  domain_name: { filterKey: "domain_id", label: "Domain" },
+  category_name: { filterKey: "category_id", label: "Category" },
+  subcategory_name: { filterKey: "subcategory_id", label: "Subcategory" },
+  classification_name: { filterKey: "classification_id", label: "Classification" },
+  severity_name: { filterKey: "severity_id", label: "Severity" },
+  stage_name: { filterKey: "stage_id", label: "Stage" },
+  harm_level: { filterKey: "harm_level_id", label: "Harm Level" },
+  clinical_risk_type_name: { filterKey: "clinical_risk_type_id", label: "Clinical Risk" },
+  feedback_intent_type_name: { filterKey: "feedback_intent_type_id", label: "Feedback Intent" },
+  source_name: { filterKey: "source_id", label: "Source" },
+  status_name: { filterKey: "case_status_id", label: "Status" },
+};
+
+const normalizeSelectedIds = (value) => {
+  if (Array.isArray(value)) return value;
+  if (value === null || value === undefined || value === "") return [];
+  return [value];
+};
+
+const buildFilterOptions = (list, idKey, labelKeys) => {
+  if (!Array.isArray(list)) return [];
+  return list.map((item) => {
+    const id = item[idKey] ?? item.id;
+    let label;
+    for (const k of labelKeys) {
+      if (item[k]) {
+        label = item[k];
+        break;
+      }
+    }
+    return { id, label: label || `#${id}` };
+  });
+};
 
 // Domain colors - Subtle backgrounds, functional not decorative
 const getDomainColor = (domain) => {
@@ -148,7 +186,7 @@ const getStatusColor = (status) => {
   return "neutral";
 };
 
-const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode, customView, onEdit, onDelete, onForceClose, canForceClose, filterOptions, onPublish, onMarkReady, onViewResponses, onAddSatisfaction, isReadOnly }) => {
+const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode, customView, onEdit, onDelete, onForceClose, canForceClose, filterOptions, filters, onHeaderFilterChange, onPublish, onMarkReady, onViewResponses, onAddSatisfaction, isReadOnly }) => {
   
   // Log filterOptions once for debugging
   React.useEffect(() => {
@@ -199,6 +237,63 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
     return classification?.Classification_EN || classification?.name || classification?.classification_name || `Class ${classificationId}`;
   };
   
+  // Options for a header filter popover, narrowed by the hierarchy of
+  // Domain -> Category -> Subcategory -> Classification selections already applied.
+  const getHeaderFilterOptions = (colKey) => {
+    const selectedDomainIds = normalizeSelectedIds(filters?.domain_id);
+    const selectedCategoryIds = normalizeSelectedIds(filters?.category_id);
+    const selectedSubcategoryIds = normalizeSelectedIds(filters?.subcategory_id);
+
+    switch (colKey) {
+      case "domain_name":
+        return buildFilterOptions(filterOptions?.domains, "id", ["name_en", "name_ar", "name"]);
+      case "category_name": {
+        let list = filterOptions?.categories || [];
+        if (selectedDomainIds.length) list = list.filter((c) => selectedDomainIds.includes(c.domain_id));
+        return buildFilterOptions(list, "id", ["name_en", "name_ar", "name"]);
+      }
+      case "subcategory_name": {
+        let list = filterOptions?.subcategories || [];
+        if (selectedCategoryIds.length) list = list.filter((s) => selectedCategoryIds.includes(s.category_id));
+        return buildFilterOptions(list, "id", ["name_en", "name_ar", "name"]);
+      }
+      case "classification_name": {
+        let list = filterOptions?.classifications_en || [];
+        if (selectedSubcategoryIds.length) {
+          list = list.filter((cl) => selectedSubcategoryIds.includes(cl.SubCategoryID ?? cl.subcategory_id));
+        }
+        return list.map((item) => {
+          const id = item.ClassificationID ?? item.id;
+          return {
+            id,
+            label: item.Classification_EN || item.Classification_AR || item.name || `#${id}`,
+          };
+        });
+      }
+      case "severity_name":
+        return buildFilterOptions(filterOptions?.severities, "id", ["name_en", "name_ar", "name"]);
+      case "harm_level":
+        return buildFilterOptions(filterOptions?.harm_levels, "id", ["name_en", "name_ar", "name"]);
+      case "stage_name":
+        return buildFilterOptions(filterOptions?.stages, "id", ["name_en", "name_ar", "name"]);
+      case "clinical_risk_type_name":
+        return buildFilterOptions(filterOptions?.clinical_risk_types, "id", ["name_en", "name_ar", "name"]);
+      case "feedback_intent_type_name":
+        return buildFilterOptions(filterOptions?.feedback_intent_types, "id", ["name_en", "name_ar", "name"]);
+      case "source_name":
+        return buildFilterOptions(filterOptions?.sources, "id", ["name_en", "name_ar", "name"]);
+      case "status_name":
+        return buildFilterOptions(filterOptions?.statuses, "id", ["name_en", "name_ar", "name"]);
+      default:
+        return [];
+    }
+  };
+
+  const handleHeaderFilterApply = (filterKey, ids) => {
+    if (!onHeaderFilterChange) return;
+    onHeaderFilterChange({ ...filters, [filterKey]: ids.length ? ids : null });
+  };
+
   const renderSortIcon = (column) => {
     const isActive = sortBy === getBackendSortField(column);
     if (!isActive) return null;
@@ -247,15 +342,18 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
     { key: "incident_number", label: "Incident #", sortable: true, showKey: "ShowIncidentNumber", widthFlex: 1 },
     { key: "complaint_number", label: "Case #", sortable: true, showKey: "ShowIncidentRequestCaseID", widthFlex: 1 },
     { key: "complaint_text", label: "Complaint Text", sortable: false, showKey: "ShowComplaintText", widthFlex: 3 },
+    { key: "complaint_summary", label: "Complaint Summary", sortable: true, showKey: "ShowComplaintSummary", widthFlex: 2 },
     { key: "immediate_action", label: "Immediate Action", sortable: false, showKey: "ShowImmediateAction", widthFlex: 2.1 },
     { key: "taken_action", label: "Taken Action", sortable: false, showKey: "ShowTakenAction", widthFlex: 2.1 },
     { key: "received_date", label: "Received Date", sortable: true, showKey: "ShowFeedbackRecievedDate", widthFlex: 1 },
+    { key: "incident_date", label: "Incident Date", sortable: true, showKey: "ShowIncidentDate", widthFlex: 1 },
     { key: "patient_name", label: "Patient Name", sortable: true, showKey: "ShowPatientName", widthFlex: 1 },
     { key: "issuing_org_unit_name", label: "Issuing Dept", sortable: false, showKey: "ShowIssuingOrgUnitID", widthFlex: 1 },
     { key: "created_at", label: "Created At", sortable: true, showKey: "ShowCreatedAt", widthFlex: 1 },
+    { key: "publication_date", label: "Publication Date", sortable: true, showKey: "ShowPublicationDate", widthFlex: 1 },
     { key: "created_by_user_id", label: "Created By", sortable: false, showKey: "ShowCreatedByUserID", widthFlex: 1 },
     { key: "is_in_patient", label: "In Patient", sortable: false, showKey: "ShowIsInPatient", widthFlex: 1 },
-    { key: "clinical_risk_type_name", label: "Clinical Risk", sortable: false, showKey: "ShowClinicalRiskTypeID", widthFlex: 1 },
+    { key: "clinical_risk_type_name", label: "Clinical Risk", sortable: true, showKey: "ShowClinicalRiskTypeID", widthFlex: 1 },
     { key: "feedback_intent_type_name", label: "Feedback Intent", sortable: true, showKey: "ShowFeedbackIntentTypeID", widthFlex: 1 },
     { key: "building_name", label: "Building", sortable: false, showKey: "ShowBuildingID", widthFlex: 1 },
     { key: "domain_name", label: "Domain", sortable: true, showKey: "ShowDomainID", widthFlex: 1 },
@@ -263,18 +361,27 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
     { key: "subcategory_name", label: "Subcategory", sortable: true, showKey: "ShowSubCategoryID", widthFlex: 1 },
     { key: "classification_name", label: "Classification", sortable: true, showKey: "ShowClassificationID", widthFlex: 1 },
     { key: "severity_name", label: "Severity", sortable: true, showKey: "ShowSeverityID", widthFlex: 1 },
-    { key: "stage_name", label: "Stage", sortable: false, showKey: "ShowStageID", widthFlex: 1 },
+    { key: "stage_name", label: "Stage", sortable: true, showKey: "ShowStageID", widthFlex: 1 },
     { key: "harm_level", label: "Harm Level", sortable: true, showKey: "ShowHarmLevelID", widthFlex: 1 },
     { key: "status_name", label: "Status", sortable: true, showKey: "ShowCaseStatusID", widthFlex: 1 },
     { key: "source_name", label: "Source", sortable: true, showKey: "ShowSourceID", widthFlex: 1 },
     { key: "explanation_status_name", label: "Explanation Status", sortable: false, showKey: "ShowExplanationStatusID", widthFlex: 1 },
-    { key: "section_answer", label: "Section Answer", sortable: false, showKey: "ShowSectionAnswer", widthFlex: 2 },
-    { key: "department_answer", label: "Department Answer", sortable: false, showKey: "ShowDepartmentAnswer", widthFlex: 2 },
-    { key: "administration_answer", label: "Administration Answer", sortable: false, showKey: "ShowAdministrationAnswer", widthFlex: 2 },
+    { key: "section_answer", label: "Section Reply", sortable: false, showKey: "ShowSectionAnswer", widthFlex: 2 },
+    { key: "department_answer", label: "Dept Reply", sortable: false, showKey: "ShowDepartmentAnswer", widthFlex: 2 },
+    { key: "administration_answer", label: "Admin Reply", sortable: false, showKey: "ShowAdministrationAnswer", widthFlex: 2 },
+    { key: "section_entry", label: "Section Entry", sortable: true, showKey: "ShowSectionEntry", widthFlex: 1 },
+    { key: "section_deadline", label: "Section Deadline", sortable: true, showKey: "ShowSectionDeadline", widthFlex: 1 },
+    { key: "department_entry", label: "Dept Entry", sortable: true, showKey: "ShowDepartmentEntry", widthFlex: 1 },
+    { key: "department_deadline", label: "Dept Deadline", sortable: true, showKey: "ShowDepartmentDeadline", widthFlex: 1 },
+    { key: "administration_entry", label: "Admin Entry", sortable: true, showKey: "ShowAdministrationEntry", widthFlex: 1 },
+    { key: "administration_deadline", label: "Admin Deadline", sortable: true, showKey: "ShowAdministrationDeadline", widthFlex: 1 },
+    { key: "rca_replies", label: "RCA Replies", sortable: true, showKey: "ShowRcaReplies", widthFlex: 2 },
+    { key: "customer_service_decision", label: "Customer Service Decision", sortable: true, showKey: "ShowCustomerServiceDecision", widthFlex: 2 },
+    { key: "customer_service_decision_date", label: "Decision Date", sortable: true, showKey: "ShowCustomerServiceDecisionDate", widthFlex: 1 },
     { key: "last_edited", label: "Last Edited", sortable: true, showKey: "ShowLastEdited", widthFlex: 1 },
     { key: "target_department_name", label: "Target Department", sortable: true, showKey: "ShowTargetDepartment", widthFlex: 1 },
-    { key: "satisfaction_status_name", label: "Satisfaction Status", sortable: false, showKey: "ShowSatisfactionStatus", widthFlex: 1 },
-    { key: "satisfaction_date", label: "Satisfaction Date", sortable: false, showKey: "ShowSatisfactionDate", widthFlex: 1 },
+    { key: "satisfaction_status_name", label: "Satisfaction", sortable: false, showKey: "ShowSatisfactionStatus", widthFlex: 1 },
+    { key: "satisfaction_date", label: "Follow-up Date", sortable: false, showKey: "ShowSatisfactionDate", widthFlex: 1 },
     { key: "red_flag_indicator", label: "Red Flag", sortable: false, showKey: "ShowRedFlagIndicator", widthFlex: 1 },
     { key: "never_event_indicator", label: "Never Event", sortable: false, showKey: "ShowNeverEventIndicator", widthFlex: 1 },
     { key: "morbidity_indicator", label: "Morbidity", sortable: false, showKey: "ShowMorbidityIndicator", widthFlex: 1 },
@@ -288,6 +395,7 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
     { key: "incident_number", label: "Incident #", sortable: true, widthFlex: 1 },
     { key: "complaint_number", label: "Case #", sortable: true, widthFlex: 1 },
     { key: "received_date", label: "Received Date", sortable: true, widthFlex: 1 },
+    { key: "incident_date", label: "Incident Date", sortable: true, widthFlex: 1 },
     { key: "patient_name", label: "Patient Name", sortable: true, widthFlex: 1 },
     { key: "issuing_org_unit_name", label: "Issuing Dept", sortable: false, widthFlex: 1 },
     { key: "domain_name", label: "Domain", sortable: true, widthFlex: 1 },
@@ -295,9 +403,10 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
     { key: "subcategory_name", label: "Subcategory", sortable: true, widthFlex: 1 },
     { key: "classification_name", label: "Classification", sortable: true, widthFlex: 1 },
     { key: "severity_name", label: "Severity", sortable: true, widthFlex: 1 },
-    { key: "stage_name", label: "Stage", sortable: false, widthFlex: 1 },
+    { key: "stage_name", label: "Stage", sortable: true, widthFlex: 1 },
     { key: "harm_level", label: "Harm Level", sortable: true, widthFlex: 1 },
     { key: "status_name", label: "Status", sortable: true, widthFlex: 1 },
+    { key: "publication_date", label: "Publication Date", sortable: true, widthFlex: 1 },
     { key: "last_edited", label: "Last Edited", sortable: true, widthFlex: 1 },
   ];
 
@@ -382,15 +491,33 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
         </colgroup>
         <thead>
           <tr>
-            {columns.map((col) =>
-              col.sortable ? (
+            {columns.map((col) => {
+              const headerFilterConfig = HEADER_FILTER_COLUMNS[col.key];
+              if (col.sortable && headerFilterConfig) {
+                const options = getHeaderFilterOptions(col.key);
+                const selected = normalizeSelectedIds(filters?.[headerFilterConfig.filterKey]);
+                return (
+                  <SortableHeader key={col.key} column={col.key}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <span>{col.label}</span>
+                      <ColumnHeaderFilter
+                        label={headerFilterConfig.label}
+                        options={options}
+                        selected={selected}
+                        onApply={(ids) => handleHeaderFilterApply(headerFilterConfig.filterKey, ids)}
+                      />
+                    </Box>
+                  </SortableHeader>
+                );
+              }
+              return col.sortable ? (
                 <SortableHeader key={col.key} column={col.key}>
                   {col.label}
                 </SortableHeader>
               ) : (
                 <th key={col.key}>{col.label}</th>
-              )
-            )}
+              );
+            })}
           </tr>
         </thead>
         <tbody>
@@ -733,7 +860,7 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
                         {complaint[col.key]}
                       </Box>
                     ) : <Box sx={{ display: "inline-block", px: 1.5, py: 0.5, borderRadius: "4px", fontSize: "0.8125rem", fontWeight: 400, bgcolor: "#f1f5f9", color: "#94a3b8", border: "1px solid #e2e8f0" }}>—</Box>
-                  ) : col.key === "section_answer" || col.key === "department_answer" || col.key === "administration_answer" ? (
+                  ) : col.key === "section_answer" || col.key === "department_answer" || col.key === "administration_answer" || col.key === "rca_replies" || col.key === "customer_service_decision" || col.key === "complaint_summary" ? (
                     <Box
                       sx={{
                         fontSize: "0.8125rem",
@@ -752,7 +879,7 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
                     >
                       {complaint[col.key] || "—"}
                     </Box>
-                  ) : col.key === "received_date" || col.key === "created_at" ? (
+                  ) : col.key === "received_date" || col.key === "created_at" || col.key === "incident_date" ? (
                     <Box sx={{ fontSize: "0.8125rem", color: "#6b7280" }}>
                       {complaint[col.key] ? new Date(complaint[col.key]).toLocaleDateString("en-US", {
                         year: "numeric",
@@ -760,7 +887,7 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
                         day: "numeric",
                       }) : "—"}
                     </Box>
-                  ) : col.key === "last_edited" || col.key === "satisfaction_date" ? (
+                  ) : col.key === "last_edited" || col.key === "satisfaction_date" || col.key === "publication_date" || col.key === "customer_service_decision_date" || col.key === "section_entry" || col.key === "section_deadline" || col.key === "department_entry" || col.key === "department_deadline" || col.key === "administration_entry" || col.key === "administration_deadline" ? (
                     <Box sx={{ fontSize: "0.8125rem", color: complaint[col.key] ? "#374151" : "#94a3b8", fontStyle: complaint[col.key] ? "normal" : "italic" }}>
                       {complaint[col.key] ? new Date(complaint[col.key]).toLocaleDateString("en-US", {
                         year: "numeric",

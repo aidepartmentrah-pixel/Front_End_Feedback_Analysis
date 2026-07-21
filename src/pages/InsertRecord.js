@@ -150,6 +150,7 @@ const InsertRecord = () => {
         setIncident({
           complaint_summary: record.incident_summary || record.complaint_text || "",
           feedback_received_date: record.received_date || TODAY,
+          incident_date: record.incident_date || record.received_date || TODAY,
           issuing_department_id: record.issuing_org_unit_id || null,
           source_id: record.source_id || null,
           is_inpatient: record.is_in_patient != null ? record.is_in_patient : (record.is_inpatient != null ? record.is_inpatient : true),
@@ -399,6 +400,7 @@ const InsertRecord = () => {
           immediate_action: caseData.immediate_action || "",
           taken_action: caseData.taken_action || "",
           feedback_received_date: incident.feedback_received_date,
+          incident_date: incident.incident_date,
           issuing_department_id: incident.issuing_department_id ? Number(incident.issuing_department_id) : undefined,
           source_id: incident.source_id ? Number(incident.source_id) : undefined,
           building_id: incident.building_id ? Number(incident.building_id) : undefined,
@@ -763,7 +765,11 @@ const InsertRecord = () => {
                       <Typography level="body-sm" fontWeight={600}>{incident.patient_name || "—"}</Typography>
                     </Box>
                     <Box sx={{ flex: 1, minWidth: 180 }}>
-                      <Typography level="body-xs" sx={{ color: "#888" }}>Date</Typography>
+                      <Typography level="body-xs" sx={{ color: "#888" }}>Incident Date</Typography>
+                      <Typography level="body-sm">{incident.incident_date}</Typography>
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 180 }}>
+                      <Typography level="body-xs" sx={{ color: "#888" }}>Received Date</Typography>
                       <Typography level="body-sm">{incident.feedback_received_date}</Typography>
                     </Box>
                     <Box sx={{ flex: 1, minWidth: 180 }}>

@@ -5,7 +5,7 @@
  * Accessible from the Login page — NOT inside the authenticated layout.
  * Protected by a static config password (not session auth).
  */
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Card,
@@ -31,15 +31,16 @@ import { useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LockIcon from "@mui/icons-material/Lock";
 import StorageIcon from "@mui/icons-material/Storage";
-import NetworkCheckIcon from "@mui/icons-material/NetworkCheck";
 import EmailIcon from "@mui/icons-material/Email";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import SaveIcon from "@mui/icons-material/Save";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import SettingsIcon from "@mui/icons-material/Settings";
+import CloudQueueIcon from "@mui/icons-material/CloudQueue";
 import theme from "../theme";
 import {
   verifyPassword,
@@ -49,6 +50,11 @@ import {
   reloadConfig,
   getDrivers,
   getSystemStatus,
+  getExternalApiSettings,
+  saveExternalApiSettings,
+  testExternalApiConnection,
+  revealDatabasePassword,
+  revealExternalApiKey,
 } from "../api/configApi";
 
 // ─── Password Gate ──────────────────────────────────────────────
@@ -173,10 +179,61 @@ const ConfigPanel = ({ configPassword }) => {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [saveMessage, setSaveMessage] = useState(null);
+  const [restartRequired, setRestartRequired] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
+  // showDbPassword/showApiKey: whether the field is currently rendered as
+  // plain text (true) or dots (false).
+  //
+  // dbPasswordKnown/apiKeyKnown: whether the field's current value is
+  // something real (either fetched via Reveal, or typed by the admin) as
+  // opposed to the untouched masked placeholder from the initial load.
+  // This is what lets the single eye icon behave correctly in every state:
+  // clicking it when the field is still the untouched mask fetches the
+  // real value from the server; clicking it once it's "known" just toggles
+  // local visibility (no network call — and critically, never overwrites
+  // an in-progress edit with the old stored value).
+  const [showDbPassword, setShowDbPassword] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [dbPasswordKnown, setDbPasswordKnown] = useState(false);
+  const [apiKeyKnown, setApiKeyKnown] = useState(false);
+  const [dbPasswordRevealing, setDbPasswordRevealing] = useState(false);
+  const [apiKeyRevealing, setApiKeyRevealing] = useState(false);
+  const dbRevealTimeoutRef = useRef(null);
+  const apiKeyRevealTimeoutRef = useRef(null);
+
+  // Clear any pending auto-hide timers on unmount so they don't fire a
+  // state update after the page is gone.
+  useEffect(() => {
+    return () => {
+      if (dbRevealTimeoutRef.current) clearTimeout(dbRevealTimeoutRef.current);
+      if (apiKeyRevealTimeoutRef.current) clearTimeout(apiKeyRevealTimeoutRef.current);
+    };
+  }, []);
 
   // Form state (editable copy of settings)
   const [form, setForm] = useState({});
+
+  // Hospital Directory API tab — separate state, since it saves/tests
+  // independently (applies immediately, no restart-required workflow).
+  const [externalApiForm, setExternalApiForm] = useState({});
+  const [externalApiSaving, setExternalApiSaving] = useState(false);
+  const [externalApiTesting, setExternalApiTesting] = useState(false);
+  const [externalApiTestResult, setExternalApiTestResult] = useState(null);
+  const [externalApiSaveMessage, setExternalApiSaveMessage] = useState(null);
+
+  const loadExternalApiSettings = async () => {
+    try {
+      const data = await getExternalApiSettings(configPassword);
+      setExternalApiForm(data);
+      // Freshly loaded value is always the masked placeholder again — the
+      // eye icon should re-fetch on next click, not assume it already
+      // knows the real value.
+      setApiKeyKnown(false);
+      setShowApiKey(false);
+    } catch (err) {
+      console.error("Failed to load Hospital Directory API settings:", err);
+    }
+  };
 
   // Load settings + drivers + status on mount
   useEffect(() => {
@@ -186,11 +243,15 @@ const ConfigPanel = ({ configPassword }) => {
           getSettings(configPassword),
           getDrivers(configPassword),
           getSystemStatus(),
+          loadExternalApiSettings(),
         ]);
         setSettings(settingsData);
         setDrivers(driversData);
         setStatus(statusData);
         setForm(JSON.parse(JSON.stringify(settingsData))); // deep clone
+        setRestartRequired(!!settingsData.restart_required);
+        setDbPasswordKnown(false);
+        setShowDbPassword(false);
       } catch (err) {
         console.error("Failed to load config:", err);
       } finally {
@@ -199,6 +260,93 @@ const ConfigPanel = ({ configPassword }) => {
     };
     load();
   }, [configPassword]);
+
+  const updateExternalApiForm = (key, value) => {
+    setExternalApiForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  // Fetches the REAL decrypted API key and displays it for 10 seconds
+  // before auto-hiding — same accepted exception as the DB password reveal.
+  const handleRevealApiKey = async () => {
+    setApiKeyRevealing(true);
+    try {
+      const { api_key } = await revealExternalApiKey(configPassword);
+      updateExternalApiForm("api_key", api_key);
+      setApiKeyKnown(true);
+      setShowApiKey(true);
+      if (apiKeyRevealTimeoutRef.current) clearTimeout(apiKeyRevealTimeoutRef.current);
+      apiKeyRevealTimeoutRef.current = setTimeout(() => setShowApiKey(false), 10000);
+    } catch (err) {
+      setExternalApiSaveMessage({ type: "error", text: err.message });
+    } finally {
+      setApiKeyRevealing(false);
+    }
+  };
+
+  // The single eye icon's click handler for the API key field: fetches the
+  // real value on first click (while the field is still the untouched
+  // mask), then just toggles local visibility on subsequent clicks (or if
+  // the admin has already typed a new value) — never re-fetches over an
+  // in-progress edit.
+  const handleApiKeyEyeClick = () => {
+    if (showApiKey) {
+      setShowApiKey(false);
+      return;
+    }
+    if (apiKeyKnown) {
+      setShowApiKey(true);
+      return;
+    }
+    handleRevealApiKey();
+  };
+
+  const handleTestExternalApi = async () => {
+    setExternalApiTesting(true);
+    setExternalApiTestResult(null);
+    try {
+      // Test whatever's currently typed (base_url/api_key/timeout/verify_tls),
+      // so admins can check a candidate value before saving it. Runs BOTH a
+      // health check (server reachable?) and a real authenticated call
+      // (does the key work?) — health alone can't answer the second
+      // question, since /health needs no auth per the API's own contract.
+      const result = await testExternalApiConnection(configPassword, {
+        base_url: externalApiForm.base_url,
+        api_key: externalApiForm.api_key,
+        timeout_seconds: externalApiForm.timeout_seconds,
+        verify_tls: externalApiForm.verify_tls,
+      });
+      setExternalApiTestResult(result);
+      // Server persists the test result too, but refresh so the "Last
+      // connection-test" fields reflect it without a full page reload.
+      await loadExternalApiSettings();
+    } catch (err) {
+      setExternalApiTestResult({ success: false, message: err.message });
+    } finally {
+      setExternalApiTesting(false);
+    }
+  };
+
+  const handleSaveExternalApi = async () => {
+    setExternalApiSaving(true);
+    setExternalApiSaveMessage(null);
+    try {
+      const result = await saveExternalApiSettings(configPassword, {
+        base_url: externalApiForm.base_url,
+        api_key: externalApiForm.api_key,
+        timeout_seconds: externalApiForm.timeout_seconds,
+        verify_tls: externalApiForm.verify_tls,
+        // No "enabled" flag — the integration isn't an optional feature to
+        // toggle off once patient/doctor/worker data depends on it; being
+        // configured (a Base URL is set) is the only signal that matters.
+      });
+      setExternalApiSaveMessage({ type: "success", text: result.message });
+      await loadExternalApiSettings();
+    } catch (err) {
+      setExternalApiSaveMessage({ type: "error", text: err.message });
+    } finally {
+      setExternalApiSaving(false);
+    }
+  };
 
   // Helper to update nested form values
   const updateForm = (section, key, value) => {
@@ -209,6 +357,39 @@ const ConfigPanel = ({ configPassword }) => {
   };
 
   // Test DB connection
+  // Fetches the REAL stored DB password and displays it for 10 seconds
+  // before auto-hiding — an explicit, deliberate exception to "never send
+  // secrets to the browser," requested by the admin.
+  const handleRevealDbPassword = async () => {
+    setDbPasswordRevealing(true);
+    try {
+      const { password } = await revealDatabasePassword(configPassword);
+      updateForm("database", "password", password);
+      setDbPasswordKnown(true);
+      setShowDbPassword(true);
+      if (dbRevealTimeoutRef.current) clearTimeout(dbRevealTimeoutRef.current);
+      dbRevealTimeoutRef.current = setTimeout(() => setShowDbPassword(false), 10000);
+    } catch (err) {
+      setSaveMessage({ type: "error", text: err.message });
+    } finally {
+      setDbPasswordRevealing(false);
+    }
+  };
+
+  // Same contextual behavior as the API key eye icon — see its handler for
+  // the full reasoning.
+  const handleDbPasswordEyeClick = () => {
+    if (showDbPassword) {
+      setShowDbPassword(false);
+      return;
+    }
+    if (dbPasswordKnown) {
+      setShowDbPassword(true);
+      return;
+    }
+    handleRevealDbPassword();
+  };
+
   const handleTestConnection = async () => {
     setTesting(true);
     setTestResult(null);
@@ -237,11 +418,20 @@ const ConfigPanel = ({ configPassword }) => {
     setSaveMessage(null);
     try {
       const result = await saveSettings(configPassword, form);
-      setSaveMessage({ type: "success", text: "تم حفظ الإعدادات بنجاح (Settings saved successfully)" });
-      // Refresh settings from server
+      setRestartRequired(!!result.restart_required);
+      setSaveMessage({
+        type: result.restart_required ? "warning" : "success",
+        text: result.restart_required
+          ? `تم حفظ الإعدادات — يلزم إعادة تشغيل الخادم لتطبيقها (Settings saved — backend RESTART required to apply them). ${result.message || ""}`
+          : "تم حفظ الإعدادات بنجاح (Settings saved successfully)",
+      });
+      // Refresh settings from server (shows updated "saved" values; active
+      // values won't change until an actual restart)
       const fresh = await getSettings(configPassword);
       setSettings(fresh);
       setForm(JSON.parse(JSON.stringify(fresh)));
+      setDbPasswordKnown(false);
+      setShowDbPassword(false);
     } catch (err) {
       setSaveMessage({ type: "error", text: err.message });
     } finally {
@@ -249,7 +439,9 @@ const ConfigPanel = ({ configPassword }) => {
     }
   };
 
-  // Reload config + re-test DB
+  // Test whether the SAVED settings are reachable — does NOT affect the
+  // active connection currently used by live traffic (that only changes on
+  // an actual backend restart).
   const handleReload = async () => {
     setSaving(true);
     setSaveMessage(null);
@@ -257,11 +449,10 @@ const ConfigPanel = ({ configPassword }) => {
       const result = await reloadConfig(configPassword);
       const statusData = await getSystemStatus();
       setStatus(statusData);
+      setRestartRequired(!!result.restart_required);
       setSaveMessage({
-        type: result.database_connected ? "success" : "warning",
-        text: result.database_connected
-          ? "تم إعادة التحميل — قاعدة البيانات متصلة ✓ (Reloaded — Database connected)"
-          : "تم إعادة التحميل — قاعدة البيانات غير متصلة ✗ (Reloaded — Database NOT connected)",
+        type: !result.saved_settings_reachable ? "danger" : result.config_in_sync ? "success" : "warning",
+        text: result.message,
       });
     } catch (err) {
       setSaveMessage({ type: "error", text: err.message });
@@ -318,6 +509,18 @@ const ConfigPanel = ({ configPassword }) => {
         )}
       </Box>
 
+      {/* Persistent restart-required banner — stays visible independent of
+          the save/reload toast below, since it reflects a standing fact
+          (saved settings differ from the active connection), not a one-off
+          action result. */}
+      {restartRequired && (
+        <Alert color="warning" sx={{ mx: 3, mt: 2, borderRadius: "8px", fontWeight: 600 }}>
+          ⚠ الإعدادات المحفوظة تختلف عن الاتصال النشط حالياً — يلزم إعادة تشغيل الخادم لتطبيقها
+          <br />
+          (Saved settings differ from the active connection — restart the backend to apply them)
+        </Alert>
+      )}
+
       {/* Alert bar */}
       {saveMessage && (
         <Alert
@@ -342,16 +545,12 @@ const ConfigPanel = ({ configPassword }) => {
               قاعدة البيانات (Database)
             </Tab>
             <Tab sx={{ fontWeight: 600 }}>
-              <NetworkCheckIcon sx={{ mr: 1, fontSize: 20 }} />
-              الشبكة (Network)
-            </Tab>
-            <Tab sx={{ fontWeight: 600 }}>
               <EmailIcon sx={{ mr: 1, fontSize: 20 }} />
               البريد (Email)
             </Tab>
             <Tab sx={{ fontWeight: 600 }}>
-              <VisibilityIcon sx={{ mr: 1, fontSize: 20 }} />
-              العروض (Views)
+              <CloudQueueIcon sx={{ mr: 1, fontSize: 20 }} />
+              دليل المستشفى (Hospital Directory API)
             </Tab>
           </TabList>
 
@@ -369,15 +568,6 @@ const ConfigPanel = ({ configPassword }) => {
                     value={form.database?.server || ""}
                     onChange={(e) => updateForm("database", "server", e.target.value)}
                     placeholder="e.g. 192.168.1.100"
-                  />
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>Database / اسم قاعدة البيانات</FormLabel>
-                  <Input
-                    value={form.database?.database || ""}
-                    onChange={(e) => updateForm("database", "database", e.target.value)}
-                    placeholder="e.g. IncidentManager"
                   />
                 </FormControl>
 
@@ -427,10 +617,24 @@ const ConfigPanel = ({ configPassword }) => {
                     <FormControl>
                       <FormLabel>Password / كلمة المرور</FormLabel>
                       <Input
-                        type="password"
+                        type={showDbPassword ? "text" : "password"}
                         value={form.database?.password || ""}
-                        onChange={(e) => updateForm("database", "password", e.target.value)}
+                        onChange={(e) => {
+                          updateForm("database", "password", e.target.value);
+                          setDbPasswordKnown(true);
+                        }}
                         placeholder="SQL password"
+                        endDecorator={
+                          <IconButton
+                            variant="plain"
+                            size="sm"
+                            loading={dbPasswordRevealing}
+                            onClick={handleDbPasswordEyeClick}
+                            tabIndex={-1}
+                          >
+                            {showDbPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                          </IconButton>
+                        }
                       />
                     </FormControl>
                   </>
@@ -464,76 +668,25 @@ const ConfigPanel = ({ configPassword }) => {
                   <Alert
                     color={testResult.success ? "success" : "danger"}
                     startDecorator={testResult.success ? <CheckCircleIcon /> : <ErrorIcon />}
-                    sx={{ flex: 1, minWidth: 200 }}
+                    sx={{ flex: 1, minWidth: 200, flexDirection: "column", alignItems: "flex-start" }}
                   >
-                    {testResult.message}
-                    {testResult.duration_ms != null && ` (${testResult.duration_ms}ms)`}
+                    <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                      {testResult.message}
+                      {testResult.duration_ms != null && ` (${testResult.duration_ms}ms)`}
+                    </Typography>
+                    {!testResult.success && testResult.raw_error && (
+                      <Typography level="body-xs" sx={{ mt: 0.5, opacity: 0.8, fontFamily: "monospace" }}>
+                        Raw error: {testResult.raw_error}
+                      </Typography>
+                    )}
                   </Alert>
                 )}
               </Box>
             </Card>
           </TabPanel>
 
-          {/* ─── Network Tab ─────────────────────────── */}
-          <TabPanel value={1}>
-            <Card sx={{ p: 3, borderRadius: "0 0 12px 12px" }}>
-              <Typography level="title-lg" sx={{ mb: 2, fontWeight: 700 }}>
-                إعدادات الشبكة (Network Settings)
-              </Typography>
-
-              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
-                <FormControl>
-                  <FormLabel>Backend Host</FormLabel>
-                  <Input
-                    value={form.network?.backend_host || ""}
-                    onChange={(e) => updateForm("network", "backend_host", e.target.value)}
-                    placeholder="0.0.0.0"
-                  />
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>Backend Port</FormLabel>
-                  <Input
-                    type="number"
-                    value={form.network?.backend_port || ""}
-                    onChange={(e) => updateForm("network", "backend_port", parseInt(e.target.value) || 8000)}
-                    placeholder="8000"
-                  />
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>Backend API URL</FormLabel>
-                  <Input
-                    value={form.network?.backend_api_url || ""}
-                    onChange={(e) => updateForm("network", "backend_api_url", e.target.value)}
-                    placeholder="http://localhost:8000"
-                  />
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>CORS Origins (comma-separated)</FormLabel>
-                  <Input
-                    value={
-                      Array.isArray(form.network?.cors_origins)
-                        ? form.network.cors_origins.join(", ")
-                        : form.network?.cors_origins || ""
-                    }
-                    onChange={(e) =>
-                      updateForm(
-                        "network",
-                        "cors_origins",
-                        e.target.value.split(",").map((s) => s.trim())
-                      )
-                    }
-                    placeholder="http://localhost:3000, http://localhost:8000"
-                  />
-                </FormControl>
-              </Box>
-            </Card>
-          </TabPanel>
-
           {/* ─── Email Tab ────────────────────────────── */}
-          <TabPanel value={2}>
+          <TabPanel value={1}>
             <Card sx={{ p: 3, borderRadius: "0 0 12px 12px" }}>
               <Typography level="title-lg" sx={{ mb: 2, fontWeight: 700 }}>
                 إعدادات البريد الإلكتروني (Email Settings)
@@ -602,78 +755,214 @@ const ConfigPanel = ({ configPassword }) => {
             </Card>
           </TabPanel>
 
-          {/* ─── Views Tab ────────────────────────────── */}
-          <TabPanel value={3}>
+          {/* ─── Hospital Directory API Tab ─────────────── */}
+          {/* Views tab removed from the UI per explicit request — the
+              backend still reads/saves form.views unchanged (GET/POST
+              /api/config/settings still accept it), so it remains reachable
+              directly via the API if it's ever needed before Session C
+              replaces the underlying VW_* reads; it's just not exposed here. */}
+          <TabPanel value={2}>
             <Card sx={{ p: 3, borderRadius: "0 0 12px 12px" }}>
               <Typography level="title-lg" sx={{ mb: 2, fontWeight: 700 }}>
-                إعدادات العروض (Database Views)
+                إعدادات دليل المستشفى (Hospital Directory API Settings)
               </Typography>
-
               <Typography level="body-sm" sx={{ mb: 2, color: theme.colors.textSecondary }}>
-                أسماء العروض (Views) المستخدمة للربط مع أنظمة المستشفى الخارجية
+                هذه الإعدادات تُطبَّق فوراً عند الحفظ — لا حاجة لإعادة تشغيل الخادم
                 <br />
-                (View names used to integrate with external hospital systems)
+                (These settings apply immediately when saved — no backend restart required)
               </Typography>
 
-              <Box sx={{ display: "grid", gridTemplateColumns: "1fr", gap: 2, maxWidth: 500 }}>
-                <FormControl>
-                  <FormLabel>HR Employees View</FormLabel>
+              {externalApiForm.api_key_error && (
+                <Alert color="warning" sx={{ mb: 2 }}>
+                  {externalApiForm.api_key_error}
+                </Alert>
+              )}
+              {externalApiForm.encryption_key_configured === false && (
+                <Alert color="danger" sx={{ mb: 2 }}>
+                  SETTINGS_ENCRYPTION_KEY is not configured on the server — saving an API key will fail until it is set.
+                </Alert>
+              )}
+
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 2 }}>
+                <FormControl sx={{ gridColumn: { md: "1 / -1" } }}>
+                  <FormLabel>API Base URL</FormLabel>
                   <Input
-                    value={form.views?.hr_employees_view || ""}
-                    onChange={(e) => updateForm("views", "hr_employees_view", e.target.value)}
-                    placeholder="vw_Aborad_HCATInsight_HR_Employees"
+                    value={externalApiForm.base_url || ""}
+                    onChange={(e) => updateExternalApiForm("base_url", e.target.value)}
+                    placeholder="http://<host>:<port>/api/directory/v1"
                   />
                 </FormControl>
 
                 <FormControl>
-                  <FormLabel>Patient Admission View</FormLabel>
+                  <FormLabel>API Key</FormLabel>
                   <Input
-                    value={form.views?.patient_admission_view || ""}
-                    onChange={(e) => updateForm("views", "patient_admission_view", e.target.value)}
-                    placeholder="vw_Aborad_patientAdmission"
+                    type={showApiKey ? "text" : "password"}
+                    value={externalApiForm.api_key || ""}
+                    onChange={(e) => {
+                      updateExternalApiForm("api_key", e.target.value);
+                      setApiKeyKnown(true);
+                    }}
+                    placeholder={externalApiForm.has_api_key ? "" : "Not set"}
+                    endDecorator={
+                      <IconButton
+                        variant="plain"
+                        size="sm"
+                        loading={apiKeyRevealing}
+                        onClick={handleApiKeyEyeClick}
+                        tabIndex={-1}
+                      >
+                        {showApiKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                      </IconButton>
+                    }
                   />
                 </FormControl>
 
                 <FormControl>
-                  <FormLabel>Doctors View</FormLabel>
+                  <FormLabel>Request Timeout (seconds)</FormLabel>
                   <Input
-                    value={form.views?.doctors_view || ""}
-                    onChange={(e) => updateForm("views", "doctors_view", e.target.value)}
-                    placeholder="vw_Aborad_Doctors"
+                    type="number"
+                    value={externalApiForm.timeout_seconds ?? ""}
+                    onChange={(e) => updateExternalApiForm("timeout_seconds", parseInt(e.target.value) || 10)}
+                    placeholder="10"
                   />
                 </FormControl>
+
+                <FormControl sx={{ display: "flex", alignItems: "flex-start" }}>
+                  <FormLabel>Verify TLS Certificate</FormLabel>
+                  <Switch
+                    checked={externalApiForm.verify_tls ?? true}
+                    onChange={(e) => updateExternalApiForm("verify_tls", e.target.checked)}
+                    sx={{ mt: 0.5 }}
+                  />
+                </FormControl>
+              </Box>
+
+              <Divider sx={{ my: 3 }} />
+
+              <Typography level="title-sm" sx={{ mb: 1, fontWeight: 700 }}>
+                آخر اختبار اتصال (Last Connection Test)
+              </Typography>
+              <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap", mb: 2 }}>
+                <Typography level="body-sm">
+                  Result:{" "}
+                  <Chip
+                    size="sm"
+                    variant="soft"
+                    color={externalApiForm.last_test_status === "SUCCESS" ? "success" : externalApiForm.last_test_status === "FAILED" ? "danger" : "neutral"}
+                  >
+                    {externalApiForm.last_test_status || "never tested"}
+                  </Chip>
+                </Typography>
+                <Typography level="body-sm" sx={{ color: theme.colors.textSecondary }}>
+                  {externalApiForm.last_test_message}
+                </Typography>
+                <Typography level="body-sm" sx={{ color: theme.colors.textSecondary }}>
+                  {externalApiForm.last_test_at ? new Date(externalApiForm.last_test_at).toLocaleString() : ""}
+                </Typography>
+              </Box>
+
+              {/* Test Connection */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", mb: 3 }}>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  loading={externalApiTesting}
+                  startDecorator={!externalApiTesting && <PlayArrowIcon />}
+                  onClick={handleTestExternalApi}
+                >
+                  {externalApiTesting ? "جاري الاختبار..." : "اختبار الاتصال (Test Connection)"}
+                </Button>
+
+                {externalApiTestResult && (
+                  <Alert
+                    color={externalApiTestResult.success ? "success" : "danger"}
+                    startDecorator={externalApiTestResult.success ? <CheckCircleIcon /> : <ErrorIcon />}
+                    sx={{ flex: 1, minWidth: 200, flexDirection: "column", alignItems: "flex-start", gap: 0.5 }}
+                  >
+                    <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                      {externalApiTestResult.message}
+                    </Typography>
+                    {externalApiTestResult.health && (
+                      <Typography level="body-xs">
+                        {externalApiTestResult.health.success ? "✓" : "✗"} Server reachable:{" "}
+                        {externalApiTestResult.health.message}
+                        {externalApiTestResult.health.duration_ms != null && ` (${externalApiTestResult.health.duration_ms}ms)`}
+                      </Typography>
+                    )}
+                    {externalApiTestResult.auth && (
+                      <Typography level="body-xs">
+                        {externalApiTestResult.auth.success ? "✓" : "✗"} API key verified:{" "}
+                        {externalApiTestResult.auth.message}
+                        {externalApiTestResult.auth.duration_ms != null && ` (${externalApiTestResult.auth.duration_ms}ms)`}
+                      </Typography>
+                    )}
+                  </Alert>
+                )}
+              </Box>
+
+              {externalApiSaveMessage && (
+                <Alert
+                  color={externalApiSaveMessage.type === "success" ? "success" : "danger"}
+                  sx={{ mb: 2 }}
+                >
+                  {externalApiSaveMessage.text}
+                </Alert>
+              )}
+
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Button
+                  color="primary"
+                  startDecorator={<SaveIcon />}
+                  loading={externalApiSaving}
+                  onClick={handleSaveExternalApi}
+                  sx={{
+                    background: theme.login.buttonBackground,
+                    color: theme.colors.textOnPrimary,
+                    fontWeight: 700,
+                    "&:hover": { background: theme.colors.primaryHover },
+                  }}
+                >
+                  حفظ الإعدادات (Save Settings)
+                </Button>
               </Box>
             </Card>
           </TabPanel>
         </Tabs>
 
         {/* ─── Action Buttons ─────────────────────────── */}
-        <Box sx={{ display: "flex", gap: 2, mt: 3, justifyContent: "flex-end", flexWrap: "wrap" }}>
-          <Button
-            variant="outlined"
-            color="neutral"
-            startDecorator={<RefreshIcon />}
-            loading={saving}
-            onClick={handleReload}
-          >
-            إعادة تحميل (Reload & Test)
-          </Button>
+        {/* Hidden on the Hospital Directory API tab (index 2) — that tab has
+            its own self-contained Test/Save actions and applies immediately,
+            unlike the bootstrap tabs below which need Reload & Test / a
+            restart. Showing both here would be confusing (two unrelated
+            "Save Settings" buttons on screen at once). */}
+        {activeTab !== 2 && (
+          <Box sx={{ display: "flex", gap: 2, mt: 3, justifyContent: "flex-end", flexWrap: "wrap" }}>
+            <Button
+              variant="outlined"
+              color="neutral"
+              startDecorator={<RefreshIcon />}
+              loading={saving}
+              onClick={handleReload}
+            >
+              إعادة تحميل (Reload & Test)
+            </Button>
 
-          <Button
-            color="primary"
-            startDecorator={<SaveIcon />}
-            loading={saving}
-            onClick={handleSave}
-            sx={{
-              background: theme.login.buttonBackground,
-              color: theme.colors.textOnPrimary,
-              fontWeight: 700,
-              "&:hover": { background: theme.colors.primaryHover },
-            }}
-          >
-            حفظ الإعدادات (Save Settings)
-          </Button>
-        </Box>
+            <Button
+              color="primary"
+              startDecorator={<SaveIcon />}
+              loading={saving}
+              onClick={handleSave}
+              sx={{
+                background: theme.login.buttonBackground,
+                color: theme.colors.textOnPrimary,
+                fontWeight: 700,
+                "&:hover": { background: theme.colors.primaryHover },
+              }}
+            >
+              حفظ الإعدادات (Save Settings)
+            </Button>
+          </Box>
+        )}
       </Box>
     </Box>
   );

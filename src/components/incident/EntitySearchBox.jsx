@@ -2,7 +2,7 @@
 // Generic autocomplete search box with selected-item chips and an optional
 // "add new" row. Reused for patient / doctor / employee search.
 import React, { useState, useEffect, useRef } from "react";
-import { Box, FormControl, FormLabel, Input, Card, CircularProgress, Chip, Typography } from "@mui/joy";
+import { Box, FormControl, FormLabel, Input, Card, CircularProgress, Chip, ChipDelete, Typography } from "@mui/joy";
 import AddIcon from "@mui/icons-material/Add";
 
 const EntitySearchBox = ({ label, placeholder, query, results, loading, onQueryChange, onSelect, renderOption, selectedItems, onRemove, onAddNew }) => {
@@ -83,7 +83,7 @@ const EntitySearchBox = ({ label, placeholder, query, results, loading, onQueryC
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
           {selectedItems.map((item, i) => (
             <Chip key={i} size="sm" variant="soft" color="primary" endDecorator={
-              <Box component="span" sx={{ cursor: "pointer", ml: 0.5, lineHeight: 1 }} onClick={() => onRemove(i)}>×</Box>
+              <ChipDelete onDelete={() => onRemove(i)} />
             }>
               {item.label}
             </Chip>

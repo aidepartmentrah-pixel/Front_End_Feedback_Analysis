@@ -468,6 +468,10 @@ function adaptGroupedInbox(rawList) {
               subcase.department_late_reply ||
               subcase.administration_late_reply
             ),
+            is_force_closed: Boolean(subcase.is_force_closed),
+            deadline_at: subcase.deadline_at || null,
+            extra_time_granted_at: subcase.extra_time_granted_at || null,
+            publication_date: subcase.created_at || null,
           }))
         : [],
     }));
@@ -716,6 +720,8 @@ export async function getForceClosedPipelineCases() {
       seasonal_report_id:       row.seasonal_report_id,
       give_more_time_action:    row.give_more_time_action || null,
       issuing_org_unit_name:    row.issuing_org_unit_name || null,
+      administration_deadline_at:           row.administration_deadline_at || null,
+      administration_extra_time_granted_at: row.administration_extra_time_granted_at || null,
     }));
   } catch (err) {
     const message = err.response?.data?.detail || 'Failed to load force-closed pipeline cases';

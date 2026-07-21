@@ -108,7 +108,8 @@ const ComplaintDetailsSection = ({ incidentData, item, open, onChange }) => {
               <InfoRow label="القسم المُبلِّغ"      value={incidentData.issuing_department_name} />
               <InfoRow label="الجهة المستهدفة"      value={item?.targetOrgUnitName} />
               <InfoRow label="الإجراء الفوري"       value={incidentData.immediate_action} />
-              <InfoRow label="تاريخ الحادثة"        value={incidentData.feedback_received_date} />
+              <InfoRow label="تاريخ الحادثة"        value={incidentData.incident_date} />
+              <InfoRow label="تاريخ وصول الحادثة إلى مكتب الشكاوى" value={incidentData.feedback_received_date} />
               <InfoRow label="تاريخ الاستحقاق"      value={fmtDate(dueDate)} />
               {countdown && (
                 <>

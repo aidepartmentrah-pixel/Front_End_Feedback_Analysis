@@ -39,7 +39,7 @@ const MainContentRegion = ({
           <Divider sx={{ mb: 2 }} />
           <Typography level="title-md" sx={{ mb: 0.5 }}>رأي خدمات المرضى</Typography>
           <Typography level="body-sm" sx={{ color: 'neutral.500', mb: 2 }}>
-            Patient Services Opinion
+            Customer Service Opinion
           </Typography>
           <FormControl sx={{ mb: 2 }}>
             <Textarea
@@ -85,11 +85,11 @@ const MainContentRegion = ({
                 <Alert color="success" variant="soft">
                   <Box>
                     <Typography level="body-md" sx={{ fontWeight: 600, mb: 0.5 }}>
-                      {activeAction === 'APPROVE' ? 'تأكيد القبول' : 'تأكيد قبول الشكوى'}
+                      {activeAction === 'APPROVE' ? 'تأكيد القبول' : 'تأكيد قبول الرد'}
                     </Typography>
                     {activeAction === 'ACCEPT_COMPLAINT' && (
                       <Typography level="body-sm">
-                        سيتم كتابة <strong>"قبول الشكوى"</strong> تلقائياً في حقل التوضيح. لا يلزم إدخال بنود إجراءات أو RCA.
+                        سيتم كتابة <strong>"قبول الرد"</strong> تلقائياً في حقل التوضيح. لا يلزم إدخال بنود إجراءات أو RCA.
                       </Typography>
                     )}
                   </Box>
@@ -124,10 +124,10 @@ const MainContentRegion = ({
 
               {activeAction === 'REJECT' && (
                 <FormControl required>
-                  <FormLabel>سبب الرفض</FormLabel>
+                  <FormLabel>سبب طلب التعديل</FormLabel>
                   <Textarea
                     minRows={3}
-                    placeholder="أدخل سبب الرفض..."
+                    placeholder="أدخل سبب طلب التعديل..."
                     value={rejectionText}
                     onChange={onRejectionChange}
                     disabled={submitting}

@@ -8,6 +8,7 @@ export function emptyIncident() {
   return {
     complaint_summary: "",
     feedback_received_date: TODAY,
+    incident_date: TODAY,
     issuing_department_id: null,
     source_id: null,
     is_inpatient: true,

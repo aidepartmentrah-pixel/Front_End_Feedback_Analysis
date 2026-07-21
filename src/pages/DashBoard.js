@@ -1,5 +1,5 @@
 // src/pages/DashboardPage.js
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { fetchDashboardHierarchy, fetchDashboardStats, fetchDashboardDateBounds, fetchOperationalSummary } from "../api/dashboard";
 import { indexToDate, dateToIndex, clampIndex } from "../utils/dateSliderMapping";
 import { hasFullOperationalAccess } from "../utils/roleGuards";
@@ -18,11 +18,33 @@ import DayraDashboardStats from "../components/dashboard/DayraDashboardStats";
 import QismDashboardStats from "../components/dashboard/QismDashboardStats";
 import DashboardActions from "../components/dashboard/DashboardActions";
 import LatestPublicationBatches from "../components/dashboard/LatestPublicationBatches";
+import OrgUnitSearchSelect from "../components/dashboard/OrgUnitSearchSelect";
+
+const SCOPE_OPTION_LABELS = {
+  hospital: "🏥 المستشفى",
+  administration: "📋 الإدارة",
+  department: "🏢 الدائرة",
+  section: "📌 القسم",
+};
 
 const DashboardPage = () => {
   // Auth context
   const { user } = useAuth();
-  
+
+  // Limited-admin roles are locked to their own org subtree: they can never
+  // reach "hospital" scope or another administration/department/section.
+  const roleCode = user?.scopes?.[0]?.role_code;
+  const isSectionAdmin = roleCode === "SECTION_ADMIN";
+  const isDepartmentAdmin = roleCode === "DEPARTMENT_ADMIN";
+  const isAdministrationAdmin = roleCode === "ADMINISTRATION_ADMIN";
+  const isLimitedAdmin = isSectionAdmin || isDepartmentAdmin || isAdministrationAdmin;
+
+  const allowedScopeOptions = isDepartmentAdmin
+    ? ["department", "section"]
+    : isAdministrationAdmin
+    ? ["administration", "department", "section"]
+    : ["hospital", "administration", "department", "section"];
+
 // ============================
   // STATE
   // ============================
@@ -419,15 +441,104 @@ const DashboardPage = () => {
     return hierarchy.Section?.[selectedDept] || [];
   };
 
-  const handleAdminChange = (event, newValue) => {
-    setSelectedAdmin(newValue);
+  // Flat, searchable lists for the "jump straight in" picker mode. Built
+  // from the same hierarchy payload as the cascading selects, so they're
+  // automatically bounded to whatever subtree the current user's role
+  // already restricts them to - no separate API call needed.
+  const flatDepartments = useMemo(() => {
+    if (!hierarchy) return [];
+    const adminNameById = Object.fromEntries((hierarchy.Administration || []).map((a) => [a.id, a.nameAr]));
+    return Object.entries(hierarchy.Department || {}).flatMap(([adminId, depts]) =>
+      depts.map((d) => {
+        const adminName = adminNameById[Number(adminId)] || "";
+        return { ...d, adminId: Number(adminId), adminName, parentLabel: adminName };
+      })
+    );
+  }, [hierarchy]);
+
+  const flatSections = useMemo(() => {
+    if (!hierarchy) return [];
+    const deptById = Object.fromEntries(flatDepartments.map((d) => [d.id, d]));
+    return Object.entries(hierarchy.Section || {}).flatMap(([deptId, sections]) =>
+      sections.map((s) => {
+        const dept = deptById[Number(deptId)];
+        return {
+          ...s,
+          deptId: Number(deptId),
+          adminId: dept?.adminId,
+          adminName: dept?.adminName || "",
+          parentLabel: dept ? `${dept.nameAr}${dept.adminName ? ` / ${dept.adminName}` : ""}` : "",
+        };
+      })
+    );
+  }, [hierarchy, flatDepartments]);
+
+  // Narrow the searchable lists to the currently selected parent, if any -
+  // this is what makes selecting an Administration filter the Department
+  // list, and selecting a Department filter the Section list. When no
+  // parent is selected yet, the full (role-bounded) list is searchable
+  // directly, and picking a result auto-fills its parent(s).
+  const scopedDepartments = useMemo(() => {
+    if (!selectedAdmin) return flatDepartments;
+    return flatDepartments.filter((d) => d.adminId === selectedAdmin);
+  }, [flatDepartments, selectedAdmin]);
+
+  const scopedSections = useMemo(() => {
+    if (selectedDept) return flatSections.filter((s) => s.deptId === selectedDept);
+    if (selectedAdmin) return flatSections.filter((s) => s.adminId === selectedAdmin);
+    return flatSections;
+  }, [flatSections, selectedAdmin, selectedDept]);
+
+  // All four slots (View Level, Administration, Department, Section) always
+  // render - never mounted/unmounted - so the layout never shifts as the
+  // View Level changes. A slot that isn't applicable yet is disabled with a
+  // "-" placeholder; a slot a role has permanently fixed (own administration
+  // / own department) is disabled but shows its real value, since
+  // selectedAdmin/selectedDept are already populated for that role via the
+  // auto-scope effect. Section Admin is handled separately (no grid at all).
+  const adminFieldDisabled = isLimitedAdmin || scope === "hospital";
+  const deptFieldDisabled = isDepartmentAdmin || (scope !== "department" && scope !== "section");
+  const sectionFieldDisabled = scope !== "section";
+
+  const adminPlaceholder = adminFieldDisabled ? "—" : "ابحث عن إدارة أو اختر من القائمة...";
+  const deptPlaceholder = deptFieldDisabled ? "—" : "ابحث عن دائرة أو اختر من القائمة...";
+  const sectionPlaceholder = sectionFieldDisabled ? "—" : "ابحث عن قسم أو اختر من القائمة...";
+
+  const handleAdminSelect = (adminId) => {
+    setSelectedAdmin(adminId);
     setSelectedDept("");
     setSelectedSection("");
   };
 
-  const handleDeptChange = (event, newValue) => {
-    setSelectedDept(newValue);
+  const handleDeptSelect = (deptId) => {
+    const dept = flatDepartments.find((d) => d.id === deptId);
+    setSelectedAdmin(dept?.adminId ?? "");
+    setSelectedDept(deptId);
     setSelectedSection("");
+  };
+
+  const handleSectionSelect = (sectionId) => {
+    const section = flatSections.find((s) => s.id === sectionId);
+    setSelectedAdmin(section?.adminId ?? "");
+    setSelectedDept(section?.deptId ?? "");
+    setSelectedSection(sectionId);
+  };
+
+  // Limited admins have a fixed Administration (and, for Department Admin,
+  // a fixed Department too) - switching scope levels must never clear those,
+  // only the deeper selection(s) that actually depend on the new scope.
+  const handleScopeChange = (event, newValue) => {
+    setScope(newValue);
+    if (isDepartmentAdmin) {
+      setSelectedSection("");
+    } else if (isAdministrationAdmin) {
+      setSelectedDept("");
+      setSelectedSection("");
+    } else {
+      setSelectedAdmin("");
+      setSelectedDept("");
+      setSelectedSection("");
+    }
   };
 
   // ============================
@@ -558,93 +669,81 @@ const DashboardPage = () => {
           <Typography level="title-lg" sx={{ mb: 2, fontWeight: 700 }}>
             🎯 Dashboard Scope
           </Typography>
+
+          {isSectionAdmin ? (
+            /* Section Admin has nothing to choose - they only ever see their
+               own section, so no selector is shown at all. */
+            <Typography level="body-md" sx={{ fontWeight: 600 }}>
+              📌 عرض: {getSections().find((s) => s.id === selectedSection)?.nameAr || "..."}
+            </Typography>
+          ) : (
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr 1fr" },
+              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(4, minmax(0, 1fr))" },
               gap: 3,
             }}
           >
-            {/* Scope Selector */}
-            <FormControl>
+            {/* Scope Selector - always enabled, drives everything else */}
+            <FormControl sx={{ minWidth: 0 }}>
               <FormLabel sx={{ fontWeight: 600 }}>مستوى العرض</FormLabel>
               <Select
                 value={scope}
-                onChange={(e, newValue) => {
-                  setScope(newValue);
-                  setSelectedAdmin("");
-                  setSelectedDept("");
-                  setSelectedSection("");
-                }}
+                onChange={handleScopeChange}
                 size="lg"
+                sx={{ minWidth: 0, width: "100%" }}
               >
-                <Option value="hospital">🏥 المستشفى</Option>
-                <Option value="administration">📋 الإدارة</Option>
-                <Option value="department">🏢 الدائرة</Option>
-                <Option value="section">📌 القسم</Option>
+                {allowedScopeOptions.map((opt) => (
+                  <Option key={opt} value={opt}>{SCOPE_OPTION_LABELS[opt]}</Option>
+                ))}
               </Select>
             </FormControl>
 
-            {/* Administration Selector */}
-            <FormControl>
+            {/* Administration - always rendered; disabled + fixed value for limited admins, disabled + "-" until scope needs it otherwise */}
+            <FormControl sx={{ minWidth: 0 }}>
               <FormLabel sx={{ fontWeight: 600 }}>
                 📋 الإدارة
               </FormLabel>
-              <Select
+              <OrgUnitSearchSelect
+                items={hierarchy?.Administration || []}
                 value={selectedAdmin}
-                onChange={handleAdminChange}
-                size="lg"
-                disabled={loadingHierarchy || scope === "hospital"}
-              >
-                <Option value="">جميع الإدارات</Option>
-                {(hierarchy?.Administration || []).map((admin) => (
-                  <Option key={admin.id} value={admin.id}>
-                    {admin.nameAr} ({admin.nameEn})
-                  </Option>
-                ))}
-              </Select>
+                placeholder={adminPlaceholder}
+                disabled={loadingHierarchy || adminFieldDisabled}
+                onChange={handleAdminSelect}
+              />
             </FormControl>
 
-            {/* Department Selector */}
-            <FormControl>
+            {/* Department - always rendered; disabled + fixed value for Department Admin, disabled + "-" until scope needs it otherwise */}
+            <FormControl sx={{ minWidth: 0 }}>
               <FormLabel sx={{ fontWeight: 600 }}>
                 🏢 الدائرة
               </FormLabel>
-              <Select
+              <OrgUnitSearchSelect
+                items={scopedDepartments}
                 value={selectedDept}
-                onChange={handleDeptChange}
-                size="lg"
-                disabled={loadingHierarchy || !selectedAdmin || (scope !== "department" && scope !== "section")}
-              >
-                <Option value="">جميع الدوائر</Option>
-                {getDepartments().map((dept) => (
-                  <Option key={dept.id} value={dept.id}>
-                    {dept.nameAr} ({dept.nameEn})
-                  </Option>
-                ))}
-              </Select>
+                subLabelKey="parentLabel"
+                placeholder={deptPlaceholder}
+                disabled={loadingHierarchy || deptFieldDisabled}
+                onChange={handleDeptSelect}
+              />
             </FormControl>
 
-            {/* Section Selector */}
-            <FormControl>
+            {/* Section - always rendered; disabled + "-" until View Level is exactly "section" */}
+            <FormControl sx={{ minWidth: 0 }}>
               <FormLabel sx={{ fontWeight: 600 }}>
                 📌 القسم
               </FormLabel>
-              <Select
+              <OrgUnitSearchSelect
+                items={scopedSections}
                 value={selectedSection}
-                onChange={(e, newValue) => setSelectedSection(newValue)}
-                size="lg"
-                disabled={loadingHierarchy || !selectedDept || scope !== "section"}
-              >
-                <Option value="">جميع الأقسام</Option>
-                {getSections().map((section) => (
-                  <Option key={section.id} value={section.id}>
-                    {section.nameAr} ({section.nameEn})
-                  </Option>
-                ))}
-              </Select>
+                subLabelKey="parentLabel"
+                placeholder={sectionPlaceholder}
+                disabled={loadingHierarchy || sectionFieldDisabled}
+                onChange={handleSectionSelect}
+              />
             </FormControl>
           </Box>
+          )}
 
           {/* Date Range Slider */}
           {dateBounds.totalDays !== null && (

@@ -378,7 +378,7 @@ describe('PHASE J — Sidebar Visibility Contract Tests', () => {
     // All possible menu items with their display names
     const menuMap = {
       '📊 Dashboard': 'dashboard',
-      '📥 Inbox': 'inbox',
+      '📥 Notifications': 'inbox',
       '📋 Follow Up': 'follow-up',
       '💡 Workflow Page': 'insight',
       '📊 Reporting': 'reporting',
@@ -492,7 +492,7 @@ describe('PHASE J — Sidebar Visibility Contract Tests', () => {
       
       // Should see
       expect(screen.getByText('📊 Dashboard')).toBeInTheDocument();
-      expect(screen.getByText('📥 Inbox')).toBeInTheDocument();
+      expect(screen.getByText('📥 Notifications')).toBeInTheDocument();
       expect(screen.getByText('📋 Follow Up')).toBeInTheDocument();
       expect(screen.getByText('💡 Workflow Page')).toBeInTheDocument();
       expect(screen.getByText('📊 Reporting')).toBeInTheDocument();
@@ -522,7 +522,7 @@ describe('PHASE J — Sidebar Visibility Contract Tests', () => {
       
       // Should see
       expect(screen.getByText('📊 Dashboard')).toBeInTheDocument();
-      expect(screen.getByText('📥 Inbox')).toBeInTheDocument();
+      expect(screen.getByText('📥 Notifications')).toBeInTheDocument();
       expect(screen.getByText('📋 Follow Up')).toBeInTheDocument();
       expect(screen.getByText('🎯 Target Analysis')).toBeInTheDocument();
       expect(screen.getByText('🚩 Critical Issues')).toBeInTheDocument();
@@ -550,7 +550,7 @@ describe('PHASE J — Sidebar Visibility Contract Tests', () => {
       
       // Should see
       expect(screen.getByText('📊 Dashboard')).toBeInTheDocument();
-      expect(screen.getByText('📥 Inbox')).toBeInTheDocument();
+      expect(screen.getByText('📥 Notifications')).toBeInTheDocument();
       expect(screen.getByText('📋 Follow Up')).toBeInTheDocument();
       expect(screen.getByText('🎯 Target Analysis')).toBeInTheDocument();
       expect(screen.getByText('🚩 Critical Issues')).toBeInTheDocument();
@@ -568,7 +568,7 @@ describe('PHASE J — Sidebar Visibility Contract Tests', () => {
       
       // Should see
       expect(screen.getByText('📊 Dashboard')).toBeInTheDocument();
-      expect(screen.getByText('📥 Inbox')).toBeInTheDocument();
+      expect(screen.getByText('📥 Notifications')).toBeInTheDocument();
       expect(screen.getByText('📋 Follow Up')).toBeInTheDocument();
       expect(screen.getByText('🎯 Target Analysis')).toBeInTheDocument();
       expect(screen.getByText('🚩 Critical Issues')).toBeInTheDocument();

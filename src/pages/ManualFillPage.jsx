@@ -332,14 +332,14 @@ function LevelCard({ levelConfig, levelData, isLocked, onSave, saving, isForceCl
                 disabled={saving}
                 onClick={async () => {
                   setLocalError(null);
-                  const ok = await onSave(levelConfig.key, 'قبول الشكوى', []);
+                  const ok = await onSave(levelConfig.key, 'قبول الرد', []);
                   if (ok) {
                     setSavedFlash(true);
                     setTimeout(() => setSavedFlash(false), 2500);
                   }
                 }}
               >
-                قبول الشكوى
+                قبول الرد
               </Button>
               {isFilled && (
                 <Typography level="body-xs" sx={{ color: 'neutral.500' }}>
@@ -410,7 +410,7 @@ function PatientServicesDecisionCard({ psData, isLocked, subcaseId, onRefresh })
               بانتظار قرار خدمات المرضى بحسب المراجع العلميّة
             </Typography>
             <Typography level="body-xs" sx={{ color: 'rgba(255,255,255,0.85)' }}>
-              Patient Services Scientific Decision
+              Customer Service Scientific Decision
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -428,7 +428,7 @@ function PatientServicesDecisionCard({ psData, isLocked, subcaseId, onRefresh })
       <Box sx={{ p: 2 }}>
         {isLocked ? (
           <Typography level="body-sm" sx={{ color: 'neutral.500', fontStyle: 'italic' }}>
-            🔒 This case is already complete — Patient Services Decision is read-only.
+            🔒 This case is already complete — Customer Service Decision is read-only.
           </Typography>
         ) : (
           <>
@@ -738,7 +738,7 @@ const ManualFillPage = () => {
                 color={psDecisionFilled ? 'success' : 'neutral'}
                 variant={psDecisionFilled ? 'solid' : 'outlined'}
               >
-                Patient Services: {psDecisionFilled ? 'Done' : 'Empty'}
+                Customer Service: {psDecisionFilled ? 'Done' : 'Empty'}
               </Chip>
             )}
           </Box>

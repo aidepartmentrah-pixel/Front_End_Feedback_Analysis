@@ -171,7 +171,7 @@ const CaseTabContent = ({ caseData, caseIndex, onChange, refData, sections, orgU
         <FormControl required>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
             <FormLabel sx={{ color: validationErrors.complaint_text ? "danger.500" : undefined, mb: 0 }}>
-              Complaint / Feedback Description *
+              {caseIsNotice ? "Notice Description *" : "Complaint / Feedback Description *"}
             </FormLabel>
             <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
               <SpeechToTextButton onTranscription={(t) => field("complaint_text", (caseData.complaint_text ? caseData.complaint_text + " " : "") + t)} />
@@ -182,7 +182,7 @@ const CaseTabContent = ({ caseData, caseIndex, onChange, refData, sections, orgU
                 startDecorator={<AutoFixHighIcon />}
                 loading={classifyLoading}
                 onClick={runClassify}
-                disabled={!caseData.complaint_text?.trim()}
+                disabled={!caseData.complaint_text?.trim() || caseIsNotice}
               >
                 Extract & Classify
               </Button>
@@ -191,11 +191,10 @@ const CaseTabContent = ({ caseData, caseIndex, onChange, refData, sections, orgU
           {classifyMsg && <Alert color={classifyMsg.type} size="sm" sx={{ mb: 0.5 }}>{classifyMsg.msg}</Alert>}
           <Textarea
             minRows={3}
-            placeholder="Describe this specific case…"
+            placeholder={caseIsNotice ? "Describe the notice…" : "Describe this specific case…"}
             value={caseData.complaint_text}
             onChange={(e) => field("complaint_text", e.target.value)}
             color={err("complaint_text")}
-            disabled={caseIsNotice}
           />
         </FormControl>
         <Box sx={{ display: "flex", gap: 1.5 }}>

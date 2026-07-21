@@ -22,7 +22,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Box, Card, Typography, Table, Chip, Button, CircularProgress, Tabs, TabList, Tab, TabPanel, Input, ButtonGroup } from '@mui/joy';
+import { Box, Card, Typography, Table, Chip, Button, CircularProgress, Tabs, TabList, Tab, TabPanel, Input } from '@mui/joy';
 import SearchIcon from '@mui/icons-material/Search';
 import LockIcon from '@mui/icons-material/Lock';
 import HistoryIcon from '@mui/icons-material/History';
@@ -31,18 +31,28 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import BarChartIcon from '@mui/icons-material/BarChart';
+import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/common/MainLayout';
 import ErrorPanel from '../components/common/ErrorPanel';
-import { getWorkflowInbox, getWorkflowInboxArchive } from '../api/workflowApi';
+import {
+  getWorkflowInbox,
+  getWorkflowInboxArchive,
+  getUnacknowledgedSupervisorActionItems,
+  getUnacknowledgedActionItemChangeNotices,
+} from '../api/workflowApi';
 import CaseReviewModal from '../components/workflow/CaseReviewModal';
 import SeasonalReportViewerModal from '../components/workflow/SeasonalReportViewerModal';
 import PatientServicesDecisionModal from '../components/workflow/PatientServicesDecisionModal';
 import NoticeModal from '../components/workflow/NoticeModal';
+import ActionItemNoticeModal from '../components/workflow/ActionItemNoticeModal';
 import { useAuth } from '../context/AuthContext';
+import theme from '../theme';
 import { getRowTheme } from '../utils/inboxTheme';
 import { classifyInboxArea, splitInboxAreas } from '../utils/inboxClassifier';
 import { getDeadlineCountdown, isCountdownEligible } from '../utils/deadlineCountdown';
@@ -52,6 +62,7 @@ const TYPE_ICON_MAP = {
   Campaign:     <CampaignIcon    sx={{ fontSize: 14, verticalAlign: 'middle', mr: 0.5 }} />,
   BarChart:     <BarChartIcon    sx={{ fontSize: 14, verticalAlign: 'middle', mr: 0.5 }} />,
   CheckCircle:  <CheckCircleIcon sx={{ fontSize: 14, verticalAlign: 'middle', mr: 0.5 }} />,
+  Assignment:   <AssignmentIcon  sx={{ fontSize: 14, verticalAlign: 'middle', mr: 0.5 }} />,
 };
 
 const BADGE_ICON_MAP = {
@@ -78,8 +89,12 @@ const WorkflowInboxPage = () => {
   const [archiveError, setArchiveError] = useState(null);
   const [activeTab, setActiveTab] = useState(0); // 0 = Inbox, 1 = Archive
 
-  // Case type filter state: 'all', 'incident', 'seasonal'
+  // Case type filter state: 'all', 'incident', 'notice', 'seasonal'
   const [caseTypeFilter, setCaseTypeFilter] = useState('all');
+
+  // Column sort state — defaults to Publication Date, newest first.
+  const [sortBy, setSortBy] = useState('date'); // 'date' | 'sourceUnit' | 'targetUnit'
+  const [sortOrder, setSortOrder] = useState('desc'); // 'asc' | 'desc'
 
   // Unified review modal — covers all workflow actions for incident cases
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
@@ -97,6 +112,10 @@ const WorkflowInboxPage = () => {
   const [noticeModalOpen, setNoticeModalOpen] = useState(false);
   const [noticeModalItem, setNoticeModalItem] = useState(null);
 
+  // Action item notice modal (AIC-S7 — assignment / change notifications)
+  const [actionItemNoticeModalOpen, setActionItemNoticeModalOpen] = useState(false);
+  const [actionItemNoticeModalItem, setActionItemNoticeModalItem] = useState(null);
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -108,13 +127,43 @@ const WorkflowInboxPage = () => {
     loadInbox();
   }, []);
 
+  // AIC-S7 — turn a raw assignment/change notice into an inbox-row-shaped item.
+  // Merged client-side (same pattern as the Calendar's supervisor-action-item
+  // merge) since these come from tables outside the subcase-driven inbox query.
+  const toAssignedNoticeRow = (n) => ({
+    ...n,
+    subcaseId: n.subcaseId,
+    status: 'ACTION_ITEM_ASSIGNED_NOTICE',
+    targetOrgUnitName: n.targetOrgUnitName,
+    targetOrgUnitId: n.targetOrgUnitId,
+    displayDate: n.createdAt,
+    allowedActions: [],
+  });
+  const toChangedNoticeRow = (n) => ({
+    ...n,
+    subcaseId: n.subcaseId,
+    status: 'ACTION_ITEM_CHANGED_NOTICE',
+    targetOrgUnitName: null,
+    targetOrgUnitId: null,
+    displayDate: n.changedAt,
+    allowedActions: [],
+  });
+
   const loadInbox = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      const inboxItems = await getWorkflowInbox();
-      setItems(inboxItems);
+      const [inboxItems, assignedNotices, changedNotices] = await Promise.all([
+        getWorkflowInbox(),
+        getUnacknowledgedSupervisorActionItems(),
+        getUnacknowledgedActionItemChangeNotices(),
+      ]);
+      setItems([
+        ...assignedNotices.map(toAssignedNoticeRow),
+        ...changedNotices.map(toChangedNoticeRow),
+        ...inboxItems,
+      ]);
     } catch (err) {
       // Network error detection
       if (!err.response && err.message === 'Network error') {
@@ -179,19 +228,16 @@ const WorkflowInboxPage = () => {
   // ============================
   const isNoticeItem = (item) => item.messageType === 'NOTICE';
 
-  // Patient Services decision pending, shown informationally to Section/Department/
-  // Administration (no save/edit action available to them — only COMPLAINT_SUPERVISOR
-  // can record the decision). Routed through NoticeModal like any other FYI notice.
-  const isPatientServicesInfoItem = (item) =>
-    item.messageType === 'PATIENT_SERVICES_OPINION' &&
-    !item.allowedActions?.includes('save_patient_services_decision') &&
-    !item.allowedActions?.includes('edit_patient_services_decision');
-
   // Patient Services decision has arrived — section/dept/admin must acknowledge it.
   // Opens PatientServicesDecisionModal in readOnly mode with acknowledge action.
   const isDecisionArrivedItem = (item) =>
     item.messageType === 'DECISION_TAKEN' &&
     item.allowedActions?.includes('acknowledge_decision');
+
+  // AIC-S7 — Action Item assignment/change notifications. Pure notification
+  // side-channel, no complaint workflow — routed to ActionItemNoticeModal.
+  const isActionItemNoticeItem = (item) =>
+    item.messageType === 'ACTION_ITEM_ASSIGNED' || item.messageType === 'ACTION_ITEM_CHANGED';
 
   /**
    * Determine if an item is an incident (vs seasonal report).
@@ -210,6 +256,9 @@ const WorkflowInboxPage = () => {
    * Get the display ID for an item (incident case ID or seasonal report ID)
    */
   const getDisplayId = (item) => {
+    if (isActionItemNoticeItem(item)) {
+      return item.messageType === 'ACTION_ITEM_ASSIGNED' ? 'مهمة جديدة' : 'تعديل على بند';
+    }
     if (isIncidentItem(item) && item.incidentId) {
       return `Case #${item.incidentId}`;
     }
@@ -245,11 +294,76 @@ const WorkflowInboxPage = () => {
   const filterByCaseType = (itemsList) => {
     if (caseTypeFilter === 'all') return itemsList;
     return itemsList.filter(item => {
-      if (caseTypeFilter === 'incident') return isIncidentItem(item);
+      // AIC-S7 notices aren't incident/seasonal cases — always show them.
+      if (isActionItemNoticeItem(item)) return true;
+      if (caseTypeFilter === 'incident') return isIncidentItem(item) && !isNoticeItem(item);
+      if (caseTypeFilter === 'notice') return isNoticeItem(item);
       if (caseTypeFilter === 'seasonal') return !isIncidentItem(item);
       return true;
     });
   };
+
+  // ============================
+  // FILTER CHIP BAR
+  // ============================
+  const CASE_TYPE_FILTER_OPTIONS = [
+    { value: 'all', label: 'All', icon: RadioButtonUncheckedIcon, iconColor: null },
+    { value: 'incident', label: 'Complaints', icon: ErrorOutlineIcon, iconColor: '#0B6BCB' },
+    { value: 'notice', label: 'Notices', icon: CampaignIcon, iconColor: '#0E7490' },
+    { value: 'seasonal', label: 'Seasonal', icon: BarChartIcon, iconColor: '#B45309' },
+  ];
+
+  const renderChipRow = (options, value, onSelect, label) => (
+    <Box>
+      {label && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+          <FilterAltIcon sx={{ fontSize: 16, color: theme.colors.textTertiary }} />
+          <Typography level="body-sm" sx={{ color: theme.colors.textTertiary, fontWeight: 600 }}>
+            {label}
+          </Typography>
+        </Box>
+      )}
+      <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+        {options.map((opt) => {
+          const selected = value === opt.value;
+          const Icon = opt.icon;
+          return (
+            <Chip
+              key={opt.value}
+              size="lg"
+              variant={selected ? 'solid' : 'outlined'}
+              startDecorator={
+                Icon && <Icon sx={{ fontSize: 18, color: selected ? theme.colors.textOnPrimary : (opt.iconColor || theme.colors.textTertiary) }} />
+              }
+              onClick={() => onSelect(opt.value)}
+              sx={{
+                borderRadius: '999px',
+                px: 2,
+                py: 0.75,
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                // Joy Chip's variant styling is driven by CSS custom properties, not
+                // plain background/color — a plain sx backgroundColor override loses
+                // to Joy's own --variant-solidBg. Set the variables Joy itself reads.
+                '--variant-solidBg': selected ? theme.colors.primary : undefined,
+                '--variant-solidColor': selected ? theme.colors.textOnPrimary : undefined,
+                '--variant-solidHoverBg': selected ? theme.colors.primaryHover : undefined,
+                '--variant-outlinedBorder': !selected ? theme.colors.border : undefined,
+                '--variant-outlinedColor': !selected ? theme.colors.textPrimary : undefined,
+                '--variant-outlinedBg': !selected ? theme.colors.surface : undefined,
+                '--variant-outlinedHoverBg': !selected ? theme.colors.surfaceHover : undefined,
+              }}
+            >
+              {opt.label}
+            </Chip>
+          );
+        })}
+      </Box>
+    </Box>
+  );
+
+  const renderCaseTypeChips = () => renderChipRow(CASE_TYPE_FILTER_OPTIONS, caseTypeFilter, setCaseTypeFilter, 'Filter by Type');
 
   /**
    * Combined filter: search + case type
@@ -257,6 +371,43 @@ const WorkflowInboxPage = () => {
   const applyFilters = (itemsList) => {
     return filterByCaseType(filterBySearch(itemsList));
   };
+
+  // ============================
+  // COLUMN SORT (Source Unit / Target Unit / Publication Date)
+  // ============================
+  const sortItems = (itemsList) => {
+    const dir = sortOrder === 'asc' ? 1 : -1;
+    return [...itemsList].sort((a, b) => {
+      if (sortBy === 'sourceUnit') {
+        return dir * String(a.issuingOrgUnitName || '').localeCompare(String(b.issuingOrgUnitName || ''));
+      }
+      if (sortBy === 'targetUnit') {
+        return dir * String(a.targetOrgUnitName || '').localeCompare(String(b.targetOrgUnitName || ''));
+      }
+      // 'date'
+      const aDate = a.displayDate || a.createdAt;
+      const bDate = b.displayDate || b.createdAt;
+      return dir * ((aDate?.getTime?.() ?? 0) - (bDate?.getTime?.() ?? 0));
+    });
+  };
+
+  const handleSort = (column) => {
+    if (sortBy === column) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(column);
+      setSortOrder(column === 'date' ? 'desc' : 'asc');
+    }
+  };
+
+  const renderSortableHeader = (label, column, widthPct) => (
+    <th
+      style={{ width: `${widthPct}%`, cursor: 'pointer', userSelect: 'none' }}
+      onClick={() => handleSort(column)}
+    >
+      {label}{sortBy === column ? (sortOrder === 'asc' ? ' ▲' : ' ▼') : ''}
+    </th>
+  );
 
   // ============================
   // STATUS DISPLAY HELPERS
@@ -276,12 +427,15 @@ const WorkflowInboxPage = () => {
       ADMIN_APPROVED: { label: 'Admin Approved', color: 'success' },
       SECTION_DENIED: { label: 'Denied', color: 'danger' },
       FORCE_CLOSED: { label: 'Force Closed', color: 'neutral' },
-      WAITING_PATIENT_SERVICES_DECISION: { label: 'Patient Services Decision Required', color: 'warning' },
-      PATIENT_SERVICES_DECISION_COMPLETED: { label: 'Patient Services Decision Completed', color: 'success' },
+      WAITING_PATIENT_SERVICES_DECISION: { label: 'Customer Service Decision Required', color: 'warning' },
+      PATIENT_SERVICES_DECISION_COMPLETED: { label: 'Customer Service Decision Completed', color: 'success' },
       // HCAT Automatic Force Close Policy (Session 6) - force-closed-by-policy statuses
       FORCE_CLOSED_AT_SECTION: { label: 'Force-Closed (Section) — مغلق قسريا', color: 'danger' },
       FORCE_CLOSED_AT_DEPARTMENT: { label: 'Force-Closed (Department) — مغلق قسريا', color: 'danger' },
       FORCE_CLOSED_AT_ADMINISTRATION: { label: 'Force-Closed (Administration) — مغلق قسريا', color: 'danger' },
+      // AIC-S7 — Action Item Notifications
+      ACTION_ITEM_ASSIGNED_NOTICE: { label: 'New Assignment', color: 'primary' },
+      ACTION_ITEM_CHANGED_NOTICE: { label: 'Item Changed', color: 'warning' },
     };
     return statusMap[status] || { label: status?.replace(/_/g, ' ') || 'Unknown', color: 'neutral' };
   };
@@ -330,8 +484,22 @@ const WorkflowInboxPage = () => {
   const renderActionButtons = (item) => {
     const { allowedActions } = item;
 
-    // Notice items + Patient Services pending (informational) — no complaint workflow
-    if (isNoticeItem(item) || isPatientServicesInfoItem(item)) {
+    // AIC-S7 — Action Item assignment/change notifications — no complaint workflow
+    if (isActionItemNoticeItem(item)) {
+      return (
+        <Button
+          size="sm"
+          variant="solid"
+          color="primary"
+          onClick={() => { setActionItemNoticeModalItem(item); setActionItemNoticeModalOpen(true); }}
+        >
+          عرض الإشعار
+        </Button>
+      );
+    }
+
+    // Notice items — no complaint workflow
+    if (isNoticeItem(item)) {
       return (
         <Button
           size="sm"
@@ -391,8 +559,15 @@ const WorkflowInboxPage = () => {
     const countdown = isCountdownEligible(item)
       ? getDeadlineCountdown(item.sectionDeadlineAt || item.departmentDeadlineAt || item.administrationDeadlineAt)
       : null;
+    // AIC-S7 notice rows can share a real subcaseId with a normal complaint
+    // row already in this same inbox load — key on the notice's own ID instead.
+    const rowKey = item.actionItemId != null && item.messageType === 'ACTION_ITEM_ASSIGNED'
+      ? `sai-${item.actionItemId}`
+      : item.noticeId != null
+        ? `notice-${item.noticeId}`
+        : item.subcaseId;
     return (
-      <tr key={item.subcaseId} style={{ ...theme.rowStyle, ...extraStyle }}>
+      <tr key={rowKey} style={{ ...theme.rowStyle, ...extraStyle }}>
         {/* ID */}
         <td>
           {item.incidentNumber && (
@@ -468,23 +643,18 @@ const WorkflowInboxPage = () => {
           </Box>
         </td>
 
-        {/* Ownership + Target Unit */}
+        {/* Source Unit — where the incident happened / who reported it (IssuingOrgUnitID) */}
         <td>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-            {theme.ownershipChip && (
-              <Chip
-                size="sm"
-                variant="soft"
-                color={theme.ownershipChip.color}
-                sx={{ whiteSpace: 'nowrap', alignSelf: 'flex-start', fontSize: '0.7rem', ...(theme.ownershipChip.sx || {}) }}
-              >
-                {theme.ownershipChip.label}
-              </Chip>
-            )}
-            <Typography level="body-sm" sx={{ whiteSpace: 'nowrap' }}>
-              {item.targetOrgUnitName || `Unit ${item.targetOrgUnitId}`}
-            </Typography>
-          </Box>
+          <Typography level="body-sm" sx={{ whiteSpace: 'nowrap' }}>
+            {item.issuingOrgUnitName || '—'}
+          </Typography>
+        </td>
+
+        {/* Target Unit — who the complaint is addressed to / should resolve it (TargetOrgUnitID) */}
+        <td>
+          <Typography level="body-sm" sx={{ whiteSpace: 'nowrap' }}>
+            {item.targetOrgUnitName || `Unit ${item.targetOrgUnitId}`}
+          </Typography>
         </td>
 
         {/* Display Date (incidentDate → createdAt fallback) */}
@@ -575,23 +745,18 @@ const WorkflowInboxPage = () => {
           </Box>
         </td>
 
-        {/* Ownership + Target Unit */}
+        {/* Source Unit — where the incident happened / who reported it (IssuingOrgUnitID) */}
         <td>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-            {theme.ownershipChip && (
-              <Chip
-                size="sm"
-                variant="soft"
-                color={theme.ownershipChip.color}
-                sx={{ whiteSpace: 'nowrap', alignSelf: 'flex-start', fontSize: '0.7rem', ...(theme.ownershipChip.sx || {}) }}
-              >
-                {theme.ownershipChip.label}
-              </Chip>
-            )}
-            <Typography level="body-sm" sx={{ whiteSpace: 'nowrap' }}>
-              {item.targetOrgUnitName || `Unit ${item.targetOrgUnitId}`}
-            </Typography>
-          </Box>
+          <Typography level="body-sm" sx={{ whiteSpace: 'nowrap' }}>
+            {item.issuingOrgUnitName || '—'}
+          </Typography>
+        </td>
+
+        {/* Target Unit — who the complaint is addressed to / should resolve it (TargetOrgUnitID) */}
+        <td>
+          <Typography level="body-sm" sx={{ whiteSpace: 'nowrap' }}>
+            {item.targetOrgUnitName || `Unit ${item.targetOrgUnitId}`}
+          </Typography>
         </td>
 
         {/* Display Date */}
@@ -713,11 +878,11 @@ const WorkflowInboxPage = () => {
   // MAIN RENDER
   // ============================
   return (
-    <MainLayout pageTitle="Workflow Inbox">
+    <MainLayout pageTitle="Workflow Notifications">
       <Box sx={{ p: 3, width: '100%', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
         <Tabs value={activeTab} onChange={handleTabChange} aria-label="Inbox tabs" sx={{ width: '100%', minWidth: 0 }}>
           <TabList>
-            <Tab>📥 Inbox ({items.length})</Tab>
+            <Tab>📥 Notifications ({items.length})</Tab>
             <Tab>📋 Archive ({archiveItems.length})</Tab>
           </TabList>
 
@@ -732,17 +897,20 @@ const WorkflowInboxPage = () => {
             ) : (() => {
               // Zone 1 uses full filter (search + type). Zone 2 uses search only so
               // escalated cases always appear regardless of the type filter.
-              const { normalItems }  = splitInboxAreas(applyFilters(items));
-              const { problemItems } = splitInboxAreas(filterBySearch(items));
+              const { normalItems: normalItemsRaw }  = splitInboxAreas(applyFilters(items));
+              const { problemItems: problemItemsRaw } = splitInboxAreas(applyFilters(items));
+              const normalItems = sortItems(normalItemsRaw);
+              const problemItems = sortItems(problemItemsRaw);
 
               const tableHead = (
                 <thead>
                   <tr>
                     <th style={{ width: '8%' }}>ID</th>
-                    <th style={{ width: '12%' }}>Type</th>
-                    <th style={{ width: '22%' }}>Status / Indicators</th>
-                    <th style={{ width: '16%' }}>Unit</th>
-                    <th style={{ width: '10%' }}>Date</th>
+                    <th style={{ width: '10%' }}>Type</th>
+                    <th style={{ width: '20%' }}>Status / Indicators</th>
+                    {renderSortableHeader('Source Unit', 'sourceUnit', 9)}
+                    {renderSortableHeader('Target Unit', 'targetUnit', 9)}
+                    {renderSortableHeader('Publication Date', 'date', 10)}
                     <th style={{ width: '32%' }}>Actions</th>
                   </tr>
                 </thead>
@@ -755,39 +923,16 @@ const WorkflowInboxPage = () => {
               );
 
               return (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%', minWidth: 0 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%', minWidth: 0 }}>
 
                   {/* ── GLOBAL INBOX CONTROLS — above all zones ── */}
                   <Box
                     sx={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      flexWrap: 'wrap', gap: 1.5,
+                      display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+                      flexWrap: 'wrap', gap: 2,
                     }}
                   >
-                    <ButtonGroup size="sm" variant="outlined" color="neutral">
-                      <Button
-                        variant={caseTypeFilter === 'all' ? 'solid' : 'outlined'}
-                        color="neutral"
-                        onClick={() => setCaseTypeFilter('all')}
-                      >
-                        All
-                      </Button>
-                      <Button
-                        variant={caseTypeFilter === 'incident' ? 'solid' : 'outlined'}
-                        color={caseTypeFilter === 'incident' ? 'primary' : 'neutral'}
-                        onClick={() => setCaseTypeFilter('incident')}
-                      >
-                        Complaints
-                      </Button>
-                      <Button
-                        variant={caseTypeFilter === 'seasonal' ? 'solid' : 'outlined'}
-                        color={caseTypeFilter === 'seasonal' ? 'warning' : 'neutral'}
-                        startDecorator={<BarChartIcon sx={{ fontSize: 14 }} />}
-                        onClick={() => setCaseTypeFilter('seasonal')}
-                      >
-                        Seasonal
-                      </Button>
-                    </ButtonGroup>
+                    {renderCaseTypeChips()}
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <Input
                         size="sm"
@@ -811,7 +956,7 @@ const WorkflowInboxPage = () => {
                     {/* Zone 1 header — no filters here, moved above */}
                     <Box
                       sx={{
-                        px: 2.5, py: 2,
+                        px: 3, py: 2.5,
                         display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
                         backgroundColor: '#f0f7ff',
                         borderBottom: '1px solid', borderColor: 'primary.100',
@@ -870,7 +1015,7 @@ const WorkflowInboxPage = () => {
                       {/* Zone 2 header */}
                       <Box
                         sx={{
-                          px: 2.5, py: 2,
+                          px: 3, py: 2.5,
                           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
                           backgroundColor: '#fff5f5',
                           borderBottom: '1px solid', borderColor: 'danger.100',
@@ -915,7 +1060,7 @@ const WorkflowInboxPage = () => {
                                   {renderInboxRow(item, isInactive ? { opacity: 0.55, filter: 'grayscale(0.35)' } : undefined)}
                                   {isInactive && (
                                     <tr>
-                                      <td colSpan={6} style={{ padding: '2px 12px 8px 16px', backgroundColor: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+                                      <td colSpan={7} style={{ padding: '2px 12px 8px 16px', backgroundColor: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
                                         <Typography level="body-xs" sx={{ color: 'neutral.500', fontStyle: 'italic' }}>
                                           انتقلت إلى المستوى الأعلى
                                         </Typography>
@@ -971,40 +1116,17 @@ const WorkflowInboxPage = () => {
             ) : archiveItems.length === 0 ? (
               renderEmptyArchive()
             ) : (
-              <Card variant="outlined" sx={{ width: '100%', minWidth: 0 }}>
-                <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography level="h4">Archived Items</Typography>
-                      <Chip size="sm" variant="soft" color="neutral">{applyFilters(archiveItems).length}</Chip>
-                    </Box>
-                    {/* Case Type Filter Buttons */}
-                    <ButtonGroup size="sm" variant="outlined" color="neutral">
-                      <Button
-                        variant={caseTypeFilter === 'all' ? 'solid' : 'outlined'}
-                        color="neutral"
-                        onClick={() => setCaseTypeFilter('all')}
-                      >
-                        All
-                      </Button>
-                      <Button
-                        variant={caseTypeFilter === 'incident' ? 'solid' : 'outlined'}
-                        color={caseTypeFilter === 'incident' ? 'primary' : 'neutral'}
-                        onClick={() => setCaseTypeFilter('incident')}
-                      >
-                        Complaints
-                      </Button>
-                      <Button
-                        variant={caseTypeFilter === 'seasonal' ? 'solid' : 'outlined'}
-                        color={caseTypeFilter === 'seasonal' ? 'warning' : 'neutral'}
-                        startDecorator={<BarChartIcon sx={{ fontSize: 14 }} />}
-                        onClick={() => setCaseTypeFilter('seasonal')}
-                      >
-                        Seasonal
-                      </Button>
-                    </ButtonGroup>
-                  </Box>
-                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%', minWidth: 0 }}>
+
+                {/* ── GLOBAL ARCHIVE CONTROLS — mirrors the Notifications tab layout ── */}
+                <Box
+                  sx={{
+                    display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+                    flexWrap: 'wrap', gap: 2,
+                  }}
+                >
+                  {renderCaseTypeChips()}
+                  <Box sx={{ display: 'flex', gap: 1 }}>
                     <Input
                       size="sm"
                       placeholder="Search by INC-000168 or Case #"
@@ -1025,35 +1147,69 @@ const WorkflowInboxPage = () => {
                   </Box>
                 </Box>
 
-                <Box sx={{ overflowX: 'auto', width: '100%' }}>
-                  <Table
-                    variant="outlined"
+                <Card
+                  variant="outlined"
+                  sx={{ borderRadius: 'lg', overflow: 'hidden', borderColor: 'neutral.300', p: 0, width: '100%', minWidth: 0 }}
+                >
+                  {/* Archive header band — same structure as the Zone 1/Zone 2 header bands */}
+                  <Box
                     sx={{
-                      '& thead th': {
-                        fontWeight: 600,
-                        backgroundColor: 'neutral.50',
-                      },
-                      tableLayout: 'fixed',
-                      width: '100%',
-                      minWidth: 680,
+                      px: 3, py: 2.5,
+                      display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+                      backgroundColor: 'neutral.50',
+                      borderBottom: '1px solid', borderColor: 'neutral.200',
                     }}
                   >
-                    <thead>
-                      <tr>
-                        <th style={{ width: '8%' }}>ID</th>
-                        <th style={{ width: '12%' }}>Type</th>
-                        <th style={{ width: '22%' }}>Status / Indicators</th>
-                        <th style={{ width: '16%' }}>Unit</th>
-                        <th style={{ width: '10%' }}>Date</th>
-                        <th style={{ width: '32%' }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {applyFilters(archiveItems).map((item) => renderArchiveRow(item))}
-                    </tbody>
-                  </Table>
-                </Box>
-              </Card>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                      <Box sx={{ p: 0.75, borderRadius: 'sm', backgroundColor: 'neutral.100', display: 'flex' }}>
+                        <HistoryIcon sx={{ color: 'neutral.500', fontSize: 22 }} />
+                      </Box>
+                      <Box>
+                        <Typography level="h4">Archived Items</Typography>
+                        <Typography level="body-sm" sx={{ color: 'neutral.500', mt: 0.25 }}>
+                          Cases you have processed
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      <Chip size="sm" variant="solid" color="neutral">{applyFilters(archiveItems).length}</Chip>
+                      <Typography level="body-xs" sx={{ color: 'neutral.400' }}>
+                        {applyFilters(archiveItems).length === 1 ? 'Item' : 'Items'}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ overflowX: 'auto', width: '100%' }}>
+                    <Table
+                      variant="outlined"
+                      sx={{
+                        '& thead th': {
+                          fontWeight: 600,
+                          backgroundColor: 'neutral.50',
+                        },
+                        tableLayout: 'fixed',
+                        width: '100%',
+                        minWidth: 680,
+                      }}
+                    >
+                      <thead>
+                        <tr>
+                          <th style={{ width: '8%' }}>ID</th>
+                          <th style={{ width: '10%' }}>Type</th>
+                          <th style={{ width: '20%' }}>Status / Indicators</th>
+                          {renderSortableHeader('Source Unit', 'sourceUnit', 9)}
+                          {renderSortableHeader('Target Unit', 'targetUnit', 9)}
+                          {renderSortableHeader('Publication Date', 'date', 10)}
+                          <th style={{ width: '32%' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortItems(applyFilters(archiveItems)).map((item) => renderArchiveRow(item))}
+                      </tbody>
+                    </Table>
+                  </Box>
+                </Card>
+              </Box>
             )}
           </TabPanel>
         </Tabs>
@@ -1091,6 +1247,14 @@ const WorkflowInboxPage = () => {
         item={noticeModalItem}
         onClose={() => { setNoticeModalOpen(false); setNoticeModalItem(null); }}
         onSuccess={() => { setNoticeModalOpen(false); setNoticeModalItem(null); loadInbox(); }}
+      />
+
+      {/* Action Item Notice Modal (AIC-S7 — assignment / change notifications) */}
+      <ActionItemNoticeModal
+        open={actionItemNoticeModalOpen}
+        item={actionItemNoticeModalItem}
+        onClose={() => { setActionItemNoticeModalOpen(false); setActionItemNoticeModalItem(null); }}
+        onSuccess={() => { setActionItemNoticeModalOpen(false); setActionItemNoticeModalItem(null); loadInbox(); }}
       />
 
     </MainLayout>

@@ -231,8 +231,8 @@ const PolicyConfiguration = () => {
 
         <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2, mb: 2 }}>
           <PolicyField
-            label="All incidents per classification"
-            hint="Total case count per HCAT classification"
+            label="Low severity incidents per classification"
+            hint="Low-severity case count per HCAT classification"
             value={sections.all_limit}
             onChange={(v) => updateSections("all_limit", v)}
           />

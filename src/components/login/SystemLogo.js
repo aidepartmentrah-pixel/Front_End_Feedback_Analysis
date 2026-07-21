@@ -14,27 +14,28 @@ const SystemLogo = () => {
     >
       <Box
         sx={{
-          width: 120,
-          height: 120,
+          width: 150,
+          height: 150,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          margin: "0 auto 16px",
+          margin: "0 auto 8px",
         }}
       >
-        <img 
-          src={logo3} 
-          alt="System Logo" 
-          style={{ 
-            width: "100%", 
-            height: "100%", 
-            objectFit: "contain" 
-          }} 
+        <img
+          src={logo3}
+          alt="System Logo"
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain"
+          }}
         />
       </Box>
       <Typography
         level="h3"
         sx={{
+          fontSize: "1.75rem",
           fontWeight: 900,
           background: "linear-gradient(135deg, #2BBCC4 0%, #64A70B 100%)",
           WebkitBackgroundClip: "text",
@@ -44,10 +45,10 @@ const SystemLogo = () => {
       >
         {APP_CONFIG.name}
       </Typography>
-      <Typography level="body-sm" sx={{ color: "#666", fontWeight: 600 }}>
+      <Typography level="body-sm" sx={{ fontSize: "1rem", color: "#4A4A4A", fontWeight: 600 }}>
         {APP_CONFIG.subtitle}
       </Typography>
-      <Typography level="body-xs" sx={{ color: "#999", mt: 0.5 }}>
+      <Typography level="body-xs" sx={{ fontSize: "0.6875rem", color: "#999", mt: 0.5 }}>
         {APP_CONFIG.subtitleArabic}
       </Typography>
     </Box>

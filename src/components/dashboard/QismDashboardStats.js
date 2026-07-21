@@ -45,6 +45,19 @@ const QismDashboardStats = ({ qism, stats, loading, operationalSummary = null })
     subcategory: stats?.charts?.subcategory?.data || [],
   };
 
+  // Domain and clinical risk type breakdowns are metrics-only from the API;
+  // shape them into chart-ready {name, count} arrays here.
+  const domainChartData = [
+    { name: "Clinical", count: metrics.domainBreakdown?.clinical || 0 },
+    { name: "Management", count: metrics.domainBreakdown?.management || 0 },
+    { name: "Relational", count: metrics.domainBreakdown?.relational || 0 },
+  ];
+  const riskTypeChartData = [
+    { name: "Ordinary", count: metrics.ordinary || 0 },
+    { name: "Red Flag", count: metrics.redFlags || 0 },
+    { name: "Never Event", count: metrics.neverEvents || 0 },
+  ];
+
   // Skip the old mock data object
 const _oldMockData = {
   er_triage: {
@@ -213,7 +226,7 @@ const _oldMockData = {
           <DashboardSection title="Operational Overview" icon={<BarChartIcon />} accentColor="#667eea">
             <Grid container spacing={2}>
               <Grid xs={12} sm={4}>
-                <MetricCard title="Total Incidents / Patients" value={`${metrics.totalIncidents} / ${metrics.uniquePatients}`} color="#667eea" trend={trends.incidentsPatients} subtitle="All cases" />
+                <MetricCard title="Total Incidents / Patients" value={`${metrics.totalIncidents} / ${metrics.uniquePatients}`} color="#667eea" subtitle="All cases" />
               </Grid>
               <Grid xs={12} sm={4}>
                 <MetricCard title="Open Cases" value={operationalSummary?.open_cases ?? 0} color="#2ed573" subtitle="Active cases" />
@@ -280,6 +293,7 @@ const _oldMockData = {
             <Top5ClassificationChart
               data={charts.top5Classification}
               onBarClick={handleChartClick}
+              total={metrics.totalIncidents}
             />
           </ChartCard>
         </Grid>
@@ -305,7 +319,17 @@ const _oldMockData = {
         </Grid>
         <Grid xs={12} md={6}>
           <ChartCard title="Subcategory Distribution">
-            <UniversalChart data={distributionCharts.subcategory} type="bar" height={350} layout="horizontal" />
+            <UniversalChart data={distributionCharts.subcategory} type="bar" height={350} layout="horizontal" total={metrics.totalIncidents} />
+          </ChartCard>
+        </Grid>
+        <Grid xs={12} md={6}>
+          <ChartCard title="Domain Distribution">
+            <UniversalChart data={domainChartData} type="bar" height={350} layout="horizontal" total={metrics.totalIncidents} />
+          </ChartCard>
+        </Grid>
+        <Grid xs={12} md={6}>
+          <ChartCard title="Ordinary / Red Flag / Never Event">
+            <UniversalChart data={riskTypeChartData} type="bar" height={350} layout="horizontal" total={metrics.totalIncidents} />
           </ChartCard>
         </Grid>
       </Grid>

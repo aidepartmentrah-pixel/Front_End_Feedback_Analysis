@@ -9,8 +9,10 @@ import TuneIcon from "@mui/icons-material/Tune";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import HealthAndSafetyIcon from "@mui/icons-material/HealthAndSafety";
 import MonitorHeartIcon from "@mui/icons-material/MonitorHeart";
+import { useAuth } from "../../context/AuthContext";
 
 const GlobalDashboardStats = ({ stats, loading, operationalSummary = null, chartModes = {}, setChartModes = () => {}, chartTypes = {}, setChartTypes = () => {} }) => {
+  const { hasRole } = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState({ title: "", data: [] });
   const [chartMenuAnchor, setChartMenuAnchor] = useState({
@@ -21,6 +23,8 @@ const GlobalDashboardStats = ({ stats, loading, operationalSummary = null, chart
     harm: null,
     category: null,
     subcategory: null,
+    domain: null,
+    riskType: null,
   });
 
   // Default chart modes
@@ -40,6 +44,8 @@ const GlobalDashboardStats = ({ stats, loading, operationalSummary = null, chart
     harm: chartTypes.harm || "donut",
     category: chartTypes.category || "line",
     subcategory: chartTypes.subcategory || "bar",
+    domain: chartTypes.domain || "bar",
+    riskType: chartTypes.riskType || "bar",
   };
 
   const handleModeChange = (key, value) => {
@@ -132,6 +138,17 @@ const GlobalDashboardStats = ({ stats, loading, operationalSummary = null, chart
     severity: [...(stats?.charts?.severity?.data || [])],
     harm: [...(stats?.charts?.harm?.data || [])],
     category: [...(stats?.charts?.category?.data || [])],
+    subcategory: [...(stats?.charts?.subcategory?.data || [])],
+    domain: [
+      { name: "Clinical", count: metrics.domainBreakdown?.clinical || 0 },
+      { name: "Management", count: metrics.domainBreakdown?.management || 0 },
+      { name: "Relational", count: metrics.domainBreakdown?.relational || 0 },
+    ],
+    riskType: [
+      { name: "Ordinary", count: metrics.ordinary || 0 },
+      { name: "Red Flag", count: metrics.redFlags || 0 },
+      { name: "Never Event", count: metrics.neverEvents || 0 },
+    ],
   };
 
   console.log("📊 Mapped metrics:", metrics);
@@ -209,6 +226,7 @@ const GlobalDashboardStats = ({ stats, loading, operationalSummary = null, chart
         height={450}
         layout={types[key] === "bar" ? "horizontal" : "vertical"}
         onBarClick={onBarClick}
+        total={metrics.totalIncidents}
       />
     </ChartCard>
   );
@@ -231,7 +249,6 @@ const GlobalDashboardStats = ({ stats, loading, operationalSummary = null, chart
                   title="Total Incidents / Patients"
                   value={`${metrics.totalIncidents} / ${metrics.uniquePatients}`}
                   color="#667eea"
-                  trend={trends.incidentsPatients}
                   subtitle="All cases"
                 />
               </Grid>
@@ -325,9 +342,11 @@ const GlobalDashboardStats = ({ stats, loading, operationalSummary = null, chart
             <Grid xs={12} md={4}>
               {renderChartCard("stage", "Stage Histogram", charts.stageHistogram, (item) => handleChartClick("stage", item))}
             </Grid>
-            <Grid xs={12} md={4}>
-              {renderChartCard("department", "Issuing Department", charts.issuingDept, (item) => handleChartClick("department", item))}
-            </Grid>
+            {!hasRole("SECTION_ADMIN") && (
+              <Grid xs={12} md={4}>
+                {renderChartCard("department", "Issuing Department", charts.issuingDept, (item) => handleChartClick("department", item))}
+              </Grid>
+            )}
             <Grid xs={12} md={4}>
               {renderChartCard("severity", "Severity Distribution", charts.severity)}
             </Grid>
@@ -336,6 +355,15 @@ const GlobalDashboardStats = ({ stats, loading, operationalSummary = null, chart
             </Grid>
             <Grid xs={12} md={4}>
               {renderChartCard("category", "Category Distribution", charts.category)}
+            </Grid>
+            <Grid xs={12} md={4}>
+              {renderChartCard("subcategory", "Subcategory Distribution", charts.subcategory)}
+            </Grid>
+            <Grid xs={12} md={4}>
+              {renderChartCard("domain", "Domain Distribution", charts.domain)}
+            </Grid>
+            <Grid xs={12} md={4}>
+              {renderChartCard("riskType", "Ordinary / Red Flag / Never Event", charts.riskType)}
             </Grid>
           </Grid>
 

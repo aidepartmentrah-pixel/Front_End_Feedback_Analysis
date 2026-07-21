@@ -609,7 +609,9 @@ const FollowUpPage = () => {
                       </Typography>
                     </td>
                     <td>
-                      <Typography level="body-xs">{item.orgUnitName || `Subcase #${item.subcaseId}`}</Typography>
+                      <Typography level="body-xs">
+                        {item.orgUnitName || item.targetOrgUnitName || (item.subcaseId ? `Subcase #${item.subcaseId}` : '—')}
+                      </Typography>
                     </td>
                     <td>
                       <Typography level="body-xs">{item.severityName || '—'}</Typography>
@@ -895,10 +897,10 @@ const FollowUpPage = () => {
                           <Typography level="body-sm">{selectedAction.patientName}</Typography>
                         </Box>
                       )}
-                      {selectedAction.orgUnitName && (
+                      {(selectedAction.orgUnitName || selectedAction.targetOrgUnitName) && (
                         <Box>
                           <Typography level="body-xs" sx={{ fontWeight: 600, mb: 0.3, color: 'text.tertiary' }}>Unit</Typography>
-                          <Typography level="body-sm">{selectedAction.orgUnitName}</Typography>
+                          <Typography level="body-sm">{selectedAction.orgUnitName || selectedAction.targetOrgUnitName}</Typography>
                         </Box>
                       )}
                       {selectedAction.severityName && (

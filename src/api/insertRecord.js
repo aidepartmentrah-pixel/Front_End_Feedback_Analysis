@@ -281,3 +281,22 @@
       return null;
     }
   };
+
+  /**
+   * Get all cases for an incident with full field data.
+   * Used by EditRecord to load the complete incident with all its cases.
+   * GET /api/incidents/{incident_id}/cases
+   */
+  export const fetchIncidentFullCases = async (incidentId) => {
+    const response = await apiClient.get(`/api/incidents/${incidentId}/cases`);
+    return response.data;
+  };
+
+  /**
+   * Add a new blank Draft case to an existing incident.
+   * POST /api/incidents/{incident_id}/cases
+   */
+  export const addCaseToIncident = async (incidentId) => {
+    const response = await apiClient.post(`/api/incidents/${incidentId}/cases`);
+    return response.data;
+  };

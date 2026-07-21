@@ -5,28 +5,15 @@
 import { emptyIncident, emptyCase } from "./incidentModel";
 
 /**
- * Maps a flat API record (getRecordById response) into the shared
- * { incident, caseObj } state shape expected by IncidentMetadataSection + CaseTabContent.
+ * Maps a flat API record (getRecordById / get_cases_for_incident response) into
+ * a case state object for use in CaseTabContent. Tracks the DB case ID and status
+ * via _case_id and _status_name so EditRecord can save/identify each case.
  */
-export function recordToIncidentAndCase(record) {
-  const incident = {
-    ...emptyIncident(),
-    patient_name: record.patient_name || "",
-    feedback_received_date: record.received_date || record.feedback_received_date || emptyIncident().feedback_received_date,
-    issuing_department_id: record.issuing_org_unit_id || null,
-    source_id: record.source_id || null,
-    is_inpatient: record.is_in_patient != null ? record.is_in_patient
-                : record.is_inpatient != null ? record.is_inpatient
-                : true,
-    building_id: record.building_id || null,
-    // complaint_summary: old flat records have no separate incident-level summary;
-    // leave blank — IncidentMetadataSection shows it as an optional field.
-    complaint_summary: record.incident_summary || "",
-    patient_ids: [],
-  };
-
-  const caseObj = {
+export function recordToCase(record) {
+  return {
     ...emptyCase(),
+    _case_id: record.id ?? null,
+    _status_name: record.case_status_name || record.status_name || null,
     target_department_id: record.target_departments?.[0]?.section_id
                        || record.target_departments?.[0]?.id
                        || null,
@@ -52,13 +39,33 @@ export function recordToIncidentAndCase(record) {
       full_name: e.full_name ?? e.name ?? "",
       employee_name: e.full_name ?? e.name ?? "",
     })) : [],
-    // Cascade option caches start empty; ClassificationCascade loads them on user interaction.
-    // They will be pre-loaded during EditRecord's mount effect for pre-populated dropdowns.
     _categories: [],
     _subcategories: [],
     _classifications: [],
   };
+}
 
+/**
+ * Maps a flat API record into both the shared incident state and a case state.
+ * Used by EditRecord on initial load (primary record from URL param).
+ */
+export function recordToIncidentAndCase(record) {
+  const incident = {
+    ...emptyIncident(),
+    patient_name: record.patient_name || "",
+    feedback_received_date: record.received_date || record.feedback_received_date || emptyIncident().feedback_received_date,
+    incident_date: record.incident_date || record.received_date || record.feedback_received_date || emptyIncident().incident_date,
+    issuing_department_id: record.issuing_org_unit_id || null,
+    source_id: record.source_id || null,
+    is_inpatient: record.is_in_patient != null ? record.is_in_patient
+                : record.is_inpatient != null ? record.is_inpatient
+                : true,
+    building_id: record.building_id || null,
+    complaint_summary: record.incident_summary || "",
+    patient_ids: [],
+  };
+
+  const caseObj = recordToCase(record);
   return { incident, caseObj };
 }
 
@@ -73,6 +80,7 @@ export function buildUpdatePayload(saveMode, incident, caseData) {
     immediate_action: caseData.immediate_action || "",
     taken_action: caseData.taken_action || "",
     feedback_received_date: incident.feedback_received_date,
+    incident_date: incident.incident_date,
     issuing_department_id: incident.issuing_department_id ? Number(incident.issuing_department_id) : undefined,
     source_id: incident.source_id ? Number(incident.source_id) : undefined,
     building_id: incident.building_id ? Number(incident.building_id) : undefined,

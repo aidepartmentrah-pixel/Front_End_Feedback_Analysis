@@ -1,5 +1,5 @@
 // src/components/followUp/ActionCalendar.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Box, Typography, Card, Chip, IconButton, Tooltip, Button, Sheet } from "@mui/joy";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -31,6 +31,8 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction,
   const [currentDate, setCurrentDate] = useState(new Date());
   const [hoveredDay, setHoveredDay] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const [processingActionId, setProcessingActionId] = useState(null);
+  const closeTimerRef = useRef(null);
 
   // Get calendar data for current month
   const year = currentDate.getFullYear();
@@ -132,24 +134,55 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction,
   const handleDayMouseEnter = (day, event) => {
     const dayActions = getActionsForDate(day);
     if (dayActions.length > 0) {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
       setHoveredDay(day);
       const rect = event.currentTarget.getBoundingClientRect();
       setTooltipPosition({ x: rect.left, y: rect.bottom });
     }
   };
 
+  // Closing is delayed slightly so moving the cursor from the day cell to the
+  // fixed-position tooltip below it (across the small gap between them)
+  // doesn't dismiss the tooltip before the click on Complete/Delay registers.
   const handleDayMouseLeave = () => {
-    setHoveredDay(null);
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => {
+      setHoveredDay(null);
+      closeTimerRef.current = null;
+    }, 250);
   };
 
-  const handleDelete = (actionId, e) => {
+  const cancelTooltipClose = () => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
+  }, []);
+
+  const handleDelete = async (actionId, e) => {
     e.stopPropagation();
-    onDeleteAction(actionId);
-    setHoveredDay(null);
+    if (processingActionId) return;
+    setProcessingActionId(actionId);
+    try {
+      await onDeleteAction(actionId);
+    } finally {
+      setProcessingActionId(null);
+      setHoveredDay(null);
+    }
   };
 
   const handleDelay = (actionId, e) => {
     e.stopPropagation();
+    if (processingActionId) return;
     onDelayAction(actionId);
     setHoveredDay(null);
   };
@@ -307,7 +340,7 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction,
             border: "1px solid #e0e0e0",
             background: "white"
           }}
-          onMouseEnter={() => setHoveredDay(hoveredDay)}
+          onMouseEnter={cancelTooltipClose}
           onMouseLeave={handleDayMouseLeave}
         >
           <Typography level="body-sm" sx={{ fontWeight: 700, mb: 1.5, color: "#667eea" }}>
@@ -445,6 +478,9 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction,
                       variant="soft"
                       startDecorator={<CheckCircleIcon />}
                       onClick={(e) => handleDelete(action.id, e)}
+                      onMouseEnter={cancelTooltipClose}
+                      loading={processingActionId === action.id}
+                      disabled={processingActionId != null}
                       sx={{ flex: 1, fontSize: "0.7rem" }}
                     >
                       إتمام
@@ -455,6 +491,8 @@ const ActionCalendar = ({ actions, onActionClick, onDeleteAction, onDelayAction,
                       variant="soft"
                       startDecorator={<ScheduleIcon />}
                       onClick={(e) => handleDelay(action.id, e)}
+                      onMouseEnter={cancelTooltipClose}
+                      disabled={processingActionId != null}
                       sx={{ flex: 1, fontSize: "0.7rem" }}
                     >
                       تأجيل

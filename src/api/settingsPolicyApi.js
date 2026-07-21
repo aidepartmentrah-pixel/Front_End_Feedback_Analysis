@@ -29,7 +29,7 @@ export const saveHospitalPolicy = async (data) => {
  * Save sections policy — overwrites ALL section rows identically.
  * PUT /api/org-policy/sections
  * Body: { all_limit, medium_limit, high_limit }
- *   all_limit    → LowSeverityLimit  (total incidents per HCAT classification)
+ *   all_limit    → LowSeverityLimit  (low-severity incidents per HCAT classification)
  *   medium_limit → MediumSeverityLimit
  *   high_limit   → HighSeverityLimit
  */

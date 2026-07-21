@@ -4,19 +4,19 @@
 
 const APP_CONFIG = {
   // System Name
-  name: "HCAT Insight",
-  shortName: "HCAT",
-  
+  name: "PEMS",
+  shortName: "PEMS",
+
   // Arabic Name (if needed)
-  nameArabic: "نظام الإبلاغ والمتابعة",
-  
+  nameArabic: "نظام إدارة ملاحظات المرضى",
+
   // Subtitle/Description
-  subtitle: "Hospital Complaint Analysis & Tracking",
-  subtitleArabic: "نظام تتبع وتحليل الشكاوى",
-  
+  subtitle: "Patient Experience Management System",
+  subtitleArabic: "نظام إدارة ملاحظات المرضى",
+
   // Copyright
   copyrightYear: "2026",
-  copyrightHolder: "HCAT Insight",
+  copyrightHolder: "PEMS",
   
   // Version (optional)
   version: "1.0.0",

@@ -23,15 +23,16 @@
 import React, { useState, useEffect } from 'react';
 import {
   Typography, Box, Card, Textarea,
-  FormControl, FormLabel, Alert, Chip,
+  FormControl, FormLabel, Alert, Chip, CircularProgress,
 } from '@mui/joy';
-import { savePatientServicesDecision, acknowledgePatientServicesDecision } from '../../api/workflowApi';
+import { savePatientServicesDecision, acknowledgePatientServicesDecision, getWorkflowIncidentDetail, getSubcaseHistory } from '../../api/workflowApi';
 import WorkflowFormShell from './WorkflowFormShell';
 import ModalLayoutShell from './ModalLayoutShell';
 import ContextRegion from './ContextRegion';
 import SimpleModalFooter from './SimpleModalFooter';
 import StatusChip from './StatusChip';
-import theme from '../../theme';
+import ComplaintDetailsSection from './ComplaintDetailsSection';
+import InvestigationHistorySection from './InvestigationHistorySection';
 
 const PatientServicesDecisionModal = ({ open, item, onClose, onSuccess, readOnly = false }) => {
   // Write mode state
@@ -43,6 +44,14 @@ const PatientServicesDecisionModal = ({ open, item, onClose, onSuccess, readOnly
   const [acknowledging, setAcknowledging] = useState(false);
   const [acknowledgeError, setAcknowledgeError] = useState(null);
 
+  // Read-only mode: full case detail, same pattern as NoticeModal — gives the
+  // recipient the same underlying data the supervisor sees, not a summary.
+  const [detail, setDetail] = useState(null);
+  const [history, setHistory] = useState(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState(null);
+
   // Pre-fill on open
   useEffect(() => {
     if (!open || !item) return;
@@ -50,6 +59,19 @@ const PatientServicesDecisionModal = ({ open, item, onClose, onSuccess, readOnly
     setAcknowledgeError(null);
     if (!readOnly) {
       setDecisionText(item.patientServicesDecisionText || '');
+    } else if (item.incidentId) {
+      setDetailLoading(true);
+      setDetailError(null);
+      Promise.all([
+        getWorkflowIncidentDetail(item.incidentId),
+        item.subcaseId ? getSubcaseHistory(item.subcaseId).catch(() => null) : Promise.resolve(null),
+      ])
+        .then(([data, historyData]) => {
+          setDetail(data);
+          setHistory(historyData);
+        })
+        .catch((err) => setDetailError(err.message || 'فشل تحميل تفاصيل الحالة.'))
+        .finally(() => setDetailLoading(false));
     }
   }, [open, item, readOnly]);
 
@@ -60,6 +82,9 @@ const PatientServicesDecisionModal = ({ open, item, onClose, onSuccess, readOnly
       setError(null);
       setAcknowledgeError(null);
       setAcknowledging(false);
+      setDetail(null);
+      setHistory(null);
+      setDetailError(null);
     }
   }, [open]);
 
@@ -121,31 +146,39 @@ const PatientServicesDecisionModal = ({ open, item, onClose, onSuccess, readOnly
           }
           mainContent={
             <Box>
-              <Typography level="body-sm" sx={{ color: 'neutral.500', mb: 2 }}>
-                القرار العلمي الصادر عن خدمات المرضى
-              </Typography>
-
               {item.subcaseId && (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
                   <Chip size="sm" variant="soft" color="neutral">Subcase #{item.subcaseId}</Chip>
                 </Box>
               )}
 
-              <Card
-                variant="soft"
-                color="neutral"
-                sx={{
-                  mb: 2, p: 2,
-                  borderRight: `2px solid ${theme.colors.primary}`,
-                }}
-              >
-                <Typography level="body-xs" fontWeight="bold" sx={{ mb: 1 }}>
-                  نص القرار
-                </Typography>
-                <Typography level="body-sm" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
-                  {item.patientServicesDecisionText || '—'}
-                </Typography>
-              </Card>
+              {/* Decision text now lives in the سجل التحقيق (InvestigationHistorySection)
+                  "قرار خدمات المرضى" entry below, along with who entered it and when —
+                  showing it again here duplicated the exact same text. */}
+
+              {detailLoading && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                  <CircularProgress />
+                </Box>
+              )}
+
+              {detailError && !detailLoading && (
+                <Alert color="danger" variant="soft" sx={{ mb: 2 }}>
+                  <Typography level="body-sm">{detailError}</Typography>
+                </Alert>
+              )}
+
+              {!detailLoading && !detailError && (
+                <>
+                  <ComplaintDetailsSection
+                    incidentData={detail}
+                    item={item}
+                    open={detailsOpen}
+                    onChange={() => setDetailsOpen((p) => !p)}
+                  />
+                  <InvestigationHistorySection history={history} responseData={null} />
+                </>
+              )}
             </Box>
           }
           footer={

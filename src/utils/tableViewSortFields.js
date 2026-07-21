@@ -5,12 +5,16 @@
 export const SORT_FIELD_MAP = {
   complaint_number: "id",
   received_date: "FeedbackRecievedDate",
+  incident_date: "IncidentDate",
   incident_number: "IncidentNumber",
   last_edited: "UpdatedAt",
   created_at: "CreatedAt",
+  publication_date: "PublicationDate",
   patient_name: "PatientName",
   source_name: "SourceName",
   feedback_intent_type_name: "FeedbackIntentTypeName",
+  clinical_risk_type_name: "ClinicalRiskTypeName",
+  stage_name: "StageName",
   domain_name: "DomainName",
   category_name: "CategoryName",
   subcategory_name: "SubCategoryName",
@@ -19,6 +23,10 @@ export const SORT_FIELD_MAP = {
   harm_level: "HarmSeverityOrder",
   status_name: "StatusDisplayOrder",
   target_department_name: "TargetDepartmentName",
+  rca_replies: "RcaReplies",
+  complaint_summary: "ComplaintSummary",
+  customer_service_decision: "CustomerServiceDecision",
+  customer_service_decision_date: "CustomerServiceDecisionDate",
 };
 
 export const getBackendSortField = (columnKey) => SORT_FIELD_MAP[columnKey] || columnKey;

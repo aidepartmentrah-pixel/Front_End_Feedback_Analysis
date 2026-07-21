@@ -41,7 +41,7 @@ const Sidebar = () => {
   
   const menuItems = [
     { name: "📊 Dashboard", path: "/", canShow: canViewDashboard },
-    { name: "📥 Inbox", path: "/inbox", canShow: canViewInbox },
+    { name: "📥 Notifications", path: "/inbox", canShow: canViewInbox },
     { name: "📅 Calendar", path: "/follow-up", canShow: canViewFollowUp },
     { name: "💡 Workflow Page", path: "/insight", canShow: canViewInsight },
     { name: "📊 Reporting", path: "/reporting", canShow: canViewReporting },
@@ -86,7 +86,7 @@ const Sidebar = () => {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 1.5,
+          gap: 1,
           background: brandTheme.sidebar.logoZoneOverlay,
         }}
       >
@@ -106,8 +106,8 @@ const Sidebar = () => {
             src={logo}
             alt="Logo"
             sx={{
-              width: 120,
-              height: 120,
+              width: 150,
+              height: 150,
               objectFit: "contain",
             }}
           />
@@ -116,12 +116,21 @@ const Sidebar = () => {
         <Typography
           level="h3"
           sx={{
-            color: brandTheme.sidebar.text,
             fontWeight: 800,
-            fontSize: "24px",
+            fontSize: "28px",
+            background: "linear-gradient(135deg, #2BBCC4 0%, #64A70B 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
           }}
         >
           {APP_CONFIG.name}
+        </Typography>
+
+        <Typography
+          level="body-xs"
+          sx={{ color: brandTheme.sidebar.textSecondary, fontSize: "14px", fontWeight: 500 }}
+        >
+          {APP_CONFIG.subtitle}
         </Typography>
 
         <Typography

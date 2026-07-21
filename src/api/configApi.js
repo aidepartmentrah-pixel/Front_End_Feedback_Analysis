@@ -154,3 +154,99 @@ export async function getDrivers(password) {
   if (!res.ok) throw new Error("Failed to fetch drivers");
   return res.json();
 }
+
+/**
+ * Get current Hospital Directory API settings (API key masked).
+ * @param {string} password - Config password
+ */
+export async function getExternalApiSettings(password) {
+  const res = await configFetch("/api/config/external-api", {
+    headers: {
+      "Content-Type": "application/json",
+      "X-Config-Password": password,
+    },
+  });
+  if (res.status === 401) throw new Error("Invalid configuration password");
+  if (!res.ok) throw new Error("Failed to fetch Hospital Directory API settings");
+  return res.json();
+}
+
+/**
+ * Save Hospital Directory API settings. Applies immediately, no restart needed.
+ * @param {string} password - Config password
+ * @param {object} settings - { base_url, api_key, timeout_seconds, verify_tls, enabled }
+ */
+export async function saveExternalApiSettings(password, settings) {
+  const res = await configFetch("/api/config/external-api/save", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Config-Password": password,
+    },
+    body: JSON.stringify(settings),
+  });
+  if (res.status === 401) throw new Error("Invalid configuration password");
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error(detail.detail || "Failed to save Hospital Directory API settings");
+  }
+  return res.json();
+}
+
+/**
+ * Test GET {base_url}/health, either against override params or the
+ * currently saved settings (pass {} to test saved settings).
+ * @param {string} password - Config password
+ * @param {object} params - { base_url?, timeout_seconds?, verify_tls? }
+ */
+export async function testExternalApiConnection(password, params = {}) {
+  const res = await configFetch("/api/config/external-api/test-connection", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Config-Password": password,
+    },
+    body: JSON.stringify(params),
+  });
+  if (res.status === 401) throw new Error("Invalid configuration password");
+  if (!res.ok) throw new Error("Failed to test Hospital Directory API connection");
+  return res.json();
+}
+
+/**
+ * Reveal the real, unmasked database password. Deliberately sends a real
+ * secret to the browser on explicit admin request — see the backend
+ * endpoint's docstring for the accepted tradeoff.
+ * @param {string} password - Config password
+ * @returns {{ password: string }}
+ */
+export async function revealDatabasePassword(password) {
+  const res = await configFetch("/api/config/database/reveal-password", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Config-Password": password,
+    },
+  });
+  if (res.status === 401) throw new Error("Invalid configuration password");
+  if (!res.ok) throw new Error("Failed to reveal database password");
+  return res.json();
+}
+
+/**
+ * Reveal the real, decrypted Hospital Directory API key.
+ * @param {string} password - Config password
+ * @returns {{ api_key: string }}
+ */
+export async function revealExternalApiKey(password) {
+  const res = await configFetch("/api/config/external-api/reveal-key", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Config-Password": password,
+    },
+  });
+  if (res.status === 401) throw new Error("Invalid configuration password");
+  if (!res.ok) throw new Error("Failed to reveal API key");
+  return res.json();
+}

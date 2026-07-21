@@ -160,8 +160,10 @@ const IncidentViewerModal = ({ open, onClose, incidentId }) => {
               <Typography level="title-sm" sx={{ mb: 1 }}>
                 Timeline
               </Typography>
-              <InfoRow label="Feedback Date" value={recordData.feedback_received_date} />
+              <InfoRow label="Incident Date" value={recordData.incident_date} />
+              <InfoRow label="Received Date" value={recordData.feedback_received_date} />
               <InfoRow label="Created At" value={recordData.created_at} />
+              <InfoRow label="Updated At" value={recordData.updated_at} />
             </Card>
 
             {/* Actions Taken */}

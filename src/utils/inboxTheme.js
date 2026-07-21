@@ -28,12 +28,6 @@ const MESSAGE_TYPE_CONFIG = {
     chipColor: 'neutral',
     rowBg: null,             // white / default — no background override
   },
-  PATIENT_SERVICES_OPINION: {
-    iconKey: null,
-    label: 'Patient Services',
-    chipColor: 'neutral',
-    rowBg: null,
-  },
   NOTICE: {
     iconKey: 'Campaign',
     label: 'Notice',
@@ -51,6 +45,19 @@ const MESSAGE_TYPE_CONFIG = {
     label: 'Decision Taken',
     chipColor: 'success',
     rowBg: '#f4fbf6',        // very faint green
+  },
+  // AIC-S7 — Action Item Notifications
+  ACTION_ITEM_ASSIGNED: {
+    iconKey: 'Assignment',
+    label: 'Action Item Assigned',
+    chipColor: 'primary',
+    rowBg: '#f3f0ff',        // very faint purple
+  },
+  ACTION_ITEM_CHANGED: {
+    iconKey: 'Assignment',
+    label: 'Action Item Changed',
+    chipColor: 'warning',
+    rowBg: '#fff8f0',        // very faint orange
   },
 };
 
@@ -113,7 +120,7 @@ const OWNERSHIP_CONFIG = {
   department:      { label: 'Department',      color: 'primary' },
   administration:  { label: 'Administration',  color: 'neutral',
                      sx: { backgroundColor: '#ede7f6', color: '#5e35b1', border: 'none' } },
-  patient_services:{ label: 'Patient Services', color: 'primary' },
+  patient_services:{ label: 'Customer Service', color: 'primary' },
 };
 
 // ─── Main export ──────────────────────────────────────────────────────────────
