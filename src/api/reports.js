@@ -140,14 +140,16 @@ export async function exportReport({ report_type, format, filters }) {
   } else {
     // Seasonal export: Backend V2 API format
     url = `/api/reports/${report_type}/export`;
-    
-    // Extract required parameters from filters
+
+    // Extract required parameters from filters. orgunit_id=0 is the "no
+    // specific unit" sentinel (was 1 — collided with a real Administration
+    // whose actual ID is 1; see ReportingPage.js for the full explanation).
     const year = Number(filters.year);
     const period = filters.trimester; // "Q1", "Q2", "Q3", "Q4"
-    const orgunit_id = Number(filters.orgunit_id || 1);
+    const orgunit_id = Number(filters.orgunit_id ?? 0);
     const orgunit_type = Number(filters.orgunit_type || 0);
     const language = filters.language || "en";
-    
+
     requestData = {
       year,
       period,
@@ -156,7 +158,14 @@ export async function exportReport({ report_type, format, filters }) {
       format,
       language,
     };
-    
+
+    // Explicit multi-unit selection (2+ units picked) — forwarded so the
+    // backend can generate one report per selected unit instead of only
+    // ever using the first one.
+    if (Array.isArray(filters.orgunit_ids) && filters.orgunit_ids.length >= 2) {
+      requestData.orgunit_ids = filters.orgunit_ids.map(Number);
+    }
+
     console.log("🔍 SEASONAL EXPORT PAYLOAD:", requestData);
   }
   

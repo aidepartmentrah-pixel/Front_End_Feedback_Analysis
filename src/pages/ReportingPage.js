@@ -345,46 +345,54 @@ const ReportingPage = () => {
         let orgunit_id = null;
         let orgunit_type;
 
+        // NOTE: orgunit_id=0 is the "no specific unit" sentinel (hospital
+        // level, or "all units of this type"). Previously defaulted to 1,
+        // which collided with a real Administration whose actual ID is 1 —
+        // selecting it was indistinguishable from selecting nothing. 0 is
+        // never a real AdminsrationUnit ID.
         if (reportScope.level === "hospital") {
           // Hospital level - always allowed
-          orgunit_id = hierarchy?.hospital_id || 1;
+          orgunit_id = hierarchy?.hospital_id || 0;
           orgunit_type = 0;
         } else if (reportScope.level === "administration") {
           // Administration level
           if (reportScope.administrationIds.length > 0) {
-            // Specific administration(s) selected
+            // Specific administration(s) selected — Generate/View shows one
+            // report, so the first selection is used; Export supports all
+            // selected units via orgunit_ids (see buildExportPayload).
             orgunit_id = reportScope.administrationIds[0];
           } else {
-            // "All administrations" - use hospital_id as base
-            orgunit_id = hierarchy?.hospital_id || 1;
+            // "All administrations"
+            orgunit_id = hierarchy?.hospital_id || 0;
           }
           orgunit_type = 1;
         } else if (reportScope.level === "department") {
           // Department level
           if (reportScope.departmentIds.length > 0) {
-            // Specific department(s) selected
             orgunit_id = reportScope.departmentIds[0];
           } else {
-            // "All departments" - use hospital_id as base
-            orgunit_id = hierarchy?.hospital_id || 1;
+            // "All departments"
+            orgunit_id = hierarchy?.hospital_id || 0;
           }
           orgunit_type = 2;
         } else if (reportScope.level === "section") {
           // Section level
           if (reportScope.sectionIds.length > 0) {
-            // Specific section(s) selected
             orgunit_id = reportScope.sectionIds[0];
           } else {
-            // "All sections" - use hospital_id as base
-            orgunit_id = hierarchy?.hospital_id || 1;
+            // "All sections"
+            orgunit_id = hierarchy?.hospital_id || 0;
           }
           orgunit_type = 3;
         } else {
           throw new Error("Invalid scope level");
         }
 
-        // Validate orgunit_id exists (should always be set now)
-        if (!orgunit_id) {
+        // Validate orgunit_id exists (should always be set now). 0 is a
+        // valid, deliberate value here (the "no specific unit" sentinel),
+        // so this must NOT use a falsy check — `!orgunit_id` would
+        // incorrectly reject the legitimate hospital-level/"all units" case.
+        if (orgunit_id === null || orgunit_id === undefined) {
           alert(
             "❌ خطأ في التحقق من البيانات (Validation Error)\n\n" +
             "فشل تحديد معرف الوحدة التنظيمية\n" +
@@ -498,39 +506,42 @@ const ReportingPage = () => {
       }
     }
 
-    // Add orgunit_id and orgunit_type for seasonal reports (Backend V2 format)
+    // Add orgunit_id and orgunit_type for seasonal reports (Backend V2 format).
+    // orgunit_id=0 is the "no specific unit" sentinel (was 1, which
+    // collided with a real Administration whose actual ID is 1 — see
+    // handleGenerateReport for the full explanation).
+    //
+    // orgunit_ids carries EVERY selected unit (not just the first) so the
+    // export can generate a ZIP with one report per selected unit when the
+    // user picks more than one — previously silently dropped down to a
+    // single unit with no warning.
     if (reportType === "seasonal") {
       let orgunit_id = null;
       let orgunit_type;
+      let orgunit_ids = [];
 
       if (reportScope.level === "hospital") {
-        orgunit_id = hierarchy?.hospital_id || 1;
+        orgunit_id = hierarchy?.hospital_id || 0;
         orgunit_type = 0;
       } else if (reportScope.level === "administration") {
-        if (reportScope.administrationIds.length > 0) {
-          orgunit_id = reportScope.administrationIds[0];
-        } else {
-          orgunit_id = hierarchy?.hospital_id || 1;
-        }
+        orgunit_ids = reportScope.administrationIds;
+        orgunit_id = orgunit_ids.length > 0 ? orgunit_ids[0] : (hierarchy?.hospital_id || 0);
         orgunit_type = 1;
       } else if (reportScope.level === "department") {
-        if (reportScope.departmentIds.length > 0) {
-          orgunit_id = reportScope.departmentIds[0];
-        } else {
-          orgunit_id = hierarchy?.hospital_id || 1;
-        }
+        orgunit_ids = reportScope.departmentIds;
+        orgunit_id = orgunit_ids.length > 0 ? orgunit_ids[0] : (hierarchy?.hospital_id || 0);
         orgunit_type = 2;
       } else if (reportScope.level === "section") {
-        if (reportScope.sectionIds.length > 0) {
-          orgunit_id = reportScope.sectionIds[0];
-        } else {
-          orgunit_id = hierarchy?.hospital_id || 1;
-        }
+        orgunit_ids = reportScope.sectionIds;
+        orgunit_id = orgunit_ids.length > 0 ? orgunit_ids[0] : (hierarchy?.hospital_id || 0);
         orgunit_type = 3;
       }
 
       payload.filters.orgunit_id = orgunit_id;
       payload.filters.orgunit_type = orgunit_type;
+      if (orgunit_ids.length >= 2) {
+        payload.filters.orgunit_ids = orgunit_ids;
+      }
     }
 
     return payload;
@@ -588,17 +599,22 @@ const ReportingPage = () => {
       );
       if (!confirmed) return;
 
-      // Resolve orgunit from current scope (same logic as handleGenerateReport)
-      let orgunit_id = hierarchy?.hospital_id || 1;
+      // Resolve orgunit from current scope (same logic as handleGenerateReport).
+      // 0 is the "no specific unit" sentinel — see handleGenerateReport for
+      // why this changed from 1. Note: comparison reports only support a
+      // single org unit today (no ZIP/multi-unit concept on this endpoint),
+      // so — unlike the standard export below — this still only uses the
+      // first selected unit if more than one is picked.
+      let orgunit_id = hierarchy?.hospital_id || 0;
       let orgunit_type = 0;
       if (reportScope.level === "administration") {
-        orgunit_id = reportScope.administrationIds[0] || hierarchy?.hospital_id || 1;
+        orgunit_id = reportScope.administrationIds[0] || hierarchy?.hospital_id || 0;
         orgunit_type = 1;
       } else if (reportScope.level === "department") {
-        orgunit_id = reportScope.departmentIds[0] || hierarchy?.hospital_id || 1;
+        orgunit_id = reportScope.departmentIds[0] || hierarchy?.hospital_id || 0;
         orgunit_type = 2;
       } else if (reportScope.level === "section") {
-        orgunit_id = reportScope.sectionIds[0] || hierarchy?.hospital_id || 1;
+        orgunit_id = reportScope.sectionIds[0] || hierarchy?.hospital_id || 0;
         orgunit_type = 3;
       }
 
