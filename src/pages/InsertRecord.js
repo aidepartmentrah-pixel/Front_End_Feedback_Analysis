@@ -40,7 +40,6 @@ import theme from "../theme";
 import {
   fetchReferenceData,
   fetchCategories,
-  extractNER,
   searchPatients,
   submitIncident,
   createPatient,
@@ -97,7 +96,6 @@ const InsertRecord = () => {
   const [patientConfirmed, setPatientConfirmed] = useState(false);
 
   // ── UI state ──
-  const [nerLoading, setNerLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
@@ -267,32 +265,6 @@ const InsertRecord = () => {
     const next = cases.filter((_, i) => i !== idx);
     setCases(next);
     setActiveTab(Math.min(activeTab, next.length - 1));
-  }
-
-  // ── NER extraction ──
-  async function runNER() {
-    const text = incident.complaint_summary;
-    if (!text || !text.trim()) {
-      setGlobalError("Enter a complaint summary first to run NER.");
-      return;
-    }
-    try {
-      setNerLoading(true);
-      setGlobalError(null);
-      const resp = await extractNER(text);
-      const ents = resp?.entities || {};
-      if (ents.patients?.[0]) {
-        setIncidentField("patient_name", ents.patients[0]);
-        patientSearch.setQuery(ents.patients[0]);
-        patientSearch.search(ents.patients[0]);
-      }
-      setSuccessMsg("NER extraction completed.");
-      setTimeout(() => setSuccessMsg(null), 3000);
-    } catch {
-      setGlobalError("NER extraction failed.");
-    } finally {
-      setNerLoading(false);
-    }
   }
 
   // ── Quick-add patient ──
@@ -630,8 +602,6 @@ const InsertRecord = () => {
           patientConfirmed={patientConfirmed}
           onPatientConfirmedChange={setPatientConfirmed}
           onAddNewPatient={openQuickAdd}
-          onRunNER={runNER}
-          nerLoading={nerLoading}
         />
 
         {/* ══════════════════════════════════════════

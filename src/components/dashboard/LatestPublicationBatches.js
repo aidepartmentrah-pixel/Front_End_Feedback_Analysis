@@ -23,7 +23,15 @@ const LatestPublicationBatches = () => {
         if (isMounted) setBatches(data.batches || []);
       })
       .catch((err) => {
-        if (isMounted) setError(err.message || "Failed to load publication batches");
+        if (!isMounted) return;
+        const status = err.response?.status;
+        if (status === 401) {
+          setError("Your session has expired. Please log in again.");
+        } else if (status === 403) {
+          setError("You don't have permission to view publication batches.");
+        } else {
+          setError("Unable to load publication batches right now.");
+        }
       })
       .finally(() => {
         if (isMounted) setLoading(false);

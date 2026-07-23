@@ -22,17 +22,41 @@ export function useSttRecorder(onTranscription) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       chunksRef.current = [];
-      const mr = new MediaRecorder(stream);
+      // Record with whatever mimeType the browser actually supports, and
+      // carry that same type through to the blob/file -- MediaRecorder's
+      // default output isn't always webm/opus (e.g. Firefox uses ogg/opus),
+      // and labeling the wrong bytes as "audio/webm" can decode
+      // inconsistently depending on browser/codec build.
+      const mimeCandidates = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/ogg"];
+      const mimeType = mimeCandidates.find((t) => MediaRecorder.isTypeSupported(t)) || "";
+      const mr = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const file = new File([blob], "recording.webm", { type: "audio/webm" });
+        const actualType = mr.mimeType || mimeType || "audio/webm";
+        const extension = actualType.includes("ogg") ? "ogg" : "webm";
+        const blob = new Blob(chunksRef.current, { type: actualType });
+        const file = new File([blob], `recording.${extension}`, { type: actualType });
         try {
           setSttLoading(true);
           const resp = await transcribeAudio(file);
-          if (resp?.text || resp?.transcription) onTranscription(resp.text || resp.transcription);
-        } catch { /* ignore */ } finally { setSttLoading(false); }
+          if (resp?.text || resp?.transcription) {
+            onTranscription(resp.text || resp.transcription);
+          } else {
+            console.warn("[STT] Transcription response had no text:", resp);
+            alert("Transcription completed but returned no text. Please try again or type manually.");
+          }
+        } catch (err) {
+          console.error("[STT] Transcription failed:", err);
+          const status = err.response?.status;
+          if (status) {
+            alert(`Transcription failed (server returned ${status}). Please try again or type manually.`);
+          } else {
+            alert("Transcription failed — check your connection and try again, or type manually.");
+          }
+        } finally {
+          setSttLoading(false);
+        }
       };
       mr.start();
       mediaRecorderRef.current = mr;

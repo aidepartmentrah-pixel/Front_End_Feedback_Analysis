@@ -22,7 +22,6 @@ import {
   fetchCategories,
   fetchSubcategories,
   fetchClassifications,
-  extractNER,
   classifyText,
   searchPatients,
   searchDoctors,
@@ -96,7 +95,7 @@ const MigrationFormPage = () => {
   // State for API responses and loading
   const [dataLoading, setDataLoading] = useState(false);
   const [legacyLoading, setLegacyLoading] = useState(false);
-  const [nerLoading, setNerLoading] = useState(false);
+  const [extractLoading, setExtractLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState(null);
   const [errorField, setErrorField] = useState(null);
@@ -337,54 +336,6 @@ const MigrationFormPage = () => {
     const validation = validateIncidentCase(formData);
     return validation.isValid;
   }, [formData]);
-
-  // Handle NER Extraction button click
-  const handleRunNER = async () => {
-    try {
-      setNerLoading(true);
-      setError(null);
-      setErrorField(null);
-
-      if (!formData.complaint_text || formData.complaint_text.trim().length === 0) {
-        setError("Complaint text is required for NER extraction");
-        setNerLoading(false);
-        return;
-      }
-
-      // Call NER API to extract names
-      const response = await extractNER(formData.complaint_text);
-      console.log("NER extraction response:", response);
-
-      // Return extracted names to be populated in search boxes
-      const extractedNames = {
-        patient: response.patient_name || response.patient || "",
-        doctor: response.doctor_name || response.doctor || "",
-        employee: response.employee_name || response.employee || "",
-      };
-
-      setSuccess("NER extraction completed! Names populated in search boxes.");
-      setTimeout(() => setSuccess(null), 3000);
-
-      // Return the extracted names so NEROutputs can populate search boxes
-      return extractedNames;
-    } catch (err) {
-      setError("Error during NER extraction. Please try again or search manually.");
-      console.error("NER Error:", err);
-      return null;
-    } finally {
-      setNerLoading(false);
-    }
-  };
-
-  // Handle transcription completion (auto-trigger NER)
-  const handleTranscriptionComplete = async (transcribedText) => {
-    if (transcribedText && transcribedText.trim().length > 0) {
-      // Auto-run NER after successful transcription
-      setTimeout(() => {
-        handleRunNER();
-      }, 500);
-    }
-  };
 
   // Handle Add Record button click (submits to database)
   const handleAddRecord = async () => {
@@ -704,7 +655,6 @@ const MigrationFormPage = () => {
               [field]: value,
             }));
           }}
-          onTranscriptionComplete={handleTranscriptionComplete}
           validationErrors={validationErrors}
         />
 
@@ -717,21 +667,10 @@ const MigrationFormPage = () => {
           validationErrors={validationErrors}
         />
 
-        {/* Step 3: NER Outputs (always visible) */}
+        {/* Step 3: Patient & Staff search (always visible) */}
         <NEROutputs
           formData={formData}
           onInputChange={handleInputChange}
-          onRunNER={async () => {
-            const response = await handleRunNER();
-            if (response) {
-              if (response.patient) setFormData((prev) => ({ ...prev, patientQuery: response.patient }));
-              if (response.doctor) setFormData((prev) => ({ ...prev, doctorQuery: response.doctor }));
-              if (response.employee) setFormData((prev) => ({ ...prev, employeeQuery: response.employee }));
-              if (response.department) setFormData((prev) => ({ ...prev, departmentQuery: response.department }));
-            }
-            return response;
-          }}
-          loading={nerLoading}
           errorField={errorField}
           referenceData={referenceData}
           resetTrigger={resetNER}
@@ -754,67 +693,21 @@ const MigrationFormPage = () => {
         <ActionButtons
           onExtract={async () => {
             try {
-              setNerLoading(true);
+              setExtractLoading(true);
               setError(null);
               setErrorField(null);
               setIsAiExtracting(true); // Prevent clearing during AI extraction
               isAiExtractingRef.current = true; // Immediate access for useEffect
-              
-              console.log("Starting NER extraction...");
-              
+
+              console.log("Starting classification extraction...");
+
               if (!formData.complaint_text || formData.complaint_text.trim().length === 0) {
                 setError("Please enter complaint text first");
-                setNerLoading(false);
+                setExtractLoading(false);
                 setIsAiExtracting(false);
                 return;
               }
-              
-              // NER
-              console.log("Calling extractNER with text:", formData.complaint_text);
-              const nerResp = await extractNER(formData.complaint_text);
-              console.log("NER Response:", nerResp);
-              
-              if (nerResp) {
-                // Extract entities from nested structure
-                const entities = nerResp.entities || {};
-                
-                // Take first patient name
-                if (entities.patients && entities.patients.length > 0) {
-                  const patientName = entities.patients[0];
-                  console.log("Setting patientQuery to:", patientName);
-                  handleInputChange("patientQuery", patientName);
-                  setSuccess(`Found patient: ${patientName}`);
-                }
 
-                // Take first doctor name
-                if (entities.doctors && entities.doctors.length > 0) {
-                  const doctorName = entities.doctors[0];
-                  console.log("Setting doctorQuery to:", doctorName);
-                  handleInputChange("doctorQuery", doctorName);
-                }
-
-                // Take first employee name
-                if (entities.employees && entities.employees.length > 0) {
-                  const employeeName = entities.employees[0];
-                  console.log("Setting employeeQuery to:", employeeName);
-                  handleInputChange("employeeQuery", employeeName);
-                }
-                
-                // Show success message with all found entities
-                const foundNames = [];
-                if (entities.patients && entities.patients.length > 0) foundNames.push(`Patient: ${entities.patients[0]}`);
-                if (entities.doctors && entities.doctors.length > 0) foundNames.push(`Doctor: ${entities.doctors[0]}`);
-                if (entities.employees && entities.employees.length > 0) foundNames.push(`Employee: ${entities.employees[0]}`);
-                
-                if (foundNames.length > 0) {
-                  setSuccess(`NER extracted: ${foundNames.join(', ')}`);
-                } else {
-                  setSuccess("NER completed - no names found");
-                }
-              } else {
-                setError("NER returned no data");
-              }
-              
               // Classification
               console.log("Calling classifyText with text:", formData.complaint_text);
               const classResp = await classifyText(formData.complaint_text);
@@ -970,20 +863,20 @@ const MigrationFormPage = () => {
                 setError("Classification returned no data");
               }
               
-              setSuccess("NER + Classification completed!");
+              setSuccess("Classification completed!");
               setTimeout(() => setSuccess(null), 3000);
             } catch (err) {
               console.error("Extract Error:", err);
-              setError(`Error during NER + Classification: ${err.message}`);
+              setError(`Error during classification: ${err.message}`);
               setTimeout(() => setError(null), 5000);
             } finally {
-              setNerLoading(false);
+              setExtractLoading(false);
               // Keep isAiExtracting true until complete
               // Will be set to false after setClassificationFieldsSequentially finishes
             }
           }}
           onAddRecord={handleAddRecord}
-          loading={nerLoading || submitLoading}
+          loading={extractLoading || submitLoading}
           hasComplaintText={true}
           isFormValid={isFormValid}
         />

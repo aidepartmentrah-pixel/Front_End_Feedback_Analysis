@@ -226,21 +226,6 @@ const api = {
     // });
   },
 
-  // ==================== NER & CLASSIFICATION API ====================
-
-  // Extract NER entities
-  extractNER: async (text) => {
-    // Placeholder
-    return {
-      patientName: "Ahmed Mohammed",
-      doctorName: "Dr. Fatima Ali",
-      otherEntities: ["Emergency", "Hospital"],
-    };
-    // return apiCall("/ner/extract", {
-    //   method: "POST",
-    //   body: JSON.stringify({ text }),
-    // });
-  },
 
   // Predict classification
   predictClassification: async (text) => {

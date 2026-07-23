@@ -467,8 +467,20 @@ const Training = () => {
         </Card>
       )}
 
+      {/* Empty state: no training run has ever completed, so summary stats
+          would otherwise render as a literal, alarming "0/0/0%" instead of
+          the expected "nothing has been trained yet" */}
+      {groupedStatus?.status === "never_run" && (
+        <Card sx={{ p: 3, textAlign: "center" }}>
+          <Typography level="h4">No training runs yet</Typography>
+          <Typography level="body-sm" sx={{ mt: 1 }}>
+            Model performance metrics will appear here once a training run completes. Use "Train Now" to get started.
+          </Typography>
+        </Card>
+      )}
+
       {/* Summary Statistics */}
-      {groupedStatus?.summary && (
+      {groupedStatus?.summary && groupedStatus.status !== "never_run" && (
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(5, 1fr)" }, gap: 2 }}>
           <Card sx={{ p: 2, textAlign: "center" }}>
             <Typography level="h2">{groupedStatus.summary.total_models}</Typography>

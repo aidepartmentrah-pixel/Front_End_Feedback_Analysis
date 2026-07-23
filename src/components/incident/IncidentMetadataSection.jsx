@@ -1,8 +1,8 @@
 // src/components/incident/IncidentMetadataSection.jsx
 // Shared "Incident Information" card: date, issuing section, source, building,
-// inpatient toggle, patient search + NER, complaint summary. Shared across all cases.
+// inpatient toggle, patient search, complaint summary. Shared across all cases.
 import React from "react";
-import { Box, Card, Typography, Divider, FormControl, FormLabel, Input, Select, Option, Switch, Textarea, Button } from "@mui/joy";
+import { Box, Card, Typography, Divider, FormControl, FormLabel, Input, Select, Option, Switch, Textarea } from "@mui/joy";
 import theme from "../../theme";
 import SectionSearchSelect from "./SectionSearchSelect";
 import EntitySearchBox from "./EntitySearchBox";
@@ -17,8 +17,6 @@ const IncidentMetadataSection = ({
   patientConfirmed,
   onPatientConfirmedChange,
   onAddNewPatient,
-  onRunNER,
-  nerLoading,
   readOnlyPatient = false,
 }) => {
   return (
@@ -104,18 +102,8 @@ const IncidentMetadataSection = ({
       {/* Row 3: Patient / Doctor / Employee search */}
       <Divider sx={{ my: 2 }} />
       {!readOnlyPatient && (
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
+        <Box sx={{ mb: 1.5 }}>
           <Typography level="title-sm" sx={{ fontWeight: 700 }}>Entities</Typography>
-          <Button
-            size="sm"
-            variant="soft"
-            color="primary"
-            loading={nerLoading}
-            onClick={onRunNER}
-            disabled={!incident.complaint_summary?.trim()}
-          >
-            Extract Names (NER)
-          </Button>
         </Box>
       )}
 

@@ -18,10 +18,29 @@ const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdTe
     { field: "taken_action", label: "🏥 الإجراءات المتخذة", placeholder: "أدخل الإجراءات المتخذة...", required: true },
   ];
 
+  // Browsers don't record raw WAV -- MediaRecorder always encodes to
+  // whatever the browser actually supports (webm/opus on Chrome/Edge,
+  // ogg/opus on Firefox). Recording without a mimeType and then labeling
+  // the result "audio/wav" mislabels the real content, which can decode
+  // inconsistently (or silently produce empty/garbage text) depending on
+  // the browser/codec build -- pick a mimeType MediaRecorder actually
+  // supports and carry that same type through to the uploaded file so the
+  // label always matches the real bytes.
+  const getSupportedMimeType = () => {
+    const candidates = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/ogg;codecs=opus",
+      "audio/ogg",
+    ];
+    return candidates.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+  };
+
   const handleStartRecording = async (field) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const mimeType = getSupportedMimeType();
+      const mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -32,8 +51,9 @@ const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdTe
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        await handleTranscribe(field, audioBlob);
+        const actualType = mediaRecorder.mimeType || mimeType || "audio/webm";
+        const audioBlob = new Blob(audioChunksRef.current, { type: actualType });
+        await handleTranscribe(field, audioBlob, actualType);
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -52,13 +72,16 @@ const TextBlocksWithButtons = ({ complaintText, additionalNotes, optionalThirdTe
     }
   };
 
-  const handleTranscribe = async (field, audioBlob) => {
+  const handleTranscribe = async (field, audioBlob, mimeType) => {
     try {
       setIsTranscribing(true);
-      
-      // Convert blob to file
-      const audioFile = new File([audioBlob], "recording.wav", { type: "audio/wav" });
-      
+
+      // Name/type must match the blob's REAL encoding (see getSupportedMimeType
+      // above) -- the backend's extension check (stt_router.py) only accepts
+      // the file if the name's extension matches what's actually inside.
+      const extension = (mimeType || audioBlob.type || "").includes("ogg") ? "ogg" : "webm";
+      const audioFile = new File([audioBlob], `recording.${extension}`, { type: mimeType || audioBlob.type });
+
       // Call STT API
       const response = await transcribeAudio(audioFile);
       const transcribedText = response.text || response.transcription || "";

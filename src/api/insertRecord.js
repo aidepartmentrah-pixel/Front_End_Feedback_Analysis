@@ -133,20 +133,6 @@
   };
 
   /**
-   * Extract entities using NER
-   * POST /api/ner/extract
-   */
-  export const extractNER = async (text) => {
-    try {
-      const response = await apiClient.post("/api/ner/extract", { text });
-      return response.data;
-    } catch (error) {
-      console.error("Error extracting NER:", error);
-      throw error;
-    }
-  };
-
-  /**
    * Classify text using AI
    * POST /api/classification/classify
    */

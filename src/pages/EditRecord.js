@@ -372,8 +372,6 @@ const EditRecord = () => {
               patientConfirmed={true}
               onPatientConfirmedChange={() => {}}
               onAddNewPatient={() => {}}
-              onRunNER={() => {}}
-              nerLoading={false}
               readOnlyPatient={true}
             />
 

@@ -8,7 +8,7 @@ import { searchPatients, searchDoctors, searchEmployees } from "../../api/insert
 
 // ...existing code...
 
-const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, validationErrors = {}, referenceData, resetTrigger }) => {
+const NEROutputs = ({ formData, onInputChange, errorField, validationErrors = {}, referenceData, resetTrigger }) => {
 // ...existing code...
   // Search states
   const [patientQuery, setPatientQuery] = useState("");
@@ -85,23 +85,6 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, va
     }
   }, [formData.employeeQuery]);
 
-  const handleRunExtract = async () => {
-    try {
-      const resp = await (onRunNER ? onRunNER() : null);
-      if (resp) {
-        if (resp.patient) setPatientQuery(resp.patient);
-        if (resp.doctor) setDoctorQuery(resp.doctor);
-        if (resp.employee) setEmployeeQuery(resp.employee);
-        // Do not auto-select; let user choose from dropdown results
-        setShowPatientDropdown(!!resp.patient);
-        setShowDoctorDropdown(!!resp.doctor);
-        setShowEmployeeDropdown(!!resp.employee);
-      }
-    } catch (e) {
-      console.error("Error running NER extract:", e);
-    }
-  };
-  
   // Search patients with debounce
   useEffect(() => {
     if (patientTimerRef.current) {
@@ -629,8 +612,6 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, va
             </Box>
           </FormControl>
         </Grid>
-        {/* Run NER Button */}
-        <Grid xs={12}></Grid>
       </Grid>
 
       <Typography
@@ -641,7 +622,7 @@ const NEROutputs = ({ formData, onInputChange, onRunNER, loading, errorField, va
           fontStyle: "italic",
         }}
       >
-        ✏️ NER can auto-extract names from the complaint text, or you can search and select manually.
+        ✏️ Search and select patient, doctor, and staff names manually.
       </Typography>
     </Card>
   );
