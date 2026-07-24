@@ -19,6 +19,23 @@ export const getGroupedStatus = async () => {
 };
 
 /**
+ * Get training run history (older SQLite-backed log). Unlike
+ * getVersionedRuns(), this includes runs that failed before any per-run
+ * artifact folder was ever created (e.g. a data-split failure) -- the only
+ * source that can tell whether a given run_id actually succeeded or failed.
+ * @returns {Promise<Array>} Training run history records
+ */
+export const getTrainingHistory = async () => {
+  try {
+    const response = await apiClient.get(`${TRAINING_BASE}/history`);
+    return response.data.history || [];
+  } catch (error) {
+    console.error("Error fetching training history:", error);
+    throw error;
+  }
+};
+
+/**
  * Get training progress
  * @returns {Promise} Training progress data
  */
@@ -127,6 +144,7 @@ export const downloadRunArtifacts = async (runId) => {
 
 export default {
   getGroupedStatus,
+  getTrainingHistory,
   getTrainingProgress,
   getDbGrowthChart,
   getPerformanceTrendsChart,

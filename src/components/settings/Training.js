@@ -1,5 +1,5 @@
 // src/components/settings/Training.js
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { 
   Box, 
   Typography, 
@@ -55,6 +55,10 @@ const Training = () => {
   // State for training progress
   const [trainingProgress, setTrainingProgress] = useState(null);
   const [progressPolling, setProgressPolling] = useState(null);
+  // Which run to check the final outcome of once polling detects it stopped
+  // (a plain ref, not state -- it's read inside the polling closure and must
+  // not itself trigger a re-render).
+  const activeRunIdRef = useRef(null);
   
   // State for charts
   const [dbGrowthChart, setDbGrowthChart] = useState(null);
@@ -97,8 +101,9 @@ const Training = () => {
     try {
       const data = await trainingApi.getTrainingProgress();
       console.log("Training progress:", data);
+      const wasRunning = trainingProgress?.is_running;
       setTrainingProgress(data);
-      
+
       // If training is running, keep polling
       if (data.is_running) {
         if (!progressPolling) {
@@ -111,9 +116,44 @@ const Training = () => {
           clearInterval(progressPolling);
           setProgressPolling(null);
         }
+        // A run just transitioned from running -> stopped: this is the only
+        // reliable point to tell the user whether it actually succeeded or
+        // failed. Without this check, a run that fails moments after
+        // starting (bad training data, a DB error, etc.) leaves the UI
+        // looking identical to a successful one -- nothing was ever shown
+        // to the user, the only way to find out was reading server logs.
+        if (wasRunning && activeRunIdRef.current) {
+          await checkRunOutcome(activeRunIdRef.current);
+          activeRunIdRef.current = null;
+        }
+        fetchGroupedStatus();
+        fetchCharts();
+        fetchVersionedRuns();
       }
     } catch (err) {
       console.error("Error fetching training progress:", err);
+    }
+  };
+
+  // Look up how the just-finished run actually ended, since the progress
+  // endpoint itself goes back to an idle state regardless of outcome.
+  // Uses the older SQLite-backed history (not getVersionedRuns()) because a
+  // run that fails before training starts (e.g. no data to split) never
+  // gets a per-run artifact folder created at all -- history is the only
+  // source that unconditionally records every run, success or failure.
+  const checkRunOutcome = async (runId) => {
+    try {
+      const history = await trainingApi.getTrainingHistory();
+      const run = history.find((r) => r.run_id === runId);
+      if (!run) return;
+      if (run.status === "failed") {
+        setSuccess(null);
+        setError(`Training run ${runId} failed. Check with an administrator or the server logs for details.`);
+      } else {
+        setSuccess(`Training run ${runId} completed successfully (${run.models_trained ?? "?"} models).`);
+      }
+    } catch (err) {
+      console.error("Error checking training run outcome:", err);
     }
   };
 
@@ -176,17 +216,15 @@ const Training = () => {
       const data = await trainingApi.runTraining();
       console.log("Training started response:", data);
       setSuccess(`Training started successfully! Run ID: ${data.run_id}`);
-      
-      // Start polling for progress
+      activeRunIdRef.current = data.run_id;
+
+      // Start polling for progress. fetchTrainingProgress itself detects
+      // when the run stops and checks its real outcome (success/failure)
+      // and refreshes charts/status at that point -- training takes well
+      // over a minute, so refreshing on a fixed short timeout here would
+      // just show stale pre-training data, not the actual result.
       fetchTrainingProgress();
-      
-      // Refresh data after training completes
-      setTimeout(() => {
-        fetchGroupedStatus();
-        fetchCharts();
-        fetchVersionedRuns();
-      }, 1000);
-      
+
     } catch (err) {
       console.error("Error starting training:", err);
       setError(err.message || "Failed to start training. Please check the console.");
@@ -584,37 +622,47 @@ const Training = () => {
               <Typography level="h3" sx={{ mb: 2 }}>
                 📈 Database Growth (Last 30 Days)
               </Typography>
-              {dbGrowthChart.metadata && (
-                <Typography level="body-sm" sx={{ mb: 2, color: "text.secondary" }}>
-                  Growth: +{dbGrowthChart.metadata.growth.total} records 
-                  ({dbGrowthChart.metadata.growth.percentage.toFixed(1)}%)
+              {dbGrowthChart.labels.length === 0 ? (
+                <Typography level="body-md" sx={{ color: "text.secondary", textAlign: "center", py: 4 }}>
+                  No data yet. This tracks real incidents processed into the training
+                  pool over time -- it will start populating once incidents are created
+                  and processed through the normal workflow.
                 </Typography>
+              ) : (
+                <>
+                  {dbGrowthChart.metadata && (
+                    <Typography level="body-sm" sx={{ mb: 2, color: "text.secondary" }}>
+                      Growth: +{dbGrowthChart.metadata.growth.total} records
+                      ({dbGrowthChart.metadata.growth.percentage.toFixed(1)}%)
+                    </Typography>
+                  )}
+                  <Box sx={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={dbGrowthChart.labels.map((label, i) => ({
+                        date: label,
+                        records: dbGrowthChart.datasets[0].data[i]
+                      }))}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <Tooltip />
+                        <Area
+                          type="monotone"
+                          dataKey="records"
+                          stroke={dbGrowthChart.datasets[0].borderColor}
+                          fill={dbGrowthChart.datasets[0].backgroundColor}
+                          strokeWidth={2}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </>
               )}
-              <Box sx={{ height: 300 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={dbGrowthChart.labels.map((label, i) => ({
-                    date: label,
-                    records: dbGrowthChart.datasets[0].data[i]
-                  }))}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Area 
-                      type="monotone" 
-                      dataKey="records" 
-                      stroke={dbGrowthChart.datasets[0].borderColor}
-                      fill={dbGrowthChart.datasets[0].backgroundColor}
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </Box>
             </Card>
           )}
 
           {/* Performance Trends Chart */}
-          {performanceTrendsChart && performanceTrendsChart.datasets && (
+          {performanceTrendsChart && performanceTrendsChart.datasets && performanceTrendsChart.labels.length > 0 && (
             <Card sx={{ p: 3 }}>
               <Typography level="h3" sx={{ mb: 2 }}>
                 📊 Performance Trends by Family
@@ -650,7 +698,7 @@ const Training = () => {
           )}
 
           {/* Family Comparison Chart */}
-          {familyComparisonChart && familyComparisonChart.datasets && (
+          {familyComparisonChart && familyComparisonChart.datasets && familyComparisonChart.labels.length > 0 && (
             <Card sx={{ p: 3 }}>
               <Typography level="h3" sx={{ mb: 2 }}>
                 📊 Family Performance Comparison
