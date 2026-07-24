@@ -3,17 +3,27 @@ import React from "react";
 import { Box, Typography, Chip } from "@mui/joy";
 import BadgeIcon from "@mui/icons-material/Badge";
 import LocalHospitalIcon from "@mui/icons-material/LocalHospital";
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import theme from "../../theme";
 
 const DoctorProfileCard = ({ doctor }) => {
+  // doctors_db.get_doctor_profile returns snake_case keys (id, name_en,
+  // name_ar, specialty, status...). Doctors sourced from the hospital
+  // directory have no "department" or "hire date" concept in this data
+  // model, so those are intentionally not shown here rather than rendered
+  // as permanently-blank fields.
+  const nameEn = doctor.name_en || doctor.nameEn;
+  const nameAr = doctor.name_ar || doctor.nameAr;
+  const doctorId = doctor.id ?? doctor.doctor_id ?? doctor.employeeId;
+
   return (
     <Box
       sx={{
         mb: 3,
         p: 3,
-        borderRadius: "8px",
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        borderRadius: theme.radius.lg,
+        background: theme.gradients.primary,
         color: "white",
+        boxShadow: theme.shadows.card,
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
@@ -31,16 +41,18 @@ const DoctorProfileCard = ({ doctor }) => {
         >
           👨‍⚕️
         </Box>
-        
+
         <Box sx={{ flex: 1 }}>
           <Typography level="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-            {doctor.nameEn}
+            {nameEn || "Unknown Doctor"}
           </Typography>
-          <Typography level="body-md" sx={{ opacity: 0.9, dir: "rtl" }}>
-            {doctor.nameAr}
-          </Typography>
+          {nameAr && (
+            <Typography level="body-md" sx={{ opacity: 0.9, dir: "rtl" }}>
+              {nameAr}
+            </Typography>
+          )}
         </Box>
-        
+
         <Chip
           variant="soft"
           sx={{
@@ -57,21 +69,14 @@ const DoctorProfileCard = ({ doctor }) => {
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <BadgeIcon sx={{ fontSize: 20, opacity: 0.9 }} />
           <Typography level="body-sm" sx={{ opacity: 0.9 }}>
-            ID: {doctor.employeeId}
+            ID: {doctorId ?? "N/A"}
           </Typography>
         </Box>
-        
+
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <LocalHospitalIcon sx={{ fontSize: 20, opacity: 0.9 }} />
           <Typography level="body-sm" sx={{ opacity: 0.9 }}>
-            {doctor.department} - {doctor.specialty}
-          </Typography>
-        </Box>
-        
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <CalendarMonthIcon sx={{ fontSize: 20, opacity: 0.9 }} />
-          <Typography level="body-sm" sx={{ opacity: 0.9 }}>
-            Active since: {doctor.hireDate}
+            {doctor.specialty || "Specialty not available"}
           </Typography>
         </Box>
       </Box>

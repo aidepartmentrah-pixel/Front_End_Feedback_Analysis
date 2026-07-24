@@ -2,10 +2,10 @@
 // Phase D — Patient search switched to V2 API wrapper with Autocomplete
 // Phase R-P — Normalized to full_name, patient_id, mrn (removed fallback chaos)
 import React, { useState } from "react";
-import { Box, Typography, Autocomplete, AutocompleteOption, Button, CircularProgress } from "@mui/joy";
-import SearchIcon from "@mui/icons-material/Search";
+import { Box, Typography, Autocomplete, AutocompleteOption, CircularProgress } from "@mui/joy";
 import PersonIcon from "@mui/icons-material/Person";
 import { searchPatientsV2 } from "../../api/personApiV2";
+import theme from "../../theme";
 
 const SearchPatient = ({ onSelectPatient }) => {
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -38,23 +38,17 @@ const SearchPatient = ({ onSelectPatient }) => {
     }
   };
 
-  const handleSearch = () => {
-    if (selectedPatient) {
-      onSelectPatient(selectedPatient);
-    }
-  };
-
   return (
     <Box
       sx={{
         mb: 3,
         p: 3,
-        borderRadius: "8px",
-        background: "linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)",
-        border: "1px solid rgba(102, 126, 234, 0.3)",
+        borderRadius: theme.radius.lg,
+        background: theme.gradients.primarySubtle,
+        border: `1px solid ${theme.colors.primaryLight}`,
       }}
     >
-      <Typography level="h5" sx={{ mb: 2, fontWeight: 700, color: "#667eea" }}>
+      <Typography level="h5" sx={{ mb: 2, fontWeight: 700, color: theme.colors.primary }}>
         🔍 Search Patient
       </Typography>
       
@@ -68,7 +62,10 @@ const SearchPatient = ({ onSelectPatient }) => {
             options={options}
             value={selectedPatient}
             inputValue={inputValue}
-            onChange={(e, newValue) => setSelectedPatient(newValue)}
+            onChange={(e, newValue) => {
+              setSelectedPatient(newValue);
+              if (newValue) onSelectPatient(newValue);
+            }}
             onInputChange={handleInputChange}
             loading={loading}
             getOptionLabel={(option) => {
@@ -80,7 +77,7 @@ const SearchPatient = ({ onSelectPatient }) => {
             renderOption={(props, option) => (
               <AutocompleteOption {...props}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, width: "100%" }}>
-                  <PersonIcon sx={{ color: "#667eea" }} />
+                  <PersonIcon sx={{ color: theme.colors.primary }} />
                   <Box sx={{ flex: 1 }}>
                     <Typography level="body-sm" sx={{ fontWeight: 600 }}>
                       {option.full_name}
@@ -90,7 +87,7 @@ const SearchPatient = ({ onSelectPatient }) => {
                       {option.phone && ` • ${option.phone}`}
                     </Typography>
                   </Box>
-                  <Typography level="body-xs" sx={{ color: "#667eea", fontWeight: 600 }}>
+                  <Typography level="body-xs" sx={{ color: theme.colors.primary, fontWeight: 600 }}>
                     {option.patient_id}
                   </Typography>
                 </Box>
@@ -100,24 +97,6 @@ const SearchPatient = ({ onSelectPatient }) => {
             sx={{ width: "100%" }}
           />
         </Box>
-        
-        <Button
-          startDecorator={<SearchIcon />}
-          onClick={handleSearch}
-          disabled={!selectedPatient}
-          sx={{
-            px: 3,
-            py: 1.25,
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            color: "white",
-            fontWeight: 700,
-            "&:disabled": {
-              background: "#ccc",
-            },
-          }}
-        >
-          Search
-        </Button>
       </Box>
     </Box>
   );

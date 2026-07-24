@@ -205,7 +205,7 @@ const WorkerHistoryPage = ({ embedded = false }) => {
       label: "Total Incidents",
       value: workerMetrics.total_incidents || 0,
       icon: "📊",
-      color: "#667eea"
+      color: theme.colors.primary
     },
     {
       key: "high_severity",
@@ -284,8 +284,11 @@ const WorkerHistoryPage = ({ embedded = false }) => {
     <Card
       sx={{
         p: 3,
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        background: theme.gradients.primary,
         color: "white",
+        boxShadow: theme.shadows.card,
+        borderRadius: theme.radius.lg,
+        border: "none",
         mb: 3
       }}
     >
@@ -314,7 +317,7 @@ const WorkerHistoryPage = ({ embedded = false }) => {
             Department
           </Typography>
           <Typography level="body-md" sx={{ fontWeight: 600 }}>
-            {workerProfile.department_name || `Dept ${workerProfile.department_id}` || "N/A"}
+            {workerProfile.department_name || (workerProfile.department_id != null ? `Dept ${workerProfile.department_id}` : "N/A")}
           </Typography>
         </Box>
         {workerProfile.section_id && (
@@ -412,7 +415,7 @@ const WorkerHistoryPage = ({ embedded = false }) => {
 
             {/* Export Actions - Centered Section */}
             <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4, mt: 3 }}>
-              <Card sx={{ p: 3, minWidth: 340, maxWidth: 420, width: '100%', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', boxShadow: '0 8px 32px rgba(102, 126, 234, 0.2)', border: 'none' }}>
+              <Card sx={{ p: 3, minWidth: 340, maxWidth: 420, width: '100%', background: theme.gradients.primary, boxShadow: theme.shadows.card, border: 'none' }}>
                 <Typography
                   level="body-md"
                   sx={{ fontWeight: 700, color: 'white', mb: 2, display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}
@@ -438,7 +441,7 @@ const WorkerHistoryPage = ({ embedded = false }) => {
                     loading={exporting}
                     disabled={!exportFormat || exporting}
                     onClick={() => handleExport(exportFormat)}
-                    sx={{ width: '100%', background: 'white', color: '#667eea', fontWeight: 700, '&:hover': { background: 'rgba(255, 255, 255, 0.9)' } }}
+                    sx={{ width: '100%', background: 'white', color: theme.colors.primary, fontWeight: 700, '&:hover': { background: 'rgba(255, 255, 255, 0.9)' } }}
                   >
                     تصدير البيانات
                   </Button>
@@ -453,13 +456,13 @@ const WorkerHistoryPage = ({ embedded = false }) => {
         ) : !selectedWorker && !loading ? (
           <Alert
             sx={{
-              background: "linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)",
-              borderColor: "rgba(102, 126, 234, 0.3)",
+              background: theme.gradients.primarySubtle,
+              borderColor: theme.colors.primaryLight,
               textAlign: "center",
               p: 4,
             }}
           >
-            <Typography level="h6" sx={{ color: "#667eea", mb: 1 }}>
+            <Typography level="h6" sx={{ color: theme.colors.primary, mb: 1 }}>
               Select a worker to view profile and generate report
             </Typography>
             <Typography level="body-sm" sx={{ color: "#666" }}>
@@ -470,11 +473,11 @@ const WorkerHistoryPage = ({ embedded = false }) => {
 
         {/* ALL Workers Aggregate Report Section - At Bottom */}
         <Box sx={{ mt: 5, pt: 4, borderTop: '2px solid #eee' }}>
-          <Typography level="h5" sx={{ mb: 3, fontWeight: 700, color: '#667eea', textAlign: 'center' }}>
+          <Typography level="h5" sx={{ mb: 3, fontWeight: 700, color: theme.colors.primary, textAlign: 'center' }}>
             📊 Aggregate Reports for ALL Workers
           </Typography>
-          
-          <Card sx={{ p: 4, background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)', border: '2px solid rgba(102, 126, 234, 0.2)', textAlign: 'center' }}>
+
+          <Card sx={{ p: 4, background: theme.gradients.primaryVerySubtle, border: `2px solid ${theme.colors.primaryLight}`, textAlign: 'center' }}>
             <Typography level="body-md" sx={{ mb: 3, color: '#666' }}>
               Generate a comprehensive seasonal report for all workers in the system
             </Typography>
@@ -496,28 +499,28 @@ const WorkerHistoryPage = ({ embedded = false }) => {
                   generatingReport
                 }
                 onClick={handleGenerateSeasonalReport}
-                sx={{ 
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                sx={{
+                  background: theme.gradients.primary,
                   color: 'white',
                   fontWeight: 700,
                   fontSize: '1rem',
                   py: 1.5,
                   px: 4,
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                  borderRadius: theme.radius.lg,
+                  boxShadow: theme.shadows.card,
                   transition: 'all 0.3s ease',
                   '&:hover': {
-                    background: 'linear-gradient(135deg, #5a6fd6 0%, #6a42a0 100%)',
-                    boxShadow: '0 6px 20px rgba(102, 126, 234, 0.6)',
+                    background: theme.gradients.primaryReverse,
+                    boxShadow: theme.shadows.hover,
                     transform: 'translateY(-2px)',
                   },
                   '&:active': {
                     transform: 'translateY(0)',
-                    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.4)',
+                    boxShadow: theme.shadows.card,
                   },
                   '&:disabled': {
-                    background: '#ccc',
-                    color: '#999',
+                    background: theme.colors.disabled,
+                    color: theme.colors.disabledText,
                     boxShadow: 'none',
                     transform: 'none',
                   }
