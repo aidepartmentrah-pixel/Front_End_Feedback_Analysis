@@ -85,7 +85,7 @@ const InsightPage = () => {
   const [fcPipelineError, setFcPipelineError] = useState(null);
 
   // Filter state
-  const [dateRange, setDateRange] = useState('30');
+  const [dateRange, setDateRange] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   // Quick-filter for Workload Overview: 'all' | 'late' | 'forceClosed' | 'extraTime'
   const [workflowQuickFilter, setWorkflowQuickFilter] = useState('all');
@@ -373,7 +373,7 @@ const InsightPage = () => {
   }
 
   function resetFilters() {
-    setDateRange('30');
+    setDateRange('all');
     setSearchTerm('');
   }
 
