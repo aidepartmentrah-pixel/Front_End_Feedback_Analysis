@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Box, Typography, Autocomplete, AutocompleteOption, CircularProgress } from "@mui/joy";
 import PersonIcon from "@mui/icons-material/Person";
+import SearchIcon from "@mui/icons-material/Search";
 import { searchDoctorsV2 } from "../../api/personApiV2";
 import theme from "../../theme";
 
@@ -37,15 +38,15 @@ const SearchDoctor = ({ onDoctorSelect }) => {
   return (
     <Box
       sx={{
-        mb: 3,
-        p: 3,
+        mb: 2.5,
+        p: 2.5,
         borderRadius: theme.radius.lg,
-        background: theme.gradients.primarySubtle,
-        border: `1px solid ${theme.colors.primaryLight}`,
+        background: theme.colors.surface,
+        border: `1px solid ${theme.colors.border}`,
       }}
     >
-      <Typography level="h5" sx={{ mb: 2, fontWeight: 700, color: theme.colors.primary }}>
-        🔍 Search Doctor
+      <Typography level="h5" sx={{ mb: 2, fontWeight: 700, color: theme.colors.primary, display: "flex", alignItems: "center", gap: 1 }}>
+        <SearchIcon fontSize="small" /> Search Doctor
       </Typography>
       
       <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end" }}>

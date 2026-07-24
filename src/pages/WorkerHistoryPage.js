@@ -6,13 +6,25 @@
 // Phase Universal — Using UniversalIncidentsTable
 
 import React, { useState } from "react";
-import { Box, Typography, Alert, CircularProgress, Card, Button, Select, Option } from "@mui/joy";
+import { Box, Typography, Alert, CircularProgress, Card, Button } from "@mui/joy";
 import DescriptionIcon from '@mui/icons-material/Description';
+import PersonIcon from '@mui/icons-material/Person';
+import BadgeIcon from '@mui/icons-material/Badge';
+import WorkIcon from '@mui/icons-material/Work';
+import ApartmentIcon from '@mui/icons-material/Apartment';
+import GroupsIcon from '@mui/icons-material/Groups';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import ErrorIcon from '@mui/icons-material/Error';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
+import SentimentDissatisfiedIcon from '@mui/icons-material/SentimentDissatisfied';
 import theme from "../theme";
 import MainLayout from "../components/common/MainLayout";
-import MetricsPanel from "../components/personReporting/MetricsPanel";
+import PersonProfileCard from "../components/common/PersonProfileCard";
 import SearchWorker from "../components/workerHistory/SearchWorker";
 import UniversalIncidentsTable from "../components/common/UniversalIncidentsTable";
+import ExportMenu from "../components/common/ExportMenu";
 import SeasonSelector from "../components/personReporting/SeasonSelector";
 import { getWorkerFullHistoryV2, exportWorkerCsvV2, exportWorkerJsonV2, exportWorkerWordV2, downloadWorkerSeasonalWordV2, downloadAllWorkersSeasonalWordV2, downloadBlobFile, extractApiErrorMessage } from "../api/personApiV2";
 import { useAuth } from "../context/AuthContext";
@@ -31,9 +43,8 @@ const WorkerHistoryPage = ({ embedded = false }) => {
   const [selectedSeason, setSelectedSeason] = useState(null);
   const [generatingReport, setGeneratingReport] = useState(false);
   const [reportError, setReportError] = useState(null);
-  
+
   // Export state
-  const [exportFormat, setExportFormat] = useState('word');
   const [exporting, setExporting] = useState(false);
   
   // Report scope state - always 'all' for aggregate reports
@@ -198,149 +209,87 @@ const WorkerHistoryPage = ({ embedded = false }) => {
     }
   };
 
-  // Build metrics config from worker metrics - Updated with severity and intent classifications
+  // Build metrics config from worker metrics. Action-item tiles (Total
+  // Actions/Completed/Overdue/Rejected) and Neutral Feedback were removed
+  // per product decision -- "neutral" is structurally always 0 (the backend
+  // only ever classifies feedback as Notice/Critique, no neutral bucket).
   const metricsConfig = workerMetrics ? [
     {
       key: "total_incidents",
       label: "Total Incidents",
       value: workerMetrics.total_incidents || 0,
-      icon: "📊",
+      icon: <AssessmentIcon />,
       color: theme.colors.primary
     },
     {
       key: "high_severity",
       label: "High Severity",
       value: workerMetrics.high_severity || 0,
-      icon: "⚠️",
-      color: "#ff4757"
+      icon: <ErrorIcon />,
+      color: theme.colors.error
     },
     {
       key: "medium_severity",
       label: "Medium Severity",
       value: workerMetrics.medium_severity || 0,
-      icon: "📝",
-      color: "#ffa502"
+      icon: <WarningAmberIcon />,
+      color: theme.colors.warning
     },
     {
       key: "low_severity",
       label: "Low Severity",
       value: workerMetrics.low_severity || 0,
-      icon: "✅",
-      color: "#2ed573"
+      icon: <CheckCircleIcon />,
+      color: theme.colors.success
     },
     {
       key: "good_feedback_count",
       label: "Good Feedback",
       value: workerMetrics.good_feedback_count || 0,
-      icon: "😊",
-      color: "#4caf50"
-    },
-    {
-      key: "neutral_feedback_count",
-      label: "Neutral Feedback",
-      value: workerMetrics.neutral_feedback_count || 0,
-      icon: "😐",
-      color: "#95a5a6"
+      icon: <SentimentSatisfiedAltIcon />,
+      color: theme.colors.success
     },
     {
       key: "bad_feedback_count",
       label: "Bad Feedback",
       value: workerMetrics.bad_feedback_count || 0,
-      icon: "😞",
-      color: "#e74c3c"
-    },
-    {
-      key: "total_action_items",
-      label: "Total Actions",
-      value: workerMetrics.total_action_items || 0,
-      icon: "📋",
-      color: "#3498db"
-    },
-    {
-      key: "completed_action_items",
-      label: "Completed",
-      value: workerMetrics.completed_action_items || 0,
-      icon: "✔️",
-      color: "#27ae60"
-    },
-    {
-      key: "overdue_action_items",
-      label: "Overdue",
-      value: workerMetrics.overdue_action_items || 0,
-      icon: "⏰",
-      color: "#e67e22"
-    },
-    {
-      key: "rejected_count",
-      label: "Rejected",
-      value: workerMetrics.explanation_rejected_count || 0,
-      icon: "❌",
-      color: "#c0392b"
+      icon: <SentimentDissatisfiedIcon />,
+      color: theme.colors.error
     }
   ] : [];
 
   // Profile section
   const profileSection = workerProfile ? (
-    <Card
-      sx={{
-        p: 3,
-        background: theme.gradients.primary,
-        color: "white",
-        boxShadow: theme.shadows.card,
-        borderRadius: theme.radius.lg,
-        border: "none",
-        mb: 3
-      }}
-    >
-      <Typography level="h4" sx={{ fontWeight: 700, mb: 2 }}>
-        {workerProfile.full_name || workerProfile.name || "Unknown Worker"}
-      </Typography>
-      <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
-        <Box>
-          <Typography level="body-sm" sx={{ opacity: 0.9 }}>
-            Employee ID
-          </Typography>
-          <Typography level="body-md" sx={{ fontWeight: 600 }}>
-            {workerProfile.employee_id || "N/A"}
-          </Typography>
-        </Box>
-        <Box>
-          <Typography level="body-sm" sx={{ opacity: 0.9 }}>
-            Job Title
-          </Typography>
-          <Typography level="body-md" sx={{ fontWeight: 600 }}>
-            {workerProfile.job_title || "N/A"}
-          </Typography>
-        </Box>
-        <Box>
-          <Typography level="body-sm" sx={{ opacity: 0.9 }}>
-            Department
-          </Typography>
-          <Typography level="body-md" sx={{ fontWeight: 600 }}>
-            {workerProfile.department_name || (workerProfile.department_id != null ? `Dept ${workerProfile.department_id}` : "N/A")}
-          </Typography>
-        </Box>
-        {workerProfile.section_id && (
-          <Box>
-            <Typography level="body-sm" sx={{ opacity: 0.9 }}>
-              Section
-            </Typography>
-            <Typography level="body-md" sx={{ fontWeight: 600 }}>
-              {workerProfile.section_name || `Section ${workerProfile.section_id}`}
-            </Typography>
-          </Box>
-        )}
-      </Box>
-    </Card>
+    <PersonProfileCard
+      icon={<PersonIcon />}
+      name={workerProfile.full_name || workerProfile.name || "Unknown Worker"}
+      statusLabel={workerProfile.is_active === false ? "Inactive" : "Active"}
+      statusColor={workerProfile.is_active === false ? "neutral" : "success"}
+      fields={[
+        { icon: <BadgeIcon fontSize="small" />, label: "Employee ID", value: workerProfile.employee_id },
+        { icon: <WorkIcon fontSize="small" />, label: "Job Title", value: workerProfile.job_title },
+        {
+          icon: <ApartmentIcon fontSize="small" />,
+          label: "Department",
+          value: workerProfile.department_name || (workerProfile.department_id != null ? `Dept ${workerProfile.department_id}` : null),
+        },
+        ...(workerProfile.section_id != null
+          ? [{ icon: <GroupsIcon fontSize="small" />, label: "Section", value: workerProfile.section_name || `Section ${workerProfile.section_id}` }]
+          : []),
+      ]}
+      metrics={metricsConfig}
+    />
   ) : null;
 
-  // Incidents table section - using UniversalIncidentsTable
+  // Incidents table section -- export lives here as a compact toolbar
+  // action, not a standalone feature card competing for attention
   const tableSection = workerProfile ? (
     <UniversalIncidentsTable
       incidents={workerActions}
       context="worker"
       title="👷 Incidents Involving This Worker"
       emptyMessage="No incidents found for this worker"
+      actions={<ExportMenu onExport={handleExport} loading={exporting} />}
     />
   ) : null;
 
@@ -359,9 +308,9 @@ const WorkerHistoryPage = ({ embedded = false }) => {
         </Alert>
       </Box>
     ) : (
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3.5 }}>
         {/* Page Header */}
-        <Box sx={{ mb: 4 }}>
+        <Box>
           <Typography
             level="h2"
             sx={{
@@ -374,7 +323,7 @@ const WorkerHistoryPage = ({ embedded = false }) => {
           >
             🧑‍💼 Worker History & Performance Analysis
           </Typography>
-          <Typography level="body-md" sx={{ color: "#666" }}>
+          <Typography level="body-md" sx={{ color: theme.colors.textSecondary }}>
             Search for any worker to view their performance metrics and action item history
           </Typography>
         </Box>
@@ -384,7 +333,7 @@ const WorkerHistoryPage = ({ embedded = false }) => {
 
         {/* Success Alerts */}
         {success && (
-          <Alert color="success" sx={{ mb: 3 }} onClose={() => setSuccess(null)}>
+          <Alert color="success" onClose={() => setSuccess(null)}>
             {success}
           </Alert>
         )}
@@ -392,110 +341,57 @@ const WorkerHistoryPage = ({ embedded = false }) => {
         {/* Phase D — standardized loading and empty states */}
         {/* Conditional render order: error → loading → empty → content */}
         {error && !loading ? (
-          <Alert color="danger" sx={{ mb: 3 }}>
+          <Alert color="danger">
             {error}
           </Alert>
         ) : loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
             <CircularProgress size="lg" />
-            <Typography level="body-md" sx={{ ml: 2, color: "#666" }}>
+            <Typography level="body-md" sx={{ ml: 2, color: theme.colors.textSecondary }}>
               Loading worker data...
             </Typography>
           </Box>
         ) : selectedWorker && workerProfile ? (
-          <>
-            {/* Profile Section */}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {/* Profile Section + integrated performance stat strip */}
             {profileSection}
-
-            {/* Metrics Panel */}
-            {workerMetrics && <MetricsPanel metrics={metricsConfig} />}
 
             {/* Incidents Table */}
             {tableSection}
-
-            {/* Export Actions - Centered Section */}
-            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4, mt: 3 }}>
-              <Card sx={{ p: 3, minWidth: 340, maxWidth: 420, width: '100%', background: theme.gradients.primary, boxShadow: theme.shadows.card, border: 'none' }}>
-                <Typography
-                  level="body-md"
-                  sx={{ fontWeight: 700, color: 'white', mb: 2, display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}
-                >
-                  <DescriptionIcon sx={{ fontSize: 20 }} />
-                  تصدير بيانات الموظف
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  <Select
-                    size="sm"
-                    placeholder="اختر الصيغة"
-                    value={exportFormat}
-                    onChange={(e, value) => setExportFormat(value)}
-                    sx={{ width: '100%', background: 'white', '&:hover': { background: 'white' } }}
-                  >
-                    <Option value="word">Word Report (.docx)</Option>
-                    <Option value="csv">CSV</Option>
-                    <Option value="json">JSON</Option>
-                  </Select>
-                  <Button
-                    size="md"
-                    variant="solid"
-                    loading={exporting}
-                    disabled={!exportFormat || exporting}
-                    onClick={() => handleExport(exportFormat)}
-                    sx={{ width: '100%', background: 'white', color: theme.colors.primary, fontWeight: 700, '&:hover': { background: 'rgba(255, 255, 255, 0.9)' } }}
-                  >
-                    تصدير البيانات
-                  </Button>
-                </Box>
-              </Card>
-            </Box>
-          </>
+          </Box>
         ) : selectedWorker && !workerProfile && !loading ? (
-          <Alert color="warning" sx={{ mb: 3 }}>
+          <Alert color="warning">
             No data found for selected worker
-          </Alert>
-        ) : !selectedWorker && !loading ? (
-          <Alert
-            sx={{
-              background: theme.gradients.primarySubtle,
-              borderColor: theme.colors.primaryLight,
-              textAlign: "center",
-              p: 4,
-            }}
-          >
-            <Typography level="h6" sx={{ color: theme.colors.primary, mb: 1 }}>
-              Select a worker to view profile and generate report
-            </Typography>
-            <Typography level="body-sm" sx={{ color: "#666" }}>
-              Use the search above to find and select a worker
-            </Typography>
           </Alert>
         ) : null}
 
-        {/* ALL Workers Aggregate Report Section - At Bottom */}
-        <Box sx={{ mt: 5, pt: 4, borderTop: '2px solid #eee' }}>
-          <Typography level="h5" sx={{ mb: 3, fontWeight: 700, color: theme.colors.primary, textAlign: 'center' }}>
-            📊 Aggregate Reports for ALL Workers
+        {/* ALL Workers Aggregate Report Section - distinct feature area,
+            visually separated but no longer a saturated gradient panel */}
+        <Box sx={{ pt: 3, borderTop: `1px solid ${theme.colors.border}`, textAlign: "center" }}>
+          <Typography level="title-md" sx={{ mb: 2, fontWeight: 700, color: theme.colors.textPrimary, display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
+            <AssessmentIcon sx={{ color: theme.colors.primary }} fontSize="small" />
+            Aggregate Reports for ALL Workers
           </Typography>
 
-          <Card sx={{ p: 4, background: theme.gradients.primaryVerySubtle, border: `2px solid ${theme.colors.primaryLight}`, textAlign: 'center' }}>
-            <Typography level="body-md" sx={{ mb: 3, color: '#666' }}>
+          <Card variant="outlined" sx={{ p: 2.5, borderRadius: theme.radius.lg, borderColor: theme.colors.border, maxWidth: 480, mx: "auto" }}>
+            <Typography level="body-sm" sx={{ mb: 2, color: theme.colors.textSecondary }}>
               Generate a comprehensive seasonal report for all workers in the system
             </Typography>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 400, mx: 'auto', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', flexDirection: "column", gap: 2, alignItems: "center" }}>
               <SeasonSelector
                 value={selectedSeason}
                 onChange={handleSeasonChange}
               />
 
               <Button
-                size="lg"
+                size="md"
                 variant="solid"
                 startDecorator={<DescriptionIcon />}
                 loading={generatingReport}
                 disabled={
-                  !selectedSeason?.season_start || 
-                  !selectedSeason?.season_end || 
+                  !selectedSeason?.season_start ||
+                  !selectedSeason?.season_end ||
                   generatingReport
                 }
                 onClick={handleGenerateSeasonalReport}
@@ -503,38 +399,24 @@ const WorkerHistoryPage = ({ embedded = false }) => {
                   background: theme.gradients.primary,
                   color: 'white',
                   fontWeight: 700,
-                  fontSize: '1rem',
-                  py: 1.5,
-                  px: 4,
-                  borderRadius: theme.radius.lg,
-                  boxShadow: theme.shadows.card,
-                  transition: 'all 0.3s ease',
                   '&:hover': {
                     background: theme.gradients.primaryReverse,
-                    boxShadow: theme.shadows.hover,
-                    transform: 'translateY(-2px)',
-                  },
-                  '&:active': {
-                    transform: 'translateY(0)',
-                    boxShadow: theme.shadows.card,
                   },
                   '&:disabled': {
                     background: theme.colors.disabled,
                     color: theme.colors.disabledText,
-                    boxShadow: 'none',
-                    transform: 'none',
                   }
                 }}
               >
-                📄 Generate Report for ALL Workers
+                Generate Report
               </Button>
-
-              {reportError && (
-                <Alert color={reportError.color} size="sm">
-                  {reportError.message}
-                </Alert>
-              )}
             </Box>
+
+            {reportError && (
+              <Alert color={reportError.color} size="sm" sx={{ mt: 2 }}>
+                {reportError.message}
+              </Alert>
+            )}
           </Card>
         </Box>
       </Box>

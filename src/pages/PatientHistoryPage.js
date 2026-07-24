@@ -5,13 +5,15 @@
 // Phase 7 — Patient Feedback Seasonal Report widget integrated
 // Phase Universal — Using UniversalIncidentsTable with satisfaction support
 import React, { useState, useEffect } from "react";
-import { Box, Alert, CircularProgress, Typography, Button, Card, Select, Option } from "@mui/joy";
+import { Box, Alert, CircularProgress, Typography, Button, Card } from "@mui/joy";
 import DescriptionIcon from '@mui/icons-material/Description';
+import AssessmentIcon from '@mui/icons-material/Assessment';
 import theme from '../theme';
 import MainLayout from "../components/common/MainLayout";
 import SearchPatient from "../components/patientHistory/SearchPatient";
 import PatientInfoCard from "../components/patientHistory/PatientInfoCard";
 import UniversalIncidentsTable from "../components/common/UniversalIncidentsTable";
+import ExportMenu from "../components/common/ExportMenu";
 import SatisfactionModal from "../components/patientHistory/SatisfactionModal";
 import PatientActions from "../components/patientHistory/PatientActions";
 import SeasonSelector from "../components/personReporting/SeasonSelector";
@@ -34,7 +36,6 @@ const PatientHistoryPage = ({ embedded = false }) => {
   
   // FAB state
   const [fabExpanded, setFabExpanded] = useState(false);
-  const [exportFormat, setExportFormat] = useState('word');
   const [exporting, setExporting] = useState(false);
   
   // Phase 7 — Patient Feedback Seasonal Report state
@@ -193,9 +194,9 @@ const PatientHistoryPage = ({ embedded = false }) => {
   };
 
   const content = (
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3.5 }}>
         {/* Page Header */}
-        <Box sx={{ mb: 4 }}>
+        <Box>
           <Typography
             level="h2"
             sx={{
@@ -208,27 +209,25 @@ const PatientHistoryPage = ({ embedded = false }) => {
           >
             👤 Patient History & Medical Records
           </Typography>
-          <Typography level="body-md" sx={{ color: "#666" }}>
+          <Typography level="body-md" sx={{ color: theme.colors.textSecondary }}>
             Search for any patient to view their complete incident history and medical feedback records
           </Typography>
         </Box>
 
         {/* Success Alerts */}
         {success && (
-          <Alert color="success" sx={{ mb: 3 }} onClose={() => setSuccess(null)}>
+          <Alert color="success" onClose={() => setSuccess(null)}>
             {success}
           </Alert>
         )}
 
         {/* Search Patient */}
-        <Box sx={{ mb: 3 }}>
-          <SearchPatient onSelectPatient={handleSelectPatient} />
-        </Box>
+        <SearchPatient onSelectPatient={handleSelectPatient} />
 
         {/* Phase D — standardized loading and empty states */}
         {/* Conditional render order: error → loading → empty → content */}
         {error && !loading ? (
-          <Alert color="danger" sx={{ mb: 3 }} onClose={() => setError(null)}>
+          <Alert color="danger" onClose={() => setError(null)}>
             {error}
           </Alert>
         ) : loading ? (
@@ -241,38 +240,34 @@ const PatientHistoryPage = ({ embedded = false }) => {
             }}
           >
             <CircularProgress size="lg" />
-            <Typography level="body-md" sx={{ ml: 2, color: "#666" }}>
+            <Typography level="body-md" sx={{ ml: 2, color: theme.colors.textSecondary }}>
               Loading patient data...
             </Typography>
           </Box>
         ) : selectedPatient && patientProfile ? (
-          <>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
             {/* Patient Info Card */}
-            <Box sx={{ mb: 3 }}>
-              <PatientInfoCard patient={patientProfile} />
-            </Box>
+            <PatientInfoCard patient={patientProfile} />
 
             {/* Actions Row */}
-            <Box sx={{ mb: 3 }}>
-              <PatientActions
-                patient={patientProfile}
-                onRefresh={handleRefresh}
-              />
-            </Box>
+            <PatientActions
+              patient={patientProfile}
+              onRefresh={handleRefresh}
+            />
 
-            {/* Feedback Table */}
-            <Box sx={{ mb: 3 }}>
-              <UniversalIncidentsTable
-                incidents={feedbackList}
-                context="patient"
-                showSatisfaction={true}
-                onOpenSatisfaction={handleOpenSatisfaction}
-                onRefresh={handleRefresh}
-                title="📋 Patient Feedback History"
-                emptyMessage="No feedback records found for this patient"
-              />
-            </Box>
-            
+            {/* Feedback Table -- export lives here as a compact toolbar
+                action, not a standalone feature card competing for attention */}
+            <UniversalIncidentsTable
+              incidents={feedbackList}
+              context="patient"
+              showSatisfaction={true}
+              onOpenSatisfaction={handleOpenSatisfaction}
+              onRefresh={handleRefresh}
+              title="📋 Patient Feedback History"
+              emptyMessage="No feedback records found for this patient"
+              actions={<ExportMenu onExport={handleExport} loading={exporting} />}
+            />
+
             {/* Satisfaction Modal */}
             <SatisfactionModal
               open={satisfactionModalOpen}
@@ -283,89 +278,38 @@ const PatientHistoryPage = ({ embedded = false }) => {
               caseData={selectedCase}
               onSuccess={handleSatisfactionSuccess}
             />
-          </>
-        ) : (
-          <Alert
-            sx={{
-              background: theme.gradients.primarySubtle,
-              borderColor: theme.colors.primaryLight,
-              textAlign: "center",
-              p: 4,
-            }}
-          >
-            <Typography level="h6" sx={{ color: theme.colors.primary, mb: 1 }}>
-              Select a patient to view profile and generate report
-            </Typography>
-            <Typography level="body-sm" sx={{ color: "#666" }}>
-              Use the search above to find and select a patient
-            </Typography>
-          </Alert>
-        )}
-        
-        {/* Export Actions - Centered Section */}
-        {selectedPatient && patientProfile && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
-            <Card sx={{ p: 3, minWidth: 340, maxWidth: 420, width: '100%', background: theme.gradients.primary, boxShadow: theme.shadows.card, border: 'none' }}>
-              <Typography
-                level="body-md"
-                sx={{ fontWeight: 700, color: 'white', mb: 2, display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}
-              >
-                <DescriptionIcon sx={{ fontSize: 20 }} />
-                تصدير بيانات المريض
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                <Select
-                  size="sm"
-                  placeholder="اختر الصيغة"
-                  value={exportFormat}
-                  onChange={(e, value) => setExportFormat(value)}
-                  sx={{ width: '100%', background: 'white', '&:hover': { background: 'white' } }}
-                >
-                  <Option value="word">Word Report (.docx)</Option>
-                  <Option value="csv">CSV</Option>
-                  <Option value="json">JSON</Option>
-                </Select>
-                <Button
-                  size="md"
-                  variant="solid"
-                  loading={exporting}
-                  disabled={!exportFormat || exporting}
-                  onClick={() => handleExport(exportFormat)}
-                  sx={{ width: '100%', background: 'white', color: theme.colors.primary, fontWeight: 700, '&:hover': { background: 'rgba(255, 255, 255, 0.9)' } }}
-                >
-                  تصدير البيانات
-                </Button>
-              </Box>
-            </Card>
           </Box>
-        )}
+        ) : null}
 
-        {/* Phase 7 — Patient Feedback Seasonal Report Section */}
+        {/* Phase 7 — Patient Feedback Seasonal Report Section - distinct
+            feature area, visually separated but no longer a saturated
+            gradient panel */}
         {canViewReporting && (
-          <Box sx={{ mt: 5, pt: 4, borderTop: '2px solid #eee' }}>
-            <Typography level="h5" sx={{ mb: 3, fontWeight: 700, color: theme.colors.primary, textAlign: 'center' }}>
-              📊 Aggregate Reports for RCA & Satisfaction
+          <Box sx={{ pt: 3, borderTop: `1px solid ${theme.colors.border}`, textAlign: "center" }}>
+            <Typography level="title-md" sx={{ mb: 2, fontWeight: 700, color: theme.colors.textPrimary, display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
+              <AssessmentIcon sx={{ color: theme.colors.primary }} fontSize="small" />
+              Aggregate Reports for RCA & Satisfaction
             </Typography>
 
-            <Card sx={{ p: 4, background: theme.gradients.primaryVerySubtle, border: `2px solid ${theme.colors.primaryLight}`, textAlign: 'center' }}>
-              <Typography level="body-md" sx={{ mb: 3, color: '#666' }}>
+            <Card variant="outlined" sx={{ p: 2.5, borderRadius: theme.radius.lg, borderColor: theme.colors.border, maxWidth: 480, mx: "auto" }}>
+              <Typography level="body-sm" sx={{ mb: 2, color: theme.colors.textSecondary }}>
                 Generate a comprehensive seasonal report analyzing Root Cause Analysis (RCA) and Patient Satisfaction data
               </Typography>
 
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 400, mx: 'auto', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', flexDirection: "column", gap: 2, alignItems: "center" }}>
                 <SeasonSelector
                   value={selectedSeason}
                   onChange={handleSeasonChange}
                 />
 
                 <Button
-                  size="lg"
+                  size="md"
                   variant="solid"
                   startDecorator={<DescriptionIcon />}
                   loading={generatingReport}
                   disabled={
-                    !selectedSeason?.season_start || 
-                    !selectedSeason?.season_end || 
+                    !selectedSeason?.season_start ||
+                    !selectedSeason?.season_end ||
                     generatingReport
                   }
                   onClick={handleGenerateFeedbackReport}
@@ -373,38 +317,24 @@ const PatientHistoryPage = ({ embedded = false }) => {
                     background: theme.gradients.primary,
                     color: 'white',
                     fontWeight: 700,
-                    fontSize: '1rem',
-                    py: 1.5,
-                    px: 4,
-                    borderRadius: theme.radius.lg,
-                    boxShadow: theme.shadows.card,
-                    transition: 'all 0.3s ease',
                     '&:hover': {
                       background: theme.gradients.primaryReverse,
-                      boxShadow: theme.shadows.hover,
-                      transform: 'translateY(-2px)',
-                    },
-                    '&:active': {
-                      transform: 'translateY(0)',
-                      boxShadow: theme.shadows.card,
                     },
                     '&:disabled': {
                       background: theme.colors.disabled,
                       color: theme.colors.disabledText,
-                      boxShadow: 'none',
-                      transform: 'none',
                     }
                   }}
                 >
-                  📄 إنشاء التقرير / Generate Report
+                  Generate Report
                 </Button>
-
-                {reportError && (
-                  <Alert color="danger" size="sm">
-                    {reportError}
-                  </Alert>
-                )}
               </Box>
+
+              {reportError && (
+                <Alert color="danger" size="sm" sx={{ mt: 2 }}>
+                  {reportError}
+                </Alert>
+              )}
             </Card>
           </Box>
         )}

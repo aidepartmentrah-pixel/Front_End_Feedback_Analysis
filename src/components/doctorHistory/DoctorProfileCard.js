@@ -1,11 +1,11 @@
 // src/components/doctorHistory/DoctorProfileCard.js
 import React from "react";
-import { Box, Typography, Chip } from "@mui/joy";
-import BadgeIcon from "@mui/icons-material/Badge";
 import LocalHospitalIcon from "@mui/icons-material/LocalHospital";
-import theme from "../../theme";
+import BadgeIcon from "@mui/icons-material/Badge";
+import MedicalServicesIcon from "@mui/icons-material/MedicalServices";
+import PersonProfileCard from "../common/PersonProfileCard";
 
-const DoctorProfileCard = ({ doctor }) => {
+const DoctorProfileCard = ({ doctor, metrics = [] }) => {
   // doctors_db.get_doctor_profile returns snake_case keys (id, name_en,
   // name_ar, specialty, status...). Doctors sourced from the hospital
   // directory have no "department" or "hire date" concept in this data
@@ -16,71 +16,18 @@ const DoctorProfileCard = ({ doctor }) => {
   const doctorId = doctor.id ?? doctor.doctor_id ?? doctor.employeeId;
 
   return (
-    <Box
-      sx={{
-        mb: 3,
-        p: 3,
-        borderRadius: theme.radius.lg,
-        background: theme.gradients.primary,
-        color: "white",
-        boxShadow: theme.shadows.card,
-      }}
-    >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-        <Box
-          sx={{
-            width: 80,
-            height: 80,
-            borderRadius: "50%",
-            background: "white",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "32px",
-          }}
-        >
-          👨‍⚕️
-        </Box>
-
-        <Box sx={{ flex: 1 }}>
-          <Typography level="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-            {nameEn || "Unknown Doctor"}
-          </Typography>
-          {nameAr && (
-            <Typography level="body-md" sx={{ opacity: 0.9, dir: "rtl" }}>
-              {nameAr}
-            </Typography>
-          )}
-        </Box>
-
-        <Chip
-          variant="soft"
-          sx={{
-            background: "rgba(255, 255, 255, 0.2)",
-            color: "white",
-            fontWeight: 700,
-          }}
-        >
-          {doctor.status === "active" ? "✅ Active" : "⏸️ Inactive"}
-        </Chip>
-      </Box>
-
-      <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <BadgeIcon sx={{ fontSize: 20, opacity: 0.9 }} />
-          <Typography level="body-sm" sx={{ opacity: 0.9 }}>
-            ID: {doctorId ?? "N/A"}
-          </Typography>
-        </Box>
-
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <LocalHospitalIcon sx={{ fontSize: 20, opacity: 0.9 }} />
-          <Typography level="body-sm" sx={{ opacity: 0.9 }}>
-            {doctor.specialty || "Specialty not available"}
-          </Typography>
-        </Box>
-      </Box>
-    </Box>
+    <PersonProfileCard
+      icon={<LocalHospitalIcon />}
+      name={nameEn || "Unknown Doctor"}
+      secondaryName={nameAr}
+      statusLabel={doctor.status === "active" ? "Active" : "Inactive"}
+      statusColor={doctor.status === "active" ? "success" : "neutral"}
+      fields={[
+        { icon: <BadgeIcon fontSize="small" />, label: "Doctor ID", value: doctorId },
+        { icon: <MedicalServicesIcon fontSize="small" />, label: "Specialty", value: doctor.specialty },
+      ]}
+      metrics={metrics}
+    />
   );
 };
 

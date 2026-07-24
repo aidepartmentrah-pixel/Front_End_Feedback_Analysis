@@ -15,6 +15,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import FlagIcon from "@mui/icons-material/Flag";
 import WarningIcon from "@mui/icons-material/Warning";
+import theme from "../../theme";
 
 /**
  * UniversalIncidentsTable - A shared table component for all history pages
@@ -28,6 +29,8 @@ import WarningIcon from "@mui/icons-material/Warning";
  * @param {Function} onRefresh - Handler for refreshing data after updates
  * @param {string} title - Custom title for the table section
  * @param {string} emptyMessage - Message to show when no incidents
+ * @param {React.ReactNode} [actions] - Optional right-aligned toolbar actions
+ *   (e.g. export controls) rendered in the table header, next to the title
  */
 const UniversalIncidentsTable = ({
   incidents = [],
@@ -38,6 +41,7 @@ const UniversalIncidentsTable = ({
   onRefresh,
   title,
   emptyMessage = "No incidents found",
+  actions,
 }) => {
   const [sortConfig, setSortConfig] = useState({ key: "date", direction: "desc" });
   const [page, setPage] = useState(0);
@@ -89,7 +93,7 @@ const UniversalIncidentsTable = ({
         alignItems: "center",
         gap: 0.5,
         userSelect: "none",
-        "&:hover": { color: "#667eea" },
+        "&:hover": { color: theme.colors.primary },
       }}
     >
       {label}
@@ -156,19 +160,46 @@ const UniversalIncidentsTable = ({
   const displayTitle = title || defaultTitles[context] || "Incident History";
   const totalPages = Math.ceil(sortedIncidents.length / rowsPerPage);
 
+  const header = (
+    <Box
+      sx={{
+        p: 2,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+        gap: 1.5,
+        background: theme.colors.background,
+        borderBottom: `1px solid ${theme.colors.border}`,
+      }}
+    >
+      <Box>
+        <Typography level="title-lg" sx={{ fontWeight: 700, color: theme.colors.textPrimary }}>
+          {displayTitle}
+        </Typography>
+        <Typography level="body-xs" sx={{ color: theme.colors.textSecondary, mt: 0.5 }}>
+          {sortedIncidents.length} total records • Click column headers to sort
+        </Typography>
+      </Box>
+      {actions && <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>{actions}</Box>}
+    </Box>
+  );
+
   if (incidents.length === 0) {
     return (
       <Sheet
         sx={{
-          borderRadius: "8px",
-          border: "1px solid rgba(102, 126, 234, 0.2)",
-          p: 4,
-          textAlign: "center",
+          borderRadius: theme.radius.lg,
+          border: `1px solid ${theme.colors.border}`,
+          overflow: "hidden",
         }}
       >
-        <Typography level="body-md" sx={{ color: "#999" }}>
-          {emptyMessage}
-        </Typography>
+        {header}
+        <Box sx={{ p: 4, textAlign: "center" }}>
+          <Typography level="body-md" sx={{ color: theme.colors.textTertiary }}>
+            {emptyMessage}
+          </Typography>
+        </Box>
       </Sheet>
     );
   }
@@ -176,26 +207,12 @@ const UniversalIncidentsTable = ({
   return (
     <Sheet
       sx={{
-        borderRadius: "8px",
-        border: "1px solid rgba(102, 126, 234, 0.2)",
+        borderRadius: theme.radius.lg,
+        border: `1px solid ${theme.colors.border}`,
         overflow: "hidden",
       }}
     >
-      {/* Header */}
-      <Box
-        sx={{
-          p: 2,
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-          color: "white",
-        }}
-      >
-        <Typography level="title-lg" sx={{ fontWeight: 700 }}>
-          {displayTitle}
-        </Typography>
-        <Typography level="body-xs" sx={{ opacity: 0.9, mt: 0.5 }}>
-          {sortedIncidents.length} total records • Click column headers to sort
-        </Typography>
-      </Box>
+      {header}
 
       {/* Table */}
       <Box sx={{ overflowX: "auto", maxHeight: "600px", overflowY: "auto" }}>
@@ -281,7 +298,7 @@ const UniversalIncidentsTable = ({
                     <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5 }}>
                       {isRedFlag && <FlagIcon sx={{ color: "#dc2626", fontSize: 14 }} />}
                       {isNeverEvent && <WarningIcon sx={{ color: "#7c3aed", fontSize: 14 }} />}
-                      <Typography level="body-sm" sx={{ fontWeight: 600, color: "#667eea" }}>
+                      <Typography level="body-sm" sx={{ fontWeight: 600, color: theme.colors.primary }}>
                         {getCaseId(incident)}
                       </Typography>
                     </Box>
@@ -313,7 +330,7 @@ const UniversalIncidentsTable = ({
                       {incident.category_en || incident.category || incident.category_name || "—"}
                     </Typography>
                     {incident.category_ar && (
-                      <Typography level="body-xs" sx={{ color: "#999", dir: "rtl" }}>
+                      <Typography level="body-xs" sx={{ color: theme.colors.textTertiary, dir: "rtl" }}>
                         {incident.category_ar}
                       </Typography>
                     )}
@@ -421,7 +438,7 @@ const UniversalIncidentsTable = ({
       <Box
         sx={{
           p: 2,
-          borderTop: "1px solid rgba(102, 126, 234, 0.1)",
+          borderTop: `1px solid ${theme.colors.border}`,
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",

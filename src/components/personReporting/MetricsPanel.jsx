@@ -3,37 +3,35 @@
 
 import React from "react";
 import { Box, Card, Typography } from "@mui/joy";
+import theme from "../../theme";
 
 /**
  * MetricsPanel - Generic metrics display component
- * 
- * Renders a responsive grid of metric cards from a configuration array.
- * Entity-agnostic and reusable across different reporting contexts.
- * 
+ *
+ * Renders a responsive grid of equal-size, neutral KPI cards from a
+ * configuration array. Color is a thin top accent + icon tint, not a
+ * full tinted card background/border -- reserved for cards that carry an
+ * actual severity/status meaning, not decoration.
+ *
  * @param {Object} props
  * @param {Array} props.metrics - Array of metric objects with structure:
  *   {
  *     key: string,          // Unique identifier
  *     label: string,        // Display label
  *     value: number|string, // Metric value
- *     icon: ReactNode,      // Optional icon (emoji or component)
- *     color: string         // Optional color for styling
+ *     icon: ReactNode,      // Optional icon (MUI icon component)
+ *     color: string         // Optional accent color for this metric
  *   }
  */
 const MetricsPanel = ({ metrics = [] }) => {
-  // Handle empty or missing metrics
   if (!metrics || metrics.length === 0) {
     return (
       <Box sx={{ mb: 3 }}>
         <Card
-          variant="soft"
-          sx={{
-            p: 3,
-            textAlign: "center",
-            opacity: 0.7,
-          }}
+          variant="outlined"
+          sx={{ p: 3, textAlign: "center", borderRadius: theme.radius.lg }}
         >
-          <Typography level="body-md" sx={{ color: "#999" }}>
+          <Typography level="body-md" sx={{ color: theme.colors.textTertiary }}>
             No metrics available
           </Typography>
         </Card>
@@ -46,58 +44,48 @@ const MetricsPanel = ({ metrics = [] }) => {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-          gap: 2,
+          gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+          gap: 1.5,
         }}
       >
         {metrics.map((metric) => {
-          const metricColor = metric.color || "#667eea";
-          
+          const accent = metric.color || theme.colors.primary;
+
           return (
             <Card
               key={metric.key}
               variant="outlined"
               sx={{
-                p: 2,
+                py: 1.25,
+                px: 1.5,
                 textAlign: "center",
-                borderColor: metricColor,
-                borderWidth: "2px",
-                background: `${metricColor}10`,
+                borderRadius: theme.radius.md,
+                borderColor: theme.colors.border,
+                borderTop: `3px solid ${accent}`,
+                background: theme.colors.surface,
+                boxShadow: "none",
                 display: "flex",
-                flexDirection: "column",
+                flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "center",
+                gap: 1,
               }}
             >
-              {/* Icon */}
               {metric.icon && (
-                <Box sx={{ fontSize: "32px", mb: 0.5 }}>
+                <Box sx={{ color: accent, display: "flex", fontSize: 20, "& svg": { fontSize: 20 } }}>
                   {metric.icon}
                 </Box>
               )}
-              
-              {/* Value */}
-              <Typography
-                level="h3"
-                sx={{
-                  fontWeight: 700,
-                  color: metricColor,
-                  mb: 0.5,
-                }}
-              >
-                {metric.value}
-              </Typography>
-              
-              {/* Label */}
-              <Typography
-                level="body-sm"
-                sx={{
-                  color: "#666",
-                  fontWeight: 600,
-                }}
-              >
-                {metric.label}
-              </Typography>
+
+              <Box sx={{ textAlign: "left" }}>
+                <Typography level="title-md" sx={{ fontWeight: 700, color: theme.colors.textPrimary, lineHeight: 1.2 }}>
+                  {metric.value}
+                </Typography>
+
+                <Typography level="body-xs" sx={{ color: theme.colors.textSecondary, fontWeight: 600, whiteSpace: "nowrap" }}>
+                  {metric.label}
+                </Typography>
+              </Box>
             </Card>
           );
         })}

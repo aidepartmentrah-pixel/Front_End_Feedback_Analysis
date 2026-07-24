@@ -4,15 +4,19 @@
 // Phase D — role guard restricted to software_admin + complaint_department_worker
 // Phase 2 — FAB for reports
 import React, { useState } from "react";
-import { Box, Typography, Alert, CircularProgress, Button, Card, Select, Option } from "@mui/joy";
+import { Box, Typography, Alert, CircularProgress, Button, Card } from "@mui/joy";
 import DescriptionIcon from '@mui/icons-material/Description';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import ErrorIcon from '@mui/icons-material/Error';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import theme from '../theme';
 import MainLayout from "../components/common/MainLayout";
 import SearchDoctor from "../components/doctorHistory/SearchDoctor";
 import DoctorProfileCard from "../components/doctorHistory/DoctorProfileCard";
-import DoctorStatisticsCards from "../components/doctorHistory/DoctorStatisticsCards";
 import DoctorCharts from "../components/doctorHistory/DoctorCharts";
 import UniversalIncidentsTable from "../components/common/UniversalIncidentsTable";
+import ExportMenu from "../components/common/ExportMenu";
 import SeasonSelector from "../components/personReporting/SeasonSelector";
 import { getDoctorFullHistoryV2, exportDoctorCsvV2, exportDoctorJsonV2, exportDoctorWordV2, downloadDoctorSeasonalWordV2, downloadAllDoctorsSeasonalWordV2, downloadBlobFile, extractApiErrorMessage } from "../api/personApiV2";
 import { useAuth } from "../context/AuthContext";
@@ -31,9 +35,8 @@ const DoctorHistoryPage = ({ embedded = false }) => {
   const [selectedSeason, setSelectedSeason] = useState(null);
   const [generatingReport, setGeneratingReport] = useState(false);
   const [reportError, setReportError] = useState(null);
-  
+
   // Export state
-  const [exportFormat, setExportFormat] = useState('word');
   const [exporting, setExporting] = useState(false);
   
   // Report scope state - always 'all' for aggregate reports
@@ -198,8 +201,45 @@ const DoctorHistoryPage = ({ embedded = false }) => {
     }
   };
 
+  // Build KPI config from doctor metrics. doctors_db.get_doctor_metrics only
+  // ever returns total_incidents/total_notices/severity_breakdown/
+  // category_breakdown -- there is no good/neutral/bad-feedback or red-flag
+  // concept computed for doctors, so those tiles were removed rather than
+  // shown as permanent zeros.
+  const severityBreakdown = doctorMetrics?.severity_breakdown || {};
+  const doctorStatsConfig = doctorMetrics ? [
+    {
+      key: "total_incidents",
+      label: "Total Incidents",
+      value: doctorMetrics.total_incidents || 0,
+      icon: <AssessmentIcon />,
+      color: theme.colors.primary
+    },
+    {
+      key: "high_severity",
+      label: "High Severity",
+      value: severityBreakdown.High || 0,
+      icon: <ErrorIcon />,
+      color: theme.colors.error
+    },
+    {
+      key: "medium_severity",
+      label: "Medium Severity",
+      value: severityBreakdown.Medium || 0,
+      icon: <WarningAmberIcon />,
+      color: theme.colors.warning
+    },
+    {
+      key: "low_severity",
+      label: "Low Severity",
+      value: severityBreakdown.Low || 0,
+      icon: <CheckCircleIcon />,
+      color: theme.colors.success
+    }
+  ] : [];
+
   const content = (
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3.5 }}>
         {/* Phase D — role guard: Not authorized guard */}
         {!isAuthorized ? (
           <Alert color="danger" sx={{ textAlign: "center", p: 4 }}>
@@ -213,7 +253,7 @@ const DoctorHistoryPage = ({ embedded = false }) => {
         ) : (
         <>
         {/* Page Header */}
-        <Box sx={{ mb: 4 }}>
+        <Box>
           <Typography
             level="h2"
             sx={{
@@ -226,7 +266,7 @@ const DoctorHistoryPage = ({ embedded = false }) => {
           >
             👨‍⚕️ Doctor History & Performance Analysis
           </Typography>
-          <Typography level="body-md" sx={{ color: "#666" }}>
+          <Typography level="body-md" sx={{ color: theme.colors.textSecondary }}>
             Search for any doctor to view their incident history, statistics, and performance trends
           </Typography>
         </Box>
@@ -236,7 +276,7 @@ const DoctorHistoryPage = ({ embedded = false }) => {
 
         {/* Success Alerts */}
         {success && (
-          <Alert color="success" sx={{ mb: 3 }} onClose={() => setSuccess(null)}>
+          <Alert color="success" onClose={() => setSuccess(null)}>
             {success}
           </Alert>
         )}
@@ -244,25 +284,20 @@ const DoctorHistoryPage = ({ embedded = false }) => {
         {/* Phase D — standardized loading and empty states */}
         {/* Conditional render order: error → loading → empty → content */}
         {error && !loading ? (
-          <Alert color="danger" sx={{ mb: 3 }}>  
+          <Alert color="danger">
             {error}
           </Alert>
         ) : loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
             <CircularProgress size="lg" />
-            <Typography level="body-md" sx={{ ml: 2, color: "#666" }}>
+            <Typography level="body-md" sx={{ ml: 2, color: theme.colors.textSecondary }}>
               Loading doctor data...
             </Typography>
           </Box>
         ) : selectedDoctor && doctorProfile ? (
-          <>
-            {/* Doctor Profile Card */}
-            <DoctorProfileCard doctor={doctorProfile} />
-
-            {/* Statistics Cards */}
-            {doctorMetrics && (
-              <DoctorStatisticsCards statistics={doctorMetrics} />
-            )}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {/* Doctor Profile Card + integrated performance stat strip */}
+            <DoctorProfileCard doctor={doctorProfile} metrics={doctorStatsConfig} />
 
             {/* Charts - only if data available */}
             {doctorMetrics?.categoryBreakdown && doctorMetrics?.monthlyTrend && (
@@ -272,97 +307,49 @@ const DoctorHistoryPage = ({ embedded = false }) => {
               />
             )}
 
-            {/* Incidents Table */}
+            {/* Incidents Table -- export lives here as a compact toolbar
+                action, not a standalone feature card competing for attention */}
             <UniversalIncidentsTable
               incidents={doctorItems}
               context="doctor"
               title="🩺 Incidents Involving This Doctor"
               emptyMessage="No incidents found for this doctor"
+              actions={<ExportMenu onExport={handleExport} loading={exporting} />}
             />
-
-            {/* Export Actions - Centered Section */}
-            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
-              <Card sx={{ p: 3, minWidth: 340, maxWidth: 420, width: '100%', background: theme.gradients.primary, boxShadow: theme.shadows.card, border: 'none' }}>
-                <Typography
-                  level="body-md"
-                  sx={{ fontWeight: 700, color: 'white', mb: 2, display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}
-                >
-                  <DescriptionIcon sx={{ fontSize: 20 }} />
-                  تصدير بيانات الطبيب
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  <Select
-                    size="sm"
-                    placeholder="اختر الصيغة"
-                    value={exportFormat}
-                    onChange={(e, value) => setExportFormat(value)}
-                    sx={{ width: '100%', background: 'white', '&:hover': { background: 'white' } }}
-                  >
-                    <Option value="word">Word Report (.docx)</Option>
-                    <Option value="csv">CSV</Option>
-                    <Option value="json">JSON</Option>
-                  </Select>
-                  <Button
-                    size="md"
-                    variant="solid"
-                    loading={exporting}
-                    disabled={!exportFormat || exporting}
-                    onClick={() => handleExport(exportFormat)}
-                    sx={{ width: '100%', background: 'white', color: theme.colors.primary, fontWeight: 700, '&:hover': { background: 'rgba(255, 255, 255, 0.9)' } }}
-                  >
-                    تصدير البيانات
-                  </Button>
-                </Box>
-              </Card>
-            </Box>
-          </>
+          </Box>
         ) : selectedDoctor && !doctorProfile && !loading ? (
-          <Alert color="warning" sx={{ mb: 3 }}>
+          <Alert color="warning">
             No data found for selected doctor
-          </Alert>
-        ) : !selectedDoctor && !loading ? (
-          <Alert
-            sx={{
-              background: theme.gradients.primarySubtle,
-              borderColor: theme.colors.primaryLight,
-              textAlign: "center",
-              p: 4,
-            }}
-          >
-            <Typography level="h6" sx={{ color: theme.colors.primary, mb: 1 }}>
-              Select a doctor to view profile and generate report
-            </Typography>
-            <Typography level="body-sm" sx={{ color: "#666" }}>
-              Use the search above to find and select a doctor
-            </Typography>
           </Alert>
         ) : null}
 
-        {/* ALL Doctors Aggregate Report Section - At Bottom */}
-        <Box sx={{ mt: 5, pt: 4, borderTop: '2px solid #eee' }}>
-          <Typography level="h5" sx={{ mb: 3, fontWeight: 700, color: theme.colors.primary, textAlign: 'center' }}>
-            📊 Aggregate Reports for ALL Doctors
+        {/* ALL Doctors Aggregate Report Section - distinct feature area,
+            visually separated but no longer a saturated gradient panel */}
+        <Box sx={{ pt: 3, borderTop: `1px solid ${theme.colors.border}`, textAlign: "center" }}>
+          <Typography level="title-md" sx={{ mb: 2, fontWeight: 700, color: theme.colors.textPrimary, display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
+            <AssessmentIcon sx={{ color: theme.colors.primary }} fontSize="small" />
+            Aggregate Reports for ALL Doctors
           </Typography>
 
-          <Card sx={{ p: 4, background: theme.gradients.primaryVerySubtle, border: `2px solid ${theme.colors.primaryLight}`, textAlign: 'center' }}>
-            <Typography level="body-md" sx={{ mb: 3, color: '#666' }}>
+          <Card variant="outlined" sx={{ p: 2.5, borderRadius: theme.radius.lg, borderColor: theme.colors.border, maxWidth: 480, mx: "auto" }}>
+            <Typography level="body-sm" sx={{ mb: 2, color: theme.colors.textSecondary }}>
               Generate a comprehensive seasonal report for all doctors in the system
             </Typography>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 400, mx: 'auto', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', flexDirection: "column", gap: 2, alignItems: "center" }}>
               <SeasonSelector
                 value={selectedSeason}
                 onChange={handleSeasonChange}
               />
 
               <Button
-                size="lg"
+                size="md"
                 variant="solid"
                 startDecorator={<DescriptionIcon />}
                 loading={generatingReport}
                 disabled={
-                  !selectedSeason?.season_start || 
-                  !selectedSeason?.season_end || 
+                  !selectedSeason?.season_start ||
+                  !selectedSeason?.season_end ||
                   generatingReport
                 }
                 onClick={handleGenerateSeasonalReport}
@@ -370,38 +357,24 @@ const DoctorHistoryPage = ({ embedded = false }) => {
                   background: theme.gradients.primary,
                   color: 'white',
                   fontWeight: 700,
-                  fontSize: '1rem',
-                  py: 1.5,
-                  px: 4,
-                  borderRadius: theme.radius.lg,
-                  boxShadow: theme.shadows.card,
-                  transition: 'all 0.3s ease',
                   '&:hover': {
                     background: theme.gradients.primaryReverse,
-                    boxShadow: theme.shadows.hover,
-                    transform: 'translateY(-2px)',
-                  },
-                  '&:active': {
-                    transform: 'translateY(0)',
-                    boxShadow: theme.shadows.card,
                   },
                   '&:disabled': {
                     background: theme.colors.disabled,
                     color: theme.colors.disabledText,
-                    boxShadow: 'none',
-                    transform: 'none',
                   }
                 }}
               >
-                📄 Generate Report for ALL Doctors
+                Generate Report
               </Button>
-
-              {reportError && (
-                <Alert color={reportError.color} size="sm">
-                  {reportError.message}
-                </Alert>
-              )}
             </Box>
+
+            {reportError && (
+              <Alert color={reportError.color} size="sm" sx={{ mt: 2 }}>
+                {reportError.message}
+              </Alert>
+            )}
           </Card>
         </Box>
         </>
