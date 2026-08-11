@@ -24,3 +24,6 @@ yarn-error.log*
 
 # archive (development artifacts)
 /archive
+
+# Packager output — fully generated, never hand-authored
+/release_packager/
