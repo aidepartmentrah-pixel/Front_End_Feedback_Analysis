@@ -4,6 +4,7 @@ import { Box, FormControl, FormLabel, Textarea, Input, Grid, Typography, Checkbo
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import { formatLevantineDate } from "../../utils/levantineDate";
 
 const DepartmentFeedbackForm = ({ formData, setFormData, hideExplanation = false, hideFactors = false, hideCorrectiveActions = false }) => {
   const [newActionItem, setNewActionItem] = useState({ title: "", dueDate: "", assignedTo: "" });
@@ -185,7 +186,7 @@ const DepartmentFeedbackForm = ({ formData, setFormData, hideExplanation = false
                           </Box>
                           <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
                             <Typography level="body-xs" sx={{ color: "#666" }}>
-                              📅 {new Date(item.dueDate).toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' })}
+                              📅 {formatLevantineDate(item.dueDate)}
                             </Typography>
                             {item.assignedTo && (
                               <Typography level="body-xs" sx={{ color: "#666" }}>

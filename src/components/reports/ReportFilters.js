@@ -460,18 +460,18 @@ const ReportFilters = ({
                   disabled={reportType === "seasonal"}
                 >
                   <Option value="">-- اختر شهر --</Option>
-                  <Option value="1">يناير (January)</Option>
-                  <Option value="2">فبراير (February)</Option>
-                  <Option value="3">مارس (March)</Option>
-                  <Option value="4">أبريل (April)</Option>
-                  <Option value="5">مايو (May)</Option>
-                  <Option value="6">يونيو (June)</Option>
-                  <Option value="7">يوليو (July)</Option>
-                  <Option value="8">أغسطس (August)</Option>
-                  <Option value="9">سبتمبر (September)</Option>
-                  <Option value="10">أكتوبر (October)</Option>
-                  <Option value="11">نوفمبر (November)</Option>
-                  <Option value="12">ديسمبر (December)</Option>
+                  <Option value="1">كانون الثاني (January)</Option>
+                  <Option value="2">شباط (February)</Option>
+                  <Option value="3">آذار (March)</Option>
+                  <Option value="4">نيسان (April)</Option>
+                  <Option value="5">أيار (May)</Option>
+                  <Option value="6">حزيران (June)</Option>
+                  <Option value="7">تموز (July)</Option>
+                  <Option value="8">آب (August)</Option>
+                  <Option value="9">أيلول (September)</Option>
+                  <Option value="10">تشرين الأول (October)</Option>
+                  <Option value="11">تشرين الثاني (November)</Option>
+                  <Option value="12">كانون الأول (December)</Option>
                 </Select>
               </FormControl>
             </Grid>

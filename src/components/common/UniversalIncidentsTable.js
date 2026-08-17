@@ -270,9 +270,9 @@ const UniversalIncidentsTable = ({
               <th style={{ width: "9%" }}>
                 <SortableHeader label="Status" sortKey="status" />
               </th>
-              <th style={{ width: "6%" }}>🚩 Red Flag</th>
-              <th style={{ width: "6%" }}>⚠️ Never Event</th>
-              <th style={{ width: "15%" }}>Description</th>
+              <th style={{ width: "9%" }}>🚩 Red Flag</th>
+              <th style={{ width: "11%" }}>⚠️ Never Event</th>
+              <th style={{ width: "11%" }}>Description</th>
               
               {/* Satisfaction column - only for patient context */}
               {showSatisfaction && context === "patient" && (

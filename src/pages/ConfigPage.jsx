@@ -316,9 +316,18 @@ const ConfigPanel = ({ configPassword }) => {
         verify_tls: externalApiForm.verify_tls,
       });
       setExternalApiTestResult(result);
-      // Server persists the test result too, but refresh so the "Last
-      // connection-test" fields reflect it without a full page reload.
-      await loadExternalApiSettings();
+      // Server persists the test result too. Merge in only the
+      // last_test_* fields — NOT a full loadExternalApiSettings(), which
+      // would overwrite base_url/api_key/etc. with the saved DB values and
+      // silently wipe out the unsaved candidate the admin just tested,
+      // leaving a failure message on screen with no visible cause.
+      const data = await getExternalApiSettings(configPassword);
+      setExternalApiForm((prev) => ({
+        ...prev,
+        last_test_status: data.last_test_status,
+        last_test_message: data.last_test_message,
+        last_test_at: data.last_test_at,
+      }));
     } catch (err) {
       setExternalApiTestResult({ success: false, message: err.message });
     } finally {

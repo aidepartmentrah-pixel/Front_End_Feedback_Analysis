@@ -18,6 +18,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import PersonIcon from "@mui/icons-material/Person";
 import BusinessIcon from "@mui/icons-material/Business";
+import { formatLevantineDate } from "../../utils/levantineDate";
 
 const ActionDetailsModal = ({ action, open, onClose, onSave }) => {
   const [extendedDate, setExtendedDate] = useState(action?.dueDate || "");
@@ -34,10 +35,7 @@ const ActionDetailsModal = ({ action, open, onClose, onSave }) => {
     onClose();
   };
 
-  const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
-  };
+  const formatDate = (dateStr) => formatLevantineDate(dateStr);
 
   const getPriorityStyle = (priority) => {
     switch(priority) {

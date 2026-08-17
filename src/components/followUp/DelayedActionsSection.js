@@ -8,12 +8,10 @@ import BusinessIcon from "@mui/icons-material/Business";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ScheduleIcon from "@mui/icons-material/Schedule";
+import { formatLevantineDate } from "../../utils/levantineDate";
 
 const DelayedActionsSection = ({ actions, onDeleteAction, onDelayAction }) => {
-  const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
-  };
+  const formatDate = (dateStr) => formatLevantineDate(dateStr);
 
   const getDaysOverdue = (dueDate) => {
     const today = new Date();

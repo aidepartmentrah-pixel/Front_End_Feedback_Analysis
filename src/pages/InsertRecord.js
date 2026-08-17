@@ -798,10 +798,10 @@ const InsertRecord = () => {
         </Modal>
         {/* ── Quick-Add Patient Modal ── */}
         <Modal open={quickAddOpen} onClose={() => !quickAddLoading && setQuickAddOpen(false)}>
-          <ModalDialog sx={{ minWidth: 360, maxWidth: 480 }}>
+          <ModalDialog sx={{ minWidth: 360, maxWidth: 480, maxHeight: "90vh", overflow: "auto" }}>
             <ModalClose disabled={quickAddLoading} />
             <DialogTitle>Add New Patient</DialogTitle>
-            <DialogContent>
+            <DialogContent sx={{ overflowX: "hidden" }}>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, pt: 0.5 }}>
                 {quickAddError && <Alert color="danger" size="sm">{quickAddError}</Alert>}
                 <FormControl required>

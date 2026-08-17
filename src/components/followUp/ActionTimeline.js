@@ -7,6 +7,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import BusinessIcon from "@mui/icons-material/Business";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import EditIcon from "@mui/icons-material/Edit";
+import { formatLevantineDate } from "../../utils/levantineDate";
 
 const ActionTimeline = ({ actions, onMarkComplete, onRequestDelay, onActionClick }) => {
   const getPriorityStyle = (priority) => {
@@ -43,10 +44,7 @@ const ActionTimeline = ({ actions, onMarkComplete, onRequestDelay, onActionClick
     return diffDays;
   };
 
-  const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
-  };
+  const formatDate = (dateStr) => formatLevantineDate(dateStr);
 
   // Sort actions by due date
   const sortedActions = [...actions].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));

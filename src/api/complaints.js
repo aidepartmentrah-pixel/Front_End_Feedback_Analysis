@@ -285,31 +285,6 @@ export async function exportComplaints(params = {}) {
 }
 
 /**
- * Import complaints from Excel file
- * @param {File} file - Excel file to upload
- * @returns {Promise<Object>} Import result with success/error details
- */
-export async function importExcel(file) {
-  console.log("📥 Importing Excel file:", file.name);
-  
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const url = `/api/complaints/import-excel`;
-  console.log("📥 Import URL:", url);
-
-  try {
-    const response = await apiClient.post(url, formData);
-    const result = response.data;
-    console.log("✅ Import complete:", result);
-    return result;
-  } catch (error) {
-    console.error("❌ Error importing:", error);
-    throw error;
-  }
-}
-
-/**
  * Fetch available table views
  * @returns {Promise<Object>} Table view configurations
  */
