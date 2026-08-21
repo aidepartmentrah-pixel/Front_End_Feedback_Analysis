@@ -13,10 +13,11 @@
 // Anchoring via JS sidesteps that entirely.
 import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Box, FormControl, FormLabel, Input, Card, CircularProgress, Chip, ChipDelete, Typography } from "@mui/joy";
+import { Box, FormControl, FormLabel, FormHelperText, Input, Card, CircularProgress, Chip, ChipDelete, Typography } from "@mui/joy";
 import AddIcon from "@mui/icons-material/Add";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
-const EntitySearchBox = ({ label, placeholder, query, results, loading, onQueryChange, onSelect, renderOption, selectedItems, onRemove, onAddNew }) => {
+const EntitySearchBox = ({ label, placeholder, query, results, loading, onQueryChange, onSelect, renderOption, selectedItems, onRemove, onAddNew, helperMessage }) => {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState(null);
   const wrapRef = useRef(null);
@@ -63,6 +64,12 @@ const EntitySearchBox = ({ label, placeholder, query, results, loading, onQueryC
           endDecorator={loading ? <CircularProgress size="sm" /> : null}
         />
       </Box>
+      {helperMessage && !loading && (
+        <FormHelperText sx={{ color: "warning.600" }}>
+          <InfoOutlinedIcon fontSize="small" sx={{ mr: 0.5 }} />
+          {helperMessage}
+        </FormHelperText>
+      )}
       {showDropdown && coords && createPortal(
         <Card
           variant="outlined"

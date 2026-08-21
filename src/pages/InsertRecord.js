@@ -90,7 +90,11 @@ const InsertRecord = () => {
   const [activeTab, setActiveTab] = useState(0);
 
   // ── NER search helpers ──
-  const patientSearch = useEntitySearch(searchPatients);
+  // minWords: 3 -- the real Hospital Directory API requires a complete
+  // first+father+last name for patient search and 422s on anything less
+  // (confirmed via live testing), so don't fire a guaranteed-422 request on
+  // every keystroke of a partial name.
+  const patientSearch = useEntitySearch(searchPatients, { minWords: 3 });
 
   // Whether patient was chosen from search (shows chip) vs just typed
   const [patientConfirmed, setPatientConfirmed] = useState(false);

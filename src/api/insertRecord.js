@@ -170,16 +170,23 @@
   export const searchPatients = async (query) => {
     try {
       if (!query || query.trim().length === 0) {
-        return [];
+        return { items: [], message: null };
       }
-      
+
       const response = await apiClient.get(
         `/api/records/search/patients?q=${encodeURIComponent(query)}&limit=20`
       );
       const data = response.data;
       console.log("Search patients response:", data);
-      // API returns {success: true, patients: [...]}
-      return Array.isArray(data.patients) ? data.patients : (Array.isArray(data) ? data : []);
+      // API returns {success: true, patients: [...], external_status, external_message}.
+      // external_status/external_message come from the real Hospital Directory
+      // API's own validation (e.g. "enter the full name") -- surfaced here
+      // instead of discarded, so the UI can show the real reason for zero
+      // external results instead of it looking like a plain no-match.
+      return {
+        items: Array.isArray(data.patients) ? data.patients : [],
+        message: data.external_status === "bad_request" ? data.external_message : null,
+      };
     } catch (error) {
       console.error("Error searching patients:", error);
       throw error;

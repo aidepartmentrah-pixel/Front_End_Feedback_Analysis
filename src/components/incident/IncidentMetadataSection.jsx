@@ -120,6 +120,7 @@ const IncidentMetadataSection = ({
             query={patientConfirmed ? "" : patientSearch.query}
             results={patientConfirmed ? [] : patientSearch.results}
             loading={patientSearch.loading}
+            helperMessage={patientConfirmed ? null : patientSearch.message}
             onQueryChange={(q) => {
               if (patientConfirmed) return; // locked while a patient is confirmed
               patientSearch.search(q);
