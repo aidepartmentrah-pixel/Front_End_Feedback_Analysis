@@ -70,7 +70,10 @@ const EntitySearchBox = ({ label, placeholder, query, results, loading, onQueryC
         />
       </Box>
       {helperMessage && !loading && (
-        <FormHelperText sx={{ color: "warning.600" }}>
+        // Neutral tone, not warning/red -- this fires on essentially every
+        // short patient query (the external API requires a full name), so
+        // it's expected, routine guidance, not an error condition.
+        <FormHelperText sx={{ color: "text.tertiary" }}>
           <InfoOutlinedIcon fontSize="small" sx={{ mr: 0.5 }} />
           {helperMessage}
         </FormHelperText>
