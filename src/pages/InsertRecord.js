@@ -90,12 +90,18 @@ const InsertRecord = () => {
   const [activeTab, setActiveTab] = useState(0);
 
   // ── NER search helpers ──
-  // No minWords gate: only a single-word query is confirmed to 422 on the
-  // real API ("enter the full name") -- a 2-word name (e.g. someone with
-  // no father's/middle name on file) is a valid, matchable query. Relying
-  // on searchPatients()'s external_message surfacing to explain the
-  // single-word-rejection case instead of guessing a word-count cutoff.
-  const patientSearch = useEntitySearch(searchPatients);
+  // minWords: 3 -- confirmed via a comprehensive test suite run directly
+  // against the REAL Hospital Directory API (not the mock): every 2-word
+  // query (exact, reversed order, typo, diacritic variant, extra
+  // whitespace, with/without a definite article -- 7 variants tested) 422s;
+  // every 3-word query passes validation, regardless of whether it matches
+  // anything. An earlier version of this code dropped the word-count gate
+  // based on a 2-word query ("Robert Johnson") succeeding -- but that test
+  // only ran against the mock, which is confirmed looser than the real
+  // server on this exact point (mock needs >=2 words, real needs >=3).
+  // Gating at 3 avoids firing a guaranteed-422 request against the real
+  // system; external_message still covers whatever the API rejects anyway.
+  const patientSearch = useEntitySearch(searchPatients, { minWords: 3 });
 
   // Whether patient was chosen from search (shows chip) vs just typed
   const [patientConfirmed, setPatientConfirmed] = useState(false);
