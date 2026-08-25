@@ -26,7 +26,13 @@ EXPOSE 80
 # permanently, even though real traffic through the container's IPv4 port
 # mapping works fine the whole time. Confirmed via `netstat -tlnp` showing
 # nginx listening only on 0.0.0.0:80.
+#
+# /healthz specifically, not "/": port 80 now 301-redirects everything else
+# to HTTPS (see nginx.conf) so the mic/getUserMedia secure-context
+# requirement is met -- wget doesn't trust the self-signed cert and
+# following that redirect would fail the healthcheck. /healthz is exempted
+# from the redirect for exactly this reason.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD wget -qO- http://127.0.0.1/ >/dev/null || exit 1
+    CMD wget -qO- http://127.0.0.1/healthz >/dev/null || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
