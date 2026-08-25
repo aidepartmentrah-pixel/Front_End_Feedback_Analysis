@@ -20,12 +20,20 @@ export function useEntitySearch(searchFn, options = {}) {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
+  // True only once a real search attempt has actually completed -- false
+  // from the moment a new keystroke invalidates the last one. Lets callers
+  // (EntitySearchBox's "Add as new" prompt) distinguish "searched, found
+  // nothing" from "never searched yet", so a query that's still debouncing
+  // or was rejected by the length/minWords gate doesn't get treated as a
+  // confirmed zero-result search.
+  const [searched, setSearched] = useState(false);
   const timer = useRef(null);
 
   const search = useCallback(
     (q) => {
       setQuery(q);
       setMessage(null);
+      setSearched(false);
       clearTimeout(timer.current);
       const trimmed = (q || "").trim();
       if (!trimmed || trimmed.length < 2) {
@@ -50,11 +58,12 @@ export function useEntitySearch(searchFn, options = {}) {
           setResults([]);
         } finally {
           setLoading(false);
+          setSearched(true);
         }
       }, 350);
     },
     [searchFn, minWords]
   );
 
-  return { query, setQuery, results, setResults, loading, message, search };
+  return { query, setQuery, results, setResults, loading, message, searched, search };
 }

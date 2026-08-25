@@ -17,7 +17,7 @@ import { Box, FormControl, FormLabel, FormHelperText, Input, Card, CircularProgr
 import AddIcon from "@mui/icons-material/Add";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
-const EntitySearchBox = ({ label, placeholder, query, results, loading, onQueryChange, onSelect, renderOption, selectedItems, onRemove, onAddNew, helperMessage }) => {
+const EntitySearchBox = ({ label, placeholder, query, results, loading, onQueryChange, onSelect, renderOption, selectedItems, onRemove, onAddNew, helperMessage, searched = true }) => {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState(null);
   const wrapRef = useRef(null);
@@ -30,7 +30,12 @@ const EntitySearchBox = ({ label, placeholder, query, results, loading, onQueryC
     return () => document.removeEventListener("mousedown", close);
   }, []);
 
-  const showAddNew = Boolean(onAddNew) && !loading && query.trim().length >= 2 && results.length === 0;
+  // `searched` (default true, so doctor/employee callers are unaffected):
+  // only offer "add as new" once a real attempt has actually completed --
+  // not while still debouncing/in-flight, and not for a query the server
+  // rejected as invalid (helperMessage set). A rejected or not-yet-run
+  // query tells us nothing about whether the entity exists.
+  const showAddNew = Boolean(onAddNew) && !loading && searched && !helperMessage && query.trim().length >= 2 && results.length === 0;
   const showDropdown = open && (results.length > 0 || showAddNew);
 
   useLayoutEffect(() => {

@@ -90,11 +90,12 @@ const InsertRecord = () => {
   const [activeTab, setActiveTab] = useState(0);
 
   // ── NER search helpers ──
-  // minWords: 3 -- the real Hospital Directory API requires a complete
-  // first+father+last name for patient search and 422s on anything less
-  // (confirmed via live testing), so don't fire a guaranteed-422 request on
-  // every keystroke of a partial name.
-  const patientSearch = useEntitySearch(searchPatients, { minWords: 3 });
+  // No minWords gate: only a single-word query is confirmed to 422 on the
+  // real API ("enter the full name") -- a 2-word name (e.g. someone with
+  // no father's/middle name on file) is a valid, matchable query. Relying
+  // on searchPatients()'s external_message surfacing to explain the
+  // single-word-rejection case instead of guessing a word-count cutoff.
+  const patientSearch = useEntitySearch(searchPatients);
 
   // Whether patient was chosen from search (shows chip) vs just typed
   const [patientConfirmed, setPatientConfirmed] = useState(false);
