@@ -308,3 +308,18 @@ export const canCreateSupervisorActionItem = (user) => {
   if (!user || !Array.isArray(user.roles)) return false;
   return user.roles.includes('COMPLAINT_SUPERVISOR') || user.roles.includes('SOFTWARE_ADMIN');
 };
+
+/**
+ * Check if user can edit a record on the Edit page (mutate case fields, Add
+ * Case, Delete Case). SECTION_ADMIN/DEPARTMENT_ADMIN/ADMINISTRATION_ADMIN
+ * are view-only — they get redirected to Inspect instead. Same role set as
+ * canEditResponses/canAddSatisfaction in TableView.js and the backend's
+ * require_role() calls on update_record/create_case_for_incident/delete_case.
+ * UX-level guard only — backend enforces the same check independently.
+ * @param {Object} user - user object from AuthContext
+ * @returns {boolean}
+ */
+export const canEditRecord = (user) => {
+  if (!user || !Array.isArray(user.roles)) return false;
+  return user.roles.some(r => ['COMPLAINT_SUPERVISOR', 'WORKER', 'SOFTWARE_ADMIN'].includes(r));
+};

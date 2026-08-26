@@ -25,6 +25,14 @@ const CURRENT_YEAR = new Date().getFullYear();
 /** Years to show in the yearly selector: 5 years back up to current year */
 const AVAILABLE_YEARS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - 5 + i);
 
+/** ISO (yyyy-mm-dd) for today, for date-input defaults */
+const toISODate = (d) => d.toISOString().slice(0, 10);
+
+/** Default Custom Range: last 30 days, so switching to Custom Range never
+ * lands on an empty/invalid state before the user has touched anything. */
+const DEFAULT_CUSTOM_TO = toISODate(new Date());
+const DEFAULT_CUSTOM_FROM = toISODate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+
 /** Given a period type + the relevant state, return { start_date, end_date } or null */
 function resolveDateRange({ periodType, selectedSeason, availableSeasons, selectedYear, customFrom, customTo }) {
   if (periodType === "seasonal") {
@@ -73,8 +81,8 @@ const InvestigationPage = () => {
   const [selectedYear, setSelectedYear] = useState(String(CURRENT_YEAR));
 
   // custom
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
+  const [customFrom, setCustomFrom] = useState(DEFAULT_CUSTOM_FROM);
+  const [customTo, setCustomTo] = useState(DEFAULT_CUSTOM_TO);
 
   // ── org scope ──────────────────────────────────────────────────────────────
   const [selectedAdmin, setSelectedAdmin] = useState("");

@@ -176,7 +176,7 @@ const IdaraDashboardStats = ({ idara, stats, loading, operationalSummary = null 
             <Grid xs={12} md={4}>
               <ChartCard title="Top 5 Classifications">
                 <Top5ClassificationChart
-                  data={charts.top5Classification}
+                  data={stats?.charts?.classification?.data || []}
                   onBarClick={(item) => handleChartClick("classification", item)}
                   total={metrics.totalIncidents}
                 />

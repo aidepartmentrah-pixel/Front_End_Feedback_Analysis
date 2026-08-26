@@ -80,7 +80,7 @@ const ContextRegion = ({ title, orgUnitName, statusChip, item }) => {
             </HeaderCell>
           )}
           {orgUnitName && (
-            <HeaderCell label="الجهة المستهدفة">
+            <HeaderCell label="قسم المعني">
               <Chip size="sm" color="neutral" variant="outlined">{orgUnitName}</Chip>
             </HeaderCell>
           )}

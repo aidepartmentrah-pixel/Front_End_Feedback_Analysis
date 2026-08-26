@@ -59,17 +59,7 @@ const WorkflowActionButtons = ({ allowedActions, activeAction, onSelect, disable
         تعديل الرد
       </Button>
     )}
-    {allowedActions.includes('reject') && (
-      <Button
-        size="sm"
-        variant={activeAction === 'REJECT' ? 'solid' : 'outlined'}
-        color="warning"
-        onClick={() => onSelect('REJECT')}
-        disabled={disabled}
-      >
-        طلب تعديل
-      </Button>
-    )}
+    {/* "طلب تعديل" (REJECT / send-back-to-supervisor) button retired per client request. */}
     {allowedActions.includes('reopen') && (
       <Button
         size="sm"

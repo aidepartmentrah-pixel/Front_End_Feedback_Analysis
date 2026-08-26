@@ -67,7 +67,7 @@ const NoticeModal = ({ open, onClose, item, onSuccess }) => {
       setDetail(data);
       setHistory(historyData);
     } catch (err) {
-      setError(err.message || 'فشل تحميل تفاصيل الإشعار.');
+      setError(err.message || 'فشل تحميل تفاصيل التنويه.');
     } finally {
       setLoading(false);
     }
@@ -95,7 +95,7 @@ const NoticeModal = ({ open, onClose, item, onSuccess }) => {
   if (!item) return null;
 
   const caseLabel = item.incidentNumber || `#${item.subcaseId}`;
-  const title = `إشعار — ${caseLabel}`;
+  const title = `تنويه — ${caseLabel}`;
 
   return (
     <WorkflowFormShell open={open} onClose={onClose} submitting={submitting} size="sm">
@@ -145,6 +145,8 @@ const NoticeModal = ({ open, onClose, item, onSuccess }) => {
                   item={item}
                   open={detailsOpen}
                   onChange={() => setDetailsOpen((p) => !p)}
+                  sectionTitle="📋 تفاصيل الملاحظة"
+                  emptyText="لم يتم تحميل تفاصيل الملاحظة"
                 />
                 <InvestigationHistorySection history={history} responseData={null} />
               </>

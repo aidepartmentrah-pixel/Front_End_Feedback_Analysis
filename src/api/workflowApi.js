@@ -579,8 +579,11 @@ export const getWorkflowIncidentDetail = async (incidentId) => {
  * Endpoint: GET /api/v2/workflow/incident/{incident_id}/responses
  *
  * @param {number} incidentId
- * @returns {Promise<Object>} { incidentId, subcases: [{subcaseId, targetOrgUnitName, status,
- *   sectionExplanation, departmentExplanation, administrationExplanation, actionItems}] }
+ * @returns {Promise<Object>} { incidentId, cases: [{caseId, complaintText, patientName,
+ *   domainName, categoryName, subcategoryName, classificationName, severityName,
+ *   caseStatusName, incidentDate, feedbackReceivedDate, immediateAction, takenAction,
+ *   subcaseId, targetOrgUnitName, status, sectionExplanation, departmentExplanation,
+ *   administrationExplanation, patientServicesDecision, actionItems}] }
  * @throws {Error} Normalized error (403/404)
  */
 export const getIncidentResponses = async (incidentId) => {
@@ -589,15 +592,29 @@ export const getIncidentResponses = async (incidentId) => {
     const d = response.data;
     return {
       incidentId: d.incident_id,
-      subcases: (d.subcases || []).map(sc => ({
-        subcaseId: sc.subcase_id,
-        targetOrgUnitId: sc.target_org_unit_id,
-        targetOrgUnitName: sc.target_org_unit_name,
-        status: sc.status,
-        sectionExplanation: sc.section_explanation || '',
-        departmentExplanation: sc.department_explanation || '',
-        administrationExplanation: sc.administration_explanation || '',
-        actionItems: (sc.action_items || []).map(item => ({
+      cases: (d.cases || []).map(c => ({
+        caseId: c.case_id,
+        complaintText: c.complaint_text || '',
+        immediateAction: c.immediate_action || '',
+        takenAction: c.taken_action || '',
+        patientName: c.patient_name || '',
+        domainName: c.domain_name || '',
+        categoryName: c.category_name || '',
+        subcategoryName: c.subcategory_name || '',
+        classificationName: c.classification_name || '',
+        severityName: c.severity_name || '',
+        caseStatusName: c.case_status_name || '',
+        incidentDate: c.incident_date || null,
+        feedbackReceivedDate: c.feedback_received_date || null,
+        subcaseId: c.subcase_id,
+        targetOrgUnitId: c.target_org_unit_id,
+        targetOrgUnitName: c.target_org_unit_name,
+        status: c.status,
+        sectionExplanation: c.section_explanation || '',
+        departmentExplanation: c.department_explanation || '',
+        administrationExplanation: c.administration_explanation || '',
+        patientServicesDecision: c.patient_services_decision || '',
+        actionItems: (c.action_items || []).map(item => ({
           title: item.title,
           description: item.description || '',
           dueDate: item.due_date || null,

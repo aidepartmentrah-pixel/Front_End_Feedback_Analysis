@@ -33,7 +33,7 @@ export const validateIncidentCase = (formData) => {
     
     // Metadata (5 fields)
     { key: "feedback_received_date", label: "Feedback Received Date" },
-    { key: "issuing_department_id", label: "Issuing Department" },
+    { key: "issuing_department_id", label: "Issuing Unit" },
     { key: "source_id", label: "Source" },
     { key: "patient_name", label: "Patient Name" },
     

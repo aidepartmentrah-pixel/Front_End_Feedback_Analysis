@@ -291,7 +291,7 @@ const _oldMockData = {
         <Grid xs={12}>
           <ChartCard title="Top 5 Classifications">
             <Top5ClassificationChart
-              data={charts.top5Classification}
+              data={stats?.charts?.classification?.data || []}
               onBarClick={handleChartClick}
               total={metrics.totalIncidents}
             />

@@ -5,7 +5,7 @@
 export function computeIncidentValidation(incident, cases, refData) {
   const errs = {};
   if (!incident.patient_name?.trim()) errs.patient_name = "Patient name is required";
-  if (!incident.issuing_department_id) errs.issuing_department_id = "Issuing section is required";
+  if (!incident.issuing_department_id) errs.issuing_department_id = "Issuing unit is required";
   if (!incident.source_id) errs.source_id = "Source is required";
   if (!incident.building_id) errs.building_id = "Building is required";
   if (!incident.feedback_received_date) errs.feedback_received_date = "Received Date is required";

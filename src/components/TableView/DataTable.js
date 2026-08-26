@@ -186,7 +186,7 @@ const getStatusColor = (status) => {
   return "neutral";
 };
 
-const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode, customView, onEdit, onDelete, onForceClose, canForceClose, filterOptions, filters, onHeaderFilterChange, onPublish, onMarkReady, onViewResponses, onAddSatisfaction, isReadOnly }) => {
+const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode, customView, onEdit, onDelete, onForceClose, canForceClose, filterOptions, filters, onHeaderFilterChange, onPublish, onMarkReady, onInspect, onAddSatisfaction, isReadOnly }) => {
   
   // Log filterOptions once for debugging
   React.useEffect(() => {
@@ -578,15 +578,15 @@ const DataTable = ({ complaints, sortBy, sortOrder, onSort, onRowClick, viewMode
                           </IconButton>
                         </Tooltip>
                       )}
-                      {onViewResponses && complaint.case_status_name !== "Draft" && complaint.case_status_name !== "Ready to Send" && (
-                        <Tooltip title="View / Edit Responses" size="sm">
+                      {onInspect && complaint.case_status_name !== "Draft" && complaint.case_status_name !== "Ready to Send" && (
+                        <Tooltip title="Inspect" size="sm">
                           <IconButton
                             size="sm"
                             variant="plain"
                             color="neutral"
                             onClick={(e) => {
                               e.stopPropagation();
-                              onViewResponses(complaint.id);
+                              onInspect(complaint.incident_id, complaint.id);
                             }}
                             sx={{ fontSize: 18 }}
                           >

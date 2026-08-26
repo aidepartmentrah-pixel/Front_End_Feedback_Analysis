@@ -507,7 +507,7 @@ const WorkflowInboxPage = () => {
           color="primary"
           onClick={() => { setNoticeModalItem(item); setNoticeModalOpen(true); }}
         >
-          عرض الإشعار
+          عرض التنويه
         </Button>
       );
     }

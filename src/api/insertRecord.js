@@ -293,3 +293,14 @@
     const response = await apiClient.post(`/api/incidents/${incidentId}/cases`);
     return response.data;
   };
+
+  /**
+   * Delete one case from an incident. Rejected (409) if it's the incident's
+   * only case. Draft/Ready to Send cases are hard-deleted; already-published
+   * cases are soft-deleted (kept, closed, subcase(s) retired) instead.
+   * DELETE /api/incidents/{incident_id}/cases/{case_id}
+   */
+  export const deleteCaseFromIncident = async (incidentId, caseId) => {
+    const response = await apiClient.delete(`/api/incidents/${incidentId}/cases/${caseId}`);
+    return response.data;
+  };

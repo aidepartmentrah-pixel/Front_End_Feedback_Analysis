@@ -71,7 +71,7 @@ const InsertRecord = () => {
 
   // ── Reference data ──
   const [refData, setRefData] = useState({ departments: [], sources: [], domains: [], severity: [], stages: [], harm: [], feedback_intent_types: [], clinical_risk_types: [], buildings: [] });
-  const [sections, setSections] = useState([]);   // Type=324 sections — used for Issuing Section only
+  const [sections, setSections] = useState([]);   // Type=324 sections — used for Issuing Unit only
   const [orgUnits, setOrgUnits] = useState([]);   // All targetable units (323/325/324)
 
   // Derived: true when Feedback Intent = Notice (code-driven, not ID-hardcoded)
@@ -238,7 +238,7 @@ const InsertRecord = () => {
         setLoadingRef(true);
         const data = await fetchReferenceData();
         setRefData(data);
-        // Sections (Type=324) for the Issuing Section dropdown
+        // Sections (Type=324) for the Issuing Unit dropdown
         const resp = await fetch("/api/settings/sections", { credentials: "include" });
         if (resp.ok) {
           const j = await resp.json();

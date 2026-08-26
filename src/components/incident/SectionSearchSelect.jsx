@@ -1,5 +1,5 @@
 // src/components/incident/SectionSearchSelect.jsx
-// Searchable section dropdown (Issuing Section only).
+// Searchable section dropdown (Issuing Unit only).
 import React, { useState } from "react";
 import { Select, Option, Input } from "@mui/joy";
 

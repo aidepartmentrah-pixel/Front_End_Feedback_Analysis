@@ -1,5 +1,5 @@
 // src/components/incident/IncidentMetadataSection.jsx
-// Shared "Incident Information" card: date, issuing section, source, building,
+// Shared "Incident Information" card: date, issuing unit, source, building,
 // inpatient toggle, patient search, complaint summary. Shared across all cases.
 import React from "react";
 import { Box, Card, Typography, Divider, FormControl, FormLabel, Input, Select, Option, Switch, Textarea } from "@mui/joy";
@@ -51,12 +51,12 @@ const IncidentMetadataSection = ({
         </FormControl>
 
         <FormControl required sx={{ flex: 1.5, minWidth: 200 }}>
-          <FormLabel sx={{ color: validationErrors.issuing_department_id ? "danger.500" : undefined }}>Issuing Section *</FormLabel>
+          <FormLabel sx={{ color: validationErrors.issuing_department_id ? "danger.500" : undefined }}>Issuing Unit *</FormLabel>
           <SectionSearchSelect
             sections={sections}
             value={incident.issuing_department_id}
             onChange={(v) => onFieldChange("issuing_department_id", v)}
-            placeholder="Select issuing section…"
+            placeholder="Select issuing unit…"
             error={!!validationErrors.issuing_department_id}
           />
         </FormControl>

@@ -31,6 +31,7 @@ import TableView from "./pages/TableView";
 import InsertRecord from "./pages/InsertRecord";
 import Login from "./pages/Login";
 import EditRecord from "./pages/EditRecord";
+import InspectRecord from "./pages/InspectRecord";
 import ReportingPage from "./pages/ReportingPage";
 import SettingPage from "./pages/SettingPage";
 import DepartmentFeedbackPage from "./pages/DepartmentFeedbackPage";
@@ -176,6 +177,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <EditRecord />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inspect/:incidentId"
+            element={
+              <ProtectedRoute>
+                <InspectRecord />
               </ProtectedRoute>
             }
           />

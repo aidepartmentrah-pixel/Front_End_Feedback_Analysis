@@ -10,6 +10,7 @@ import {
 } from "@mui/joy";
 import { Warning } from "@mui/icons-material";
 import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { useNavigate, useParams } from "react-router-dom";
 import theme from "../theme";
 
@@ -21,24 +22,26 @@ import CaseTabContent from "../components/incident/CaseTabContent";
 import { getRecordById, updateRecord } from "../api/complaints";
 import {
   fetchReferenceData, fetchCategories, fetchSubcategories, fetchClassifications,
-  fetchIncidentFullCases, addCaseToIncident,
+  fetchIncidentFullCases, addCaseToIncident, deleteCaseFromIncident,
 } from "../api/insertRecord";
 import { fetchAllTargetUnits } from "../api/orgUnits";
 
 import { emptyIncident, emptyCase } from "../utils/incidentModel";
 import { computeIncidentValidation } from "../utils/incidentValidation";
 import { recordToIncidentAndCase, recordToCase, buildUpdatePayload } from "../utils/editRecordMapping";
+import { canEditRecord } from "../utils/roleGuards";
+import { statusBadgeStyle } from "../utils/caseStatusBadge";
+import { useAuth } from "../context/AuthContext";
 
 const PATIENT_SEARCH_STUB = {
   query: "", results: [], loading: false,
   search: () => {}, setQuery: () => {}, setResults: () => {},
 };
 
-const PREPARATION_STATUSES = new Set(["Draft", "Ready to Send"]);
-
 const EditRecord = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useAuth();
 
   // ── Raw API data for header ──
   const [selectedRecord, setSelectedRecord] = useState(null);
@@ -66,6 +69,7 @@ const EditRecord = () => {
   // ── UI state ──
   const [loading, setLoading] = useState(false);
   const [addingCase, setAddingCase] = useState(false);
+  const [deletingCaseId, setDeletingCaseId] = useState(null);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
@@ -124,6 +128,16 @@ const EditRecord = () => {
         setSelectedRecord(primaryRecord);
 
         const incId = primaryRecord.incident_id;
+
+        // SECTION_ADMIN/DEPARTMENT_ADMIN/ADMINISTRATION_ADMIN are view-only —
+        // Table View already hides the Edit button for them, but nothing
+        // stopped direct navigation to this URL until now. Redirect to the
+        // read-only Inspect page instead of loading the mutation form.
+        if (!canEditRecord(user)) {
+          navigate(`/inspect/${incId}`, { replace: true });
+          return;
+        }
+
         setIncidentId(incId);
 
         // 2. Map incident-level fields from primary case
@@ -194,9 +208,13 @@ const EditRecord = () => {
     currentValidation.caseErrs.reduce((sum, ce) => sum + Object.keys(ce).length, 0);
 
   // ── Status guards ──
-  // "Add Case" only available when all current cases are in a preparation status.
-  const canAddCase = cases.length > 0 &&
-    cases.every((c) => PREPARATION_STATUSES.has(c._status_name));
+  // Add Case now works regardless of the incident's publish status: a case
+  // added while siblings are still Draft/Ready to Send stays Draft (same as
+  // before); a case added to an incident with a published sibling
+  // auto-publishes on Save instead (see case_service.update_case()).
+  const canAddCase = cases.length > 0;
+  // Delete Case: never allowed to remove the incident's last case.
+  const canDeleteCase = cases.length > 1;
 
   // ── Update All ──
   const handleUpdateRecord = async () => {
@@ -263,6 +281,37 @@ const EditRecord = () => {
     }
   };
 
+  // ── Delete Case ──
+  const handleDeleteCase = async (idx) => {
+    if (!incidentId || !canDeleteCase || deletingCaseId) return;
+    const target = cases[idx];
+    if (!target?._case_id) return;
+
+    if (!window.confirm("Delete this case? This cannot be undone from this page.")) return;
+
+    try {
+      setDeletingCaseId(target._case_id);
+      setError(null);
+      await deleteCaseFromIncident(incidentId, target._case_id);
+
+      setCases((prev) => {
+        const next = prev.filter((_, i) => i !== idx);
+        setActiveTab((prevTab) => {
+          if (idx < prevTab) return prevTab - 1;
+          if (idx === prevTab) return Math.max(0, idx - 1);
+          return prevTab;
+        });
+        return next;
+      });
+      setOriginalCases((prev) => (prev || []).filter((_, i) => i !== idx));
+      setSuccess("Case deleted.");
+    } catch (e) {
+      setError(`Failed to delete case: ${e.message}`);
+    } finally {
+      setDeletingCaseId(null);
+    }
+  };
+
   const handleCancel = () => {
     if (hasChanges && !window.confirm("You have unsaved changes. Are you sure you want to cancel?")) return;
     navigate("/table-view");
@@ -283,13 +332,6 @@ const EditRecord = () => {
   const tabLabel = (c, i) => {
     const unit = orgUnits.find((u) => u.id === c.target_department_id);
     return unit ? unit.name : `Case ${i + 1}`;
-  };
-
-  // ── Status badge colour ──
-  const statusBadgeStyle = (statusName) => {
-    if (statusName === "Draft") return { bg: "#f1f5f9", color: "#64748b", border: "#cbd5e1" };
-    if (statusName === "Ready to Send") return { bg: "#dcfce7", color: "#166534", border: "#86efac" };
-    return { bg: "#eff6ff", color: "#1e40af", border: "#bfdbfe" };
   };
 
   return (
@@ -430,6 +472,19 @@ const EditRecord = () => {
                               }}>
                                 {c._status_name}
                               </Box>
+                            )}
+                            {canDeleteCase && (
+                              <IconButton
+                                size="sm"
+                                variant="plain"
+                                color="danger"
+                                loading={deletingCaseId === c._case_id}
+                                disabled={!!deletingCaseId}
+                                onClick={(e) => { e.stopPropagation(); handleDeleteCase(i); }}
+                                sx={{ minHeight: 0, minWidth: 0, p: 0.3, ml: 0.3 }}
+                              >
+                                <DeleteIcon sx={{ fontSize: 16 }} />
+                              </IconButton>
                             )}
                           </Box>
                         </Tab>

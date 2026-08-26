@@ -15,26 +15,12 @@ import DeleteConfirmationDialog from "../components/TableView/DeleteConfirmation
 import SatisfactionModal from "../components/patientHistory/SatisfactionModal";
 import { getBackendSortField } from "../utils/tableViewSortFields";
 import { fetchComplaints, fetchFilterOptions, exportComplaints, deleteComplaint, publishComplaint, bulkPublishComplaints, markAsReady } from "../api/complaints";
-import { getIncidentResponses } from "../api/workflowApi";
 import { useAuth } from "../context/AuthContext";
 import SendIcon from "@mui/icons-material/Send";
-
-const WORKFLOW_STATUS_LABELS = {
-  SUBMITTED_TO_SECTION: 'Pending Section',
-  RETURNED_TO_SECTION_FOR_REVISION: 'Returned to Section',
-  SECTION_ACCEPTED_PENDING_DEPT: 'Pending Department',
-  RETURNED_TO_DEPT_FOR_REVISION: 'Returned to Department',
-  DEPT_ACCEPTED_PENDING_ADMIN: 'Pending Administration',
-  ADMIN_APPROVED: 'Approved',
-  SECTION_DENIED: 'Denied',
-  FORCE_CLOSED_DRAFT: 'Force Closed (Draft)',
-  FORCE_CLOSED_COMPLETE: 'Force Closed (Complete)',
-};
 
 const TableView = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const canEditResponses = (user?.roles || []).some(r => ['COMPLAINT_SUPERVISOR', 'WORKER', 'SOFTWARE_ADMIN'].includes(r));
   const isReadOnly = (user?.roles || []).some(r => ['SECTION_ADMIN', 'DEPARTMENT_ADMIN', 'ADMINISTRATION_ADMIN'].includes(r));
   // View governance: only SOFTWARE_ADMIN / COMPLAINT_SUPERVISOR may create/edit/delete Custom Views
   const isViewAdmin = (user?.roles || []).some(r => ['SOFTWARE_ADMIN', 'COMPLAINT_SUPERVISOR'].includes(r));
@@ -101,12 +87,6 @@ const TableView = () => {
   const [publishLoading, setPublishLoading] = useState(false);
   const [bulkPublishConfirmOpen, setBulkPublishConfirmOpen] = useState(false);
   const [markReadyLoading, setMarkReadyLoading] = useState(false);
-
-  // Response viewer modal state
-  const [responseModalOpen, setResponseModalOpen] = useState(false);
-  const [responseModalLoading, setResponseModalLoading] = useState(false);
-  const [responseModalData, setResponseModalData] = useState(null); // { incidentId, subcases }
-  const [responseModalError, setResponseModalError] = useState(null);
 
   // Satisfaction modal state (reuses Patient History's SatisfactionModal as-is)
   const [satisfactionModalOpen, setSatisfactionModalOpen] = useState(false);
@@ -290,21 +270,6 @@ const TableView = () => {
       alert(e?.response?.data?.message || e?.message || "Failed to mark as Ready to Send");
     } finally {
       setMarkReadyLoading(false);
-    }
-  };
-
-  const handleViewResponses = async (incidentId) => {
-    setResponseModalOpen(true);
-    setResponseModalLoading(true);
-    setResponseModalError(null);
-    setResponseModalData(null);
-    try {
-      const data = await getIncidentResponses(incidentId);
-      setResponseModalData(data);
-    } catch (e) {
-      setResponseModalError(e?.message || 'Failed to load responses');
-    } finally {
-      setResponseModalLoading(false);
     }
   };
 
@@ -635,7 +600,7 @@ const TableView = () => {
               onDelete={isReadOnly ? undefined : handleDeleteRow}
               onPublish={isReadOnly ? undefined : handlePublishRow}
               onMarkReady={isReadOnly ? undefined : handleMarkReady}
-              onViewResponses={handleViewResponses}
+              onInspect={(incidentId, caseId) => navigate(`/inspect/${incidentId}?case=${caseId}`)}
               onAddSatisfaction={canAddSatisfaction ? handleOpenSatisfaction : undefined}
               viewMode={viewMode}
               customView={selectedCustomView}
@@ -764,94 +729,6 @@ const TableView = () => {
               <Button variant="plain" color="neutral" onClick={() => setBulkPublishConfirmOpen(false)}>
                 Cancel
               </Button>
-            </DialogActions>
-          </ModalDialog>
-        </Modal>
-
-        {/* Response Viewer Modal */}
-        <Modal open={responseModalOpen} onClose={() => setResponseModalOpen(false)} sx={{ zIndex: 2000 }}>
-          <ModalDialog sx={{ minWidth: { xs: '90vw', md: 640 }, maxWidth: 800, maxHeight: '85vh', overflowY: 'auto' }}>
-            <ModalClose />
-            <DialogTitle>
-              Case Responses
-              {responseModalData && ` — Incident #${responseModalData.incidentId}`}
-            </DialogTitle>
-            <Divider />
-            <DialogContent>
-              {responseModalLoading && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                  <CircularProgress />
-                </Box>
-              )}
-              {responseModalError && (
-                <Typography color="danger">{responseModalError}</Typography>
-              )}
-              {responseModalData && !responseModalLoading && (
-                responseModalData.subcases.length === 0 ? (
-                  <Typography level="body-sm" sx={{ color: 'neutral.500', py: 2 }}>
-                    No responses have been submitted for this case yet.
-                  </Typography>
-                ) : (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {responseModalData.subcases.map(sc => (
-                      <Card key={sc.subcaseId} variant="outlined" sx={{ p: 0, overflow: 'hidden' }}>
-                        <Box sx={{ p: 1.5, bgcolor: 'neutral.100', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                          <Typography level="title-sm" sx={{ fontWeight: 700 }}>
-                            {sc.targetOrgUnitName}
-                          </Typography>
-                          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                            <Chip size="sm" variant="soft" color="neutral">
-                              {WORKFLOW_STATUS_LABELS[sc.status] || sc.status}
-                            </Chip>
-                            {canEditResponses && (
-                              <Button
-                                size="sm"
-                                variant="outlined"
-                                color="primary"
-                                onClick={() => { setResponseModalOpen(false); navigate(`/manual-fill/${sc.subcaseId}`); }}
-                              >
-                                Edit
-                              </Button>
-                            )}
-                          </Box>
-                        </Box>
-                        <Box sx={{ p: 1.5 }}>
-                          {[
-                            { label: 'Section Response', value: sc.sectionExplanation },
-                            { label: 'Department Response', value: sc.departmentExplanation },
-                            { label: 'Administration Response', value: sc.administrationExplanation },
-                          ].map(({ label, value }) => value ? (
-                            <Box key={label} sx={{ mb: 1 }}>
-                              <Typography level="body-xs" sx={{ fontWeight: 600, color: 'neutral.600', mb: 0.25 }}>{label}</Typography>
-                              <Typography level="body-sm">{value}</Typography>
-                            </Box>
-                          ) : null)}
-                          {sc.actionItems.length > 0 && (
-                            <Box sx={{ mt: 1 }}>
-                              <Typography level="body-xs" sx={{ fontWeight: 600, color: 'neutral.600', mb: 0.5 }}>Action Items ({sc.actionItems.length})</Typography>
-                              {sc.actionItems.map((item, i) => (
-                                <Box key={i} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', mb: 0.5 }}>
-                                  <Chip size="sm" variant="soft" color="neutral" sx={{ minWidth: 'unset' }}>{item.status}</Chip>
-                                  <Box>
-                                    <Typography level="body-xs" sx={{ fontWeight: 600 }}>{item.title}</Typography>
-                                    {item.dueDate && <Typography level="body-xs" sx={{ color: 'neutral.500' }}>Due: {item.dueDate}</Typography>}
-                                  </Box>
-                                </Box>
-                              ))}
-                            </Box>
-                          )}
-                          {!sc.sectionExplanation && !sc.departmentExplanation && !sc.administrationExplanation && (
-                            <Typography level="body-sm" sx={{ color: 'neutral.400', fontStyle: 'italic' }}>No response submitted yet.</Typography>
-                          )}
-                        </Box>
-                      </Card>
-                    ))}
-                  </Box>
-                )
-              )}
-            </DialogContent>
-            <DialogActions>
-              <Button variant="plain" color="neutral" onClick={() => setResponseModalOpen(false)}>Close</Button>
             </DialogActions>
           </ModalDialog>
         </Modal>

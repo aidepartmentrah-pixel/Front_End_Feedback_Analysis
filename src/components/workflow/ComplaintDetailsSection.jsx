@@ -31,8 +31,10 @@ const fmtDate = (d) => {
  *   item         — normalized inbox/archive item (for target unit, deadlines, force-close dates)
  *   open         — bool  (controlled by parent)
  *   onChange     — () => void  (parent toggles open)
+ *   sectionTitle — string  (optional override for the accordion header, e.g. Notice context)
+ *   emptyText    — string  (optional override for the "not loaded yet" placeholder)
  */
-const ComplaintDetailsSection = ({ incidentData, item, open, onChange }) => {
+const ComplaintDetailsSection = ({ incidentData, item, open, onChange, sectionTitle = '📋 تفاصيل الشكوى', emptyText = 'لم يتم تحميل تفاصيل الشكوى' }) => {
   // HCAT Automatic Force Close Policy — due date / countdown only apply to
   // complaints actively pending at Section/Department/Administration. Notices,
   // seasonal reports, denied/reopened cases, and the Patient Services decision
@@ -70,7 +72,7 @@ const ComplaintDetailsSection = ({ incidentData, item, open, onChange }) => {
       }}
     >
       <AccordionSummary indicator={<ExpandMoreIcon />}>
-        <Typography sx={theme.typography.cardTitle}>📋 تفاصيل الشكوى</Typography>
+        <Typography sx={theme.typography.cardTitle}>{sectionTitle}</Typography>
         {!open && (
           <Typography level="body-xs" sx={{ color: 'neutral.500', mr: 1 }}>
             (انقر للتوسيع)
@@ -105,11 +107,11 @@ const ComplaintDetailsSection = ({ incidentData, item, open, onChange }) => {
               <InfoRow label="Severity"             value={incidentData.severity_name} />
               <InfoRow label="Harm Level"              value={incidentData.harm_level} />
               <InfoRow label="Stage"                 value={incidentData.stage_name} />
-              <InfoRow label="القسم المُبلِّغ"      value={incidentData.issuing_department_name} />
-              <InfoRow label="الجهة المستهدفة"      value={item?.targetOrgUnitName} />
+              <InfoRow label="قسم الصادر"           value={incidentData.issuing_department_name} />
+              <InfoRow label="قسم المعني"           value={item?.targetOrgUnitName} />
               <InfoRow label="الإجراء الفوري"       value={incidentData.immediate_action} />
               <InfoRow label="تاريخ الحادثة"        value={incidentData.incident_date} />
-              <InfoRow label="تاريخ وصول الحادثة إلى مكتب الشكاوى" value={incidentData.feedback_received_date} />
+              <InfoRow label="تاريخ تلقي الملاحظة" value={incidentData.feedback_received_date} />
               <InfoRow label="تاريخ الاستحقاق"      value={fmtDate(dueDate)} />
               {countdown && (
                 <>
@@ -124,7 +126,7 @@ const ComplaintDetailsSection = ({ incidentData, item, open, onChange }) => {
           </Box>
         ) : (
           <Typography level="body-sm" sx={{ color: 'neutral.400', fontStyle: 'italic' }}>
-            لم يتم تحميل تفاصيل الشكوى
+            {emptyText}
           </Typography>
         )}
       </AccordionDetails>
